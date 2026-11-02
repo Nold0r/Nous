@@ -13,6 +13,11 @@ const errors = []
 const context = connected ? browser.contexts()[0] : await browser.newContext({ viewport: { width: 1400, height: 860 } })
 const page = connected ? context.pages().find((p) => !p.url().startsWith('devtools:')) : await context.newPage()
 assert.ok(page, 'debug WebView must expose one application page')
+page.setDefaultTimeout(15_000)
+if (connected) {
+  const identifier = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('plugin:app|identifier'))
+  assert.equal(identifier, 'com.nous.devtest', 'refuse to change a production WebView')
+}
 page.on('pageerror', (error) => errors.push(String(error)))
 page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
 const ids = ['overview', 'map', 'characters', 'relics', 'design-system']
@@ -42,6 +47,10 @@ async function setModule(id, enabled) {
   if (await checkbox.isChecked() !== enabled) {
     await page.locator('label.ui-switch').filter({ has: checkbox }).click()
   }
+  await page.waitForFunction(({ title, enabled }) => {
+    const row = [...document.querySelectorAll('label.ui-switch')].find((el) => el.querySelector('.ui-switch__label')?.textContent === title)
+    return row?.querySelector('input')?.checked === enabled && !row.querySelector('input').disabled
+  }, { title: title[id], enabled })
   assert.equal(await checkbox.isChecked(), enabled)
 }
 for (const id of ids) {
@@ -85,6 +94,15 @@ if (!connected) {
   await page.setViewportSize({ width: 1000, height: 640 })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'minimum window has no horizontal overflow')
 }
+const saved = await page.evaluate((connected) => connected
+  ? window.__TAURI_INTERNALS__.invoke('get_module_configuration')
+  : JSON.parse(localStorage.getItem('nous.modules.v1')), connected)
+assert.deepEqual([...saved.disabled].sort(), [...ids].sort(), 'all disabled choices must be persisted after route changes')
 assert.deepEqual(errors, [], 'no console errors or uncaught exceptions')
 console.log('UI smoke: five modules off, empty categories hidden, redirects, reload persistence, re-enable, zero console errors')
-await browser.close()
+if (connected && process.env.NOUS_RESTART_AFTER === 'true') {
+  try { await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('plugin:process|restart')) }
+  catch (error) { if (!/closed|destroyed|disconnected/i.test(String(error))) throw error }
+  console.log('Requested immediate native restart after the last saved toggle')
+}
+await browser.close().catch(() => {})

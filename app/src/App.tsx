@@ -12,9 +12,10 @@ export default function App() {
   return <ModuleProvider><Shell /></ModuleProvider>
 }
 function Shell() {
-  const { screens: features } = useModules()
+  const { screens: features, ready } = useModules()
   const defaultFeature = features.find((f) => f.isDefault) ?? features.find((f) => f.id === 'settings') ?? features[0]
 
+  if (!ready) return <main className="content" role="status">Загрузка настроек…</main>
   return (
     <HashRouter>
       <SpaceBackground />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { enabledScreens, isDevLaunch, modules } from './registry'
 import { ModuleRuntime } from './module-runtime'
@@ -27,7 +27,24 @@ function storage(id: string) {
 }
 function useModuleState() {
   const [configuration, setConfiguration] = useState(load)
+  const [ready, setReady] = useState(() => !isTauri())
+  const [saving, setSaving] = useState(false)
+  const pending = useRef(false)
   const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!isTauri()) return
+    let cancelled = false
+    invoke<Configuration | null>('get_module_configuration').then(async (saved) => {
+      if (cancelled) return
+      const next = saved ?? load()
+      // Import existing WebView choices once, before starting any module work.
+      if (!saved) await invoke('set_module_configuration', { configuration: next })
+      if (!cancelled) { setConfiguration(next); setReady(true) }
+    }).catch(() => {
+      if (!cancelled) { setError('Не удалось прочитать настройки модулей. Проверьте доступ к папке данных.'); setReady(true) }
+    })
+    return () => { cancelled = true }
+  }, [])
   // Release builds always use their built-in defaults, even with old dev preferences.
   const enabled = useMemo(() => new Set(modules.filter((m) => !isDevLaunch || !configuration.disabled.includes(m.id)).map((m) => m.id)), [configuration])
   const [runtime] = useState(() => new ModuleRuntime(
@@ -36,20 +53,28 @@ function useModuleState() {
       services: { hsr: module.requires?.includes('hsr') ? { read: <T,>(command: string) => invoke<T>(command) } : undefined } }),
     setError,
   ))
-  useEffect(() => { void runtime.update(modules.filter((m) => enabled.has(m.id)), configuration.settings) }, [runtime, enabled, configuration.settings])
+  useEffect(() => { if (ready) void runtime.update(modules.filter((m) => enabled.has(m.id)), configuration.settings) }, [runtime, enabled, configuration.settings, ready])
   useEffect(() => () => { void runtime.update([]) }, [runtime])
-  const save = (next: Configuration) => {
-    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(next)); setConfiguration(next); setError(null) }
-    catch { setError('Не удалось сохранить выбор модулей. Проверьте доступ к хранилищу и повторите.') }
+  const save = async (next: Configuration) => {
+    if (pending.current) return
+    pending.current = true
+    setSaving(true)
+    try {
+      if (isTauri()) await invoke('set_module_configuration', { configuration: next })
+      else localStorage.setItem(CONFIG_KEY, JSON.stringify(next))
+      setConfiguration(next)
+      setError(null)
+    } catch { setError('Не удалось сохранить выбор модулей. Проверьте доступ к хранилищу и повторите.') }
+    finally { pending.current = false; setSaving(false) }
   }
   return {
-    enabled, screens: enabledScreens(enabled), error,
+    ready, saving, enabled, screens: enabledScreens(enabled), error,
     setEnabled: (id: string, value: boolean) => {
       if (!isDevLaunch || !modules.some((m) => m.id === id)) return
-      save({ ...configuration, disabled: [...configuration.disabled.filter((item) => item !== id), ...(!value ? [id] : [])] })
+      void save({ ...configuration, disabled: [...configuration.disabled.filter((item) => item !== id), ...(!value ? [id] : [])] })
     },
     setSettings: (id: string, settings: ModuleSettings) => {
-      if (modules.some((m) => m.id === id)) save({ ...configuration, settings: { ...configuration.settings, [id]: settings } })
+      if (modules.some((m) => m.id === id)) void save({ ...configuration, settings: { ...configuration.settings, [id]: settings } })
     },
   }
 }

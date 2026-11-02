@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react'
 import type { ModuleSettings, ScreenDef } from './types'
 interface ModuleState {
+  ready: boolean
+  saving: boolean
   enabled: ReadonlySet<string>
   screens: ScreenDef[]
   error: string | null

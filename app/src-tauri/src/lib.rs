@@ -1,4 +1,5 @@
 mod ipc;
+mod module_config;
 mod launch;
 mod sniffer;
 mod veritas;
@@ -47,6 +48,8 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      module_config::get_module_configuration,
+      module_config::set_module_configuration,
       ipc::get_profile,
       ipc::get_inventory,
       ipc::get_relics,

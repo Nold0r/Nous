@@ -116,10 +116,8 @@ fn check_session(s: &Session) -> Vec<String> {
         "no GetBagScRsp (login not fully recorded?)".into(),
     );
     fail(!s.had_avatars, "no GetAvatarDataScRsp".into());
-    fail(
-        s.had_bag && inv.relics.is_empty(),
-        "bag has no relics".into(),
-    );
+    // A new account can legitimately have an empty bag. Gear references below
+    // still detect missing items; presence of GetBagScRsp proves completeness.
     fail(
         s.had_avatars && inv.avatar_paths.is_empty(),
         "no characters".into(),
