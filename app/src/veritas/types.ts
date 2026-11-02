@@ -71,8 +71,6 @@ export interface OverlaySettings {
   offsetX: number
   offsetY: number
   theme: ThemeName
-  customColors: string[]
-  useCustomColors: boolean
   fontSizes: Record<string, number>
   legendSize: 'small' | 'body' | 'large'
   pieOpacity: number
@@ -90,7 +88,6 @@ export interface OverlaySettings {
   autoExport: boolean
   dateFolders: boolean
   exportDirectory: string | null
-  hotkeys: Record<string, string>
 }
 
 export interface OverlayState {
@@ -102,7 +99,6 @@ export interface OverlayState {
 }
 
 export interface PluginOptions {
-  theme?: unknown
   locale: string
   streamerMode: boolean
   streamerMessage: string
@@ -112,8 +108,6 @@ export interface PluginOptions {
   themeMode: 'Dark' | 'Light'
   legendTextStyle: string
   fontSizes: Record<string, number>
-  defenderExclusion: boolean
-  beta: boolean
   suppressNative: boolean
 }
 
@@ -126,11 +120,10 @@ export interface PluginConfig {
 
 export const defaultSettings: OverlaySettings = {
   enabled: true, clickThrough: true, scale: 1, opacity: .86, width: 520, height: 620,
-  anchor: 'top-right', offsetX: 24, offsetY: 24, theme: 'nous', customColors: [], useCustomColors: false,
+  anchor: 'top-right', offsetX: 24, offsetY: 24, theme: 'nous',
   fontSizes: { body: 14, heading: 20, small: 12, legend: 14 }, legendSize: 'body', pieOpacity: .8,
   views: { legend: true, characters: true, breakdown: false, enemies: false, metrics: true, graph: false, logs: false },
   columns: ['damage', 'dpav', 'share'], metric: 'damage', breakdownScope: 'team', breakdownChart: 'pie',
   characterId: null, showLegend: true, showBreakdownTable: true, graphUnit: 'turn', streamerMode: false,
   streamerMessage: 'Nous', autoExport: false, dateFolders: true, exportDirectory: null,
-  hotkeys: { menu: 'Ctrl+Shift+M', hide: 'Ctrl+Shift+H', zoomIn: 'Ctrl+Shift+Up', zoomOut: 'Ctrl+Shift+Down', zoomReset: 'Ctrl+Shift+0' },
 }

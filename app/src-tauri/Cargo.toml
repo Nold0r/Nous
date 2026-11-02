@@ -27,7 +27,7 @@ nous-core = { path = "../../crates/nous-core" }
 nous-veritas = { path = "../../crates/nous-veritas" }
 ron = "0.10.1"
 regex = "1"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_HiDpi", "Win32_UI_Shell", "Win32_Graphics_Gdi"] }
 nous-hsr = { path = "../../crates/nous-hsr" }
 # Also used by the existing optional Veritas integration.
 futures = "0.3"

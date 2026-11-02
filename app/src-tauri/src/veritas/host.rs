@@ -1,12 +1,10 @@
 use super::{
-    hotkeys::Hotkeys,
     plugin_config::{self, PluginConfigView, PluginOptions},
     settings::OverlaySettings,
 };
 use nous_veritas::{Battle, Engine, Snapshot};
 use serde::Serialize;
 use std::{
-    collections::BTreeMap,
     path::PathBuf,
     sync::{
         Mutex,
@@ -47,7 +45,6 @@ pub struct Host {
     pub target_available: AtomicBool,
     pub exclusive: AtomicBool,
     pub stop: AtomicBool,
-    hotkeys: Hotkeys,
     files: Mutex<()>,
 }
 impl Host {
@@ -122,30 +119,16 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         target_available: AtomicBool::new(true),
         exclusive: AtomicBool::new(false),
         stop: AtomicBool::new(false),
-        hotkeys: Hotkeys::start(app.clone()),
         files: Mutex::new(()),
     });
     super::window::setup(app, replay)?;
     let handle = app.clone();
     std::thread::spawn(move || {
-        let mut bound = false;
         loop {
             std::thread::sleep(Duration::from_millis(100));
             let host = handle.state::<Host>();
             if host.stop.load(Ordering::Relaxed) {
                 break;
-            }
-            let enabled = host.replay || handle.state::<super::VeritasState>().enabled();
-            if enabled != bound {
-                let keys = if enabled {
-                    host.settings().hotkeys
-                } else {
-                    BTreeMap::new()
-                };
-                if let Err(e) = host.hotkeys.configure(&keys) {
-                    diagnostic(&handle, e);
-                }
-                bound = enabled;
             }
             super::window::refresh(&handle);
         }
@@ -243,20 +226,7 @@ pub fn set_veritas_overlay_settings(
     settings.validate()?;
     let host = app.state::<Host>();
     let _files = host.files.lock().unwrap();
-    let old = host.settings();
-    if old.hotkeys != settings.hotkeys
-        && (host.replay || app.state::<super::VeritasState>().enabled())
-    {
-        host.hotkeys.configure(&settings.hotkeys)?;
-    }
-    if let Err(error) =
-        plugin_config::atomic_json(&host.root.join("veritas-overlay.json"), &settings)
-    {
-        if old.hotkeys != settings.hotkeys {
-            let _ = host.hotkeys.configure(&old.hotkeys);
-        }
-        return Err(error);
-    }
+    plugin_config::atomic_json(&host.root.join("veritas-overlay.json"), &settings)?;
     host.inner.lock().unwrap().settings = settings;
     super::window::refresh(&app);
     publish(&app);
@@ -397,10 +367,10 @@ fn plugin_locations(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
 }
 #[tauri::command]
 pub fn read_veritas_plugin_config(app: AppHandle) -> Result<PluginConfigView, String> {
-    let (root, update) = plugin_locations(&app)?;
+    let (root, _) = plugin_locations(&app)?;
     Ok(PluginConfigView {
         directory: root.display().to_string(),
-        options: plugin_config::read(&root, &update)?,
+        options: plugin_config::read(&root)?,
         requires_restart: true,
         warning: plugin_config::WARNING,
     })
@@ -444,7 +414,7 @@ pub fn prepare_plugin(app: &AppHandle, game_exe: &str, version: &str) -> Result<
         .parent()
         .ok_or("Неверный путь игры")?
         .join("veritas.update.json");
-    let mut options = plugin_config::read(&root, &update)?;
+    let mut options = plugin_config::read(&root)?;
     options.suppress_native = true;
     plugin_config::write(&root, &update, version.trim_start_matches('v'), &options)
 }

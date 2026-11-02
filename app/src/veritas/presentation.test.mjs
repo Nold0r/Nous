@@ -39,11 +39,9 @@ test('sorting does not mutate lineup or corrupt per-character turn association',
   assert.equal(characterValue(sorted[1], 'effective', battle), '70')
 })
 
-test('custom colors are bounded to twelve validated hex slots', () => {
-  const settings = { theme: 'nous', opacity: .8, fontSizes: {}, legendSize: 'body', useCustomColors: true, customColors: ['#123abc', 'url(example)', ...Array(11).fill('#abcdef')] }
-  const variables = themeVariables(settings)
-  assert.equal(variables['--vt-surface'], '#123abc')
-  assert.equal(variables['--panel'], undefined)
-  assert.equal(variables['--success'], '#abcdef')
-  assert.equal(variables['undefined'], undefined)
+test('theme only changes the accent and font variables', () => {
+  const variables = themeVariables({ theme: 'warm', opacity: .8, fontSizes: {}, legendSize: 'body' })
+  assert.equal(variables['--gold'], '#f0bd82')
+  assert.equal(variables['--vt-surface'], undefined)
+  assert.equal(variables['--vt-opacity'], .8)
 })

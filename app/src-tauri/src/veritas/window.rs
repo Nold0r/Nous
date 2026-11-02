@@ -16,7 +16,21 @@ use windows_sys::Win32::{
 };
 use windows_sys::core::BOOL;
 
-pub fn setup(app: &AppHandle, replay: bool) -> tauri::Result<()> {
+/// The overlay webview is created on first need, so Nous with Veritas off
+/// carries no extra window.
+fn overlay(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(window) = app.get_webview_window("veritas-overlay") {
+        return Some(window);
+    }
+    match build_overlay(app) {
+        Ok(window) => Some(window),
+        Err(e) => {
+            log::warn!("Veritas overlay window: {e}");
+            None
+        }
+    }
+}
+fn build_overlay(app: &AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let mut builder = WebviewWindowBuilder::new(
         app,
         "veritas-overlay",
@@ -44,6 +58,9 @@ pub fn setup(app: &AppHandle, replay: bool) -> tauri::Result<()> {
     }
     let overlay = builder.build()?;
     overlay.set_ignore_cursor_events(true)?;
+    Ok(overlay)
+}
+pub fn setup(app: &AppHandle, replay: bool) -> tauri::Result<()> {
     if replay {
         let mut target = WebviewWindowBuilder::new(
             app,
@@ -114,7 +131,17 @@ fn target(app: &AppHandle) -> Option<HWND> {
 }
 pub fn refresh(app: &AppHandle) {
     let host = app.state::<Host>();
-    let Some(overlay) = app.get_webview_window("veritas-overlay") else {
+    let enabled = host.replay || app.state::<super::VeritasState>().enabled();
+    if !enabled {
+        if let Some(window) = app.get_webview_window("veritas-overlay") {
+            if window.is_visible().unwrap_or(false) {
+                let _ = window.hide();
+            }
+        }
+        host.update_presentation(app, Presentation::default());
+        return;
+    }
+    let Some(overlay) = overlay(app) else {
         return;
     };
     let target = target(app);
@@ -159,9 +186,8 @@ pub fn refresh(app: &AppHandle) {
         };
     }
     let snapshot = host.snapshot();
-    let enabled = host.replay || app.state::<super::VeritasState>().enabled();
     presentation.visible = nous_veritas::visible(
-        enabled && settings.enabled,
+        settings.enabled,
         snapshot.connected,
         snapshot.active,
         presentation.target_visible,

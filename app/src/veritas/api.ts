@@ -18,10 +18,9 @@ export const overlayAction = (action: 'toggle' | 'show' | 'hide' | 'settings' | 
   invoke<OverlayState>('veritas_overlay_action', { action })
 export const readPluginConfig = () => invoke<PluginConfig>('read_veritas_plugin_config')
 export const writePluginConfig = (options: PluginOptions) => invoke<PluginConfig>('write_veritas_plugin_config', { options })
-export type UpdateChannel = 'stable' | 'beta'
-export const checkUpdate = (channel: UpdateChannel) => invoke<{ version: string; notes: string; gameRange: string | null; prerelease: boolean }>('check_veritas_update', { channel })
+export const checkUpdate = () => invoke<{ version: string; notes: string; gameRange: string | null; prerelease: boolean }>('check_veritas_update')
 /** The native adapter requires a previous explicit consent and owned installation. */
-export const installCheckedUpdate = (channel: UpdateChannel) => invoke('enable_veritas', { acceptRisk: true, channel, updateOnly: true })
+export const installUpdate = () => invoke('enable_veritas', { acceptRisk: true, updateOnly: true })
 
 /** One subscription per surface; settings writes are serialized to preserve slider edits. */
 export function useOverlay() {

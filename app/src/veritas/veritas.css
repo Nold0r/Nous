@@ -1,5 +1,5 @@
 /* Scoped extension of Nous tokens. Overlay and preview share the same renderer. */
-.vt-controls,
+.vt-settings,
 .vt-overlay,
 .vt-battle {
   --vt-surface: var(--bg);
@@ -34,46 +34,33 @@
   color-scheme: light;
 }
 
-.vt-controls h3,
-.vt-controls h4,
+.vt-settings h3,
 .vt-battle h3,
 .vt-overlay h1 {
   font-weight: inherit;
   color: var(--text);
 }
 
-.vt-controls h4 { margin: var(--space-5) 0 var(--space-2); font-size: var(--fs-md); }
-.vt-controls p { line-height: 1.6; }
 .vt-caption { color: var(--text-muted); font-size: var(--vt-small-size, var(--fs-sm)); line-height: 1.6; }
-.vt-toolbar,
-.vt-preview-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .vt-actions,
 .vt-inline { display: flex; align-items: center; gap: var(--space-2); }
 .vt-actions { flex-wrap: wrap; }
 .vt-inline { justify-content: space-between; }
 .vt-inline--wrap { flex-wrap: wrap; }
-.vt-status { margin: var(--space-3) 0; color: var(--text-muted); font-size: var(--fs-sm); }
 .vt-notice { padding: var(--space-3); margin: var(--space-3) 0; background: var(--panel); color: var(--warning); font-size: var(--vt-small-size, var(--fs-sm)); line-height: 1.6; border-radius: var(--radius); }
 .vt-error,
 .vt-success { padding: var(--space-2) 0; overflow-wrap: anywhere; font-size: var(--fs-sm); line-height: 1.6; }
 .vt-error { color: var(--danger); }
 .vt-success { color: var(--success); }
-.vt-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); border-bottom: 1px solid var(--line); padding: var(--space-3) 0; }
-.vt-tabs button,
 .vt-segments button { border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); padding: var(--space-2) var(--space-3); cursor: pointer; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
-.vt-tabs button:hover,
 .vt-segments button:hover { background: var(--hover); color: var(--text); }
-.vt-tabs button[aria-selected="true"],
 .vt-segments button[aria-pressed="true"] { background: var(--select-bg); color: var(--select-text); }
-.vt-tabs button { font-size: var(--fs-sm); }
-.vt-settings-content { padding: var(--space-4) 0 var(--space-5); }
 .vt-form-grid,
 .vt-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-5); }
 .vt-field { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); min-width: 0; padding: var(--space-2) 0; font-size: var(--fs-sm); color: var(--text); }
 .vt-field small { font-size: var(--fs-xs); line-height: 1.6; color: var(--text-muted); }
 .vt-field input,
 .vt-field select,
-.vt-field textarea,
 .vt-inline select { width: 100%; min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--vt-surface); color: var(--text); font: inherit; caret-color: var(--gold); }
 .vt-inline select { width: auto; max-width: 100%; }
 .vt-field select option,
@@ -81,21 +68,7 @@
 .vt-range { display: flex; align-items: center; gap: var(--space-3); }
 .vt-range input { flex: 1; padding: 0; accent-color: var(--gold); }
 .vt-range output { min-width: 4.5ch; text-align: right; font-variant-numeric: tabular-nums; }
-.vt-checks { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding: var(--space-2) 0; }
-.vt-checks label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); cursor: pointer; }
-.vt-controls input[type="checkbox"] { accent-color: var(--gold); }
-.vt-color-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); padding: var(--space-3) 0; }
-.vt-color-grid label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-xs); }
-.vt-color-grid input { width: var(--space-8); height: var(--space-8); padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; }
-.vt-plugin-fields { border: 0; margin: var(--space-3) 0 0; padding: 0; min-width: 0; }
-.vt-plugin-fields:disabled { opacity: .6; }
-.vt-path,
 .vt-release-notes { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); user-select: text; }
-.vt-field textarea { resize: vertical; font-family: var(--font-ui); }
-.vt-help { max-width: 72ch; }
-.vt-help p + p { margin-top: var(--space-3); }
-.vt-preview-heading { border-top: 1px solid var(--line); padding-top: var(--space-5); margin-bottom: var(--space-3); }
-.vt-preview-heading h3 { font-size: var(--fs-lg); }
 .vt-preview { overflow: auto; max-height: 720px; margin: var(--space-3) 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--vt-surface); }
 .vt-preview > .vt-battle { padding: var(--space-4); background: color-mix(in srgb, var(--vt-surface) calc(var(--vt-opacity) * 100%), transparent); }
 .vt-battle { font-size: var(--vt-body-size); }
@@ -159,24 +132,19 @@
 .vt-overlay__header h1 { font-size: var(--vt-heading-size); margin: 0; line-height: 1.3; }
 .vt-overlay__header h1 span { color: var(--text-muted); }
 .vt-overlay__header p { margin-top: var(--space-1); color: var(--text-muted); font-size: var(--vt-small-size); }
-.vt-controls :focus-visible,
+.vt-settings :focus-visible,
 .vt-overlay :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-.vt-controls ::selection,
+.vt-settings ::selection,
 .vt-overlay ::selection { background: var(--select-bg); color: var(--select-text); }
-.vt-controls *,
+.vt-settings *,
 .vt-overlay * { scrollbar-color: var(--line-strong) transparent; }
 
 @media (max-width: 720px) {
   .vt-form-grid,
   .vt-choice-grid { grid-template-columns: minmax(0, 1fr); }
-  .vt-color-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .vt-controls .vt-toolbar { align-items: flex-start; }
-  .vt-controls .vt-tabs { gap: var(--space-1); }
-  .vt-controls .vt-tabs button { padding-inline: var(--space-2); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vt-tabs button,
   .vt-segments button { transition: none; }
 }
 
@@ -184,3 +152,31 @@ html.veritas-overlay-root,
 html.veritas-overlay-root body,
 html.veritas-overlay-root #root { background: transparent; }
 html.veritas-overlay-root #root { overflow: hidden; }
+
+/* ---------- Veritas section in Settings ---------- */
+.vt-settings { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.vt-tab { display: flex; flex-direction: column; }
+.vt-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) 0; }
+.vt-row__text { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.vt-row__hint { font-size: var(--fs-sm); color: var(--text-muted); }
+.vt-slider { display: flex; align-items: center; gap: var(--space-3); width: min(260px, 50%); }
+.vt-slider input { flex: 1; min-width: 0; accent-color: var(--select-bg); }
+.vt-slider output { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--fs-sm); }
+.vt-input { width: min(320px, 55%); height: 32px; padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--panel); color: var(--text); font: inherit; font-size: var(--fs-sm); }
+.vt-input:hover { border-color: var(--text-muted); }
+.vt-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); max-width: 60%; }
+.vt-more { border-top: 1px solid var(--line); padding-top: var(--space-3); }
+.vt-more > summary { cursor: pointer; color: var(--text-muted); font-size: var(--fs-sm); list-style: none; }
+.vt-more > summary::before { content: '▸'; display: inline-block; width: 1.2em; transition: transform var(--dur-fast) var(--ease); }
+.vt-more[open] > summary::before { transform: rotate(90deg); }
+.vt-more > summary:hover { color: var(--text); }
+.vt-more[open] > summary { margin-bottom: var(--space-3); }
+.vt-more > .ui-button { margin-top: var(--space-3); }
+.vt-plugin__fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.vt-plugin__fields:disabled { opacity: .6; }
+.vt-last .vt-actions { margin-bottom: var(--space-2); }
+@media (max-width: 720px) {
+  .vt-row { flex-wrap: wrap; }
+  .vt-slider, .vt-input, .vt-chips { width: 100%; max-width: none; justify-content: flex-start; }
+}
+.vt-settings > .ui-tabs { align-self: flex-start; }

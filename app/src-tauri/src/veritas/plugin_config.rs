@@ -15,10 +15,7 @@ pub struct PluginOptions {
     pub theme_mode: String,
     pub legend_text_style: String,
     pub font_sizes: BTreeMap<String, f64>,
-    pub defender_exclusion: bool,
-    pub beta: bool,
     pub suppress_native: bool,
-    pub theme: Option<Value>,
 }
 impl Default for PluginOptions {
     fn default() -> Self {
@@ -41,10 +38,7 @@ impl Default for PluginOptions {
             .into_iter()
             .map(|(k, v)| (k.into(), v))
             .collect(),
-            defender_exclusion: false,
-            beta: false,
             suppress_native: true,
-            theme: None,
         }
     }
 }
@@ -259,9 +253,8 @@ fn preserve(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-pub fn read(root: &Path, update: &Path) -> Result<PluginOptions, String> {
+pub fn read(root: &Path) -> Result<PluginOptions, String> {
     let config = read_json(&root.join("config/config.json"))?;
-    let updater = read_json(update)?;
     let mut out = PluginOptions::default();
     macro_rules! string {
         ($field:ident,$key:literal) => {
@@ -283,7 +276,6 @@ pub fn read(root: &Path, update: &Path) -> Result<PluginOptions, String> {
     string!(legend_text_style, "legend_text_style");
     boolean!(streamer_mode, "streamer_mode");
     boolean!(auto_show_hide, "auto_showhide_ui");
-    boolean!(defender_exclusion, "defender_exclusion");
     if let Some(v) = config["widget_opacity"].as_f64() {
         out.widget_opacity = v;
     }
@@ -297,8 +289,6 @@ pub fn read(root: &Path, update: &Path) -> Result<PluginOptions, String> {
             }
         }
     }
-    out.beta = updater["beta"].as_bool().unwrap_or(false);
-    out.theme = config.get("theme").cloned();
     let state_path = root.join("data/state");
     if state_path.exists() {
         let state = std::fs::read_to_string(state_path).map_err(|e| e.to_string())?;
@@ -376,9 +366,6 @@ pub fn write(
     for style in options.font_sizes.keys() {
         validate_text_style(style)?;
     }
-    if let Some(theme) = &options.theme {
-        validate_theme(theme)?;
-    }
     if ![
         "en", "fr", "es", "de", "it", "ja", "pt", "nl", "ru", "vi", "zh", "pl",
     ]
@@ -417,15 +404,11 @@ pub fn write(
     config["auto_showhide_ui"] = json!(options.auto_show_hide && !options.suppress_native);
     config["theme_mode"] = json!(options.theme_mode);
     config["legend_text_style"] = json!(options.legend_text_style);
-    config["defender_exclusion"] = json!(options.defender_exclusion);
     if !config["font_sizes"].is_object() {
         config["font_sizes"] = json!({});
     }
     for (k, v) in &options.font_sizes {
         config["font_sizes"][k] = json!({"size":v,"family":"Proportional"});
-    }
-    if let Some(theme) = &options.theme {
-        config["theme"] = theme.clone();
     }
     // Validate preserved stock fields too; otherwise a malformed existing value
     // could make the plugin discard the entire newly written config.
@@ -452,7 +435,7 @@ pub fn write(
         return Err("Конфиг обновления Veritas должен быть объектом".into());
     }
     updater["version"] = json!(version);
-    updater["beta"] = json!(options.beta);
+    updater["beta"] = json!(false);
     updater["prompt_beta"] = json!(false);
     // Validate every input before writing any file. Original backups are kept once.
     for path in [&config_path, &state_path, update] {
@@ -482,27 +465,28 @@ mod tests {
             Value::Array(vec![json!({"Custom":[0,1,2.0]}); 12]),
             Value::Array(vec![json!({"Custom":[0,1,2],"Gray":null}); 12]),
         ] {
-            invalid.push(PluginOptions {
-                theme: Some(theme),
-                ..PluginOptions::default()
-            });
+            // a malformed palette already in the stock config
+            invalid.push((
+                PluginOptions::default(),
+                json!({"future_option":123,"theme":theme}).to_string(),
+            ));
         }
-        invalid.push(PluginOptions {
-            legend_text_style: "Bogus".into(),
-            ..PluginOptions::default()
-        });
+        invalid.push((
+            PluginOptions {
+                legend_text_style: "Bogus".into(),
+                ..PluginOptions::default()
+            },
+            "{\"future_option\":123}".into(),
+        ));
         let mut fonts = PluginOptions::default();
         fonts.font_sizes.insert("Bogus".into(), 14.0);
-        invalid.push(fonts);
-        for options in invalid {
+        invalid.push((fonts, "{\"future_option\":123}".into()));
+        for (options, config) in invalid {
             std::fs::create_dir_all(root.join("config")).unwrap();
             std::fs::create_dir_all(root.join("data")).unwrap();
             std::fs::create_dir_all(update.parent().unwrap()).unwrap();
             let files = [
-                (
-                    root.join("config/config.json"),
-                    b"{\"future_option\":123}".to_vec(),
-                ),
+                (root.join("config/config.json"), config.into_bytes()),
                 (root.join("data/state"), STATE.as_bytes().to_vec()),
                 (update.clone(), b"{\"future_option\":456}".to_vec()),
             ];
@@ -522,7 +506,7 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn accepts_stock_palette_tokens_and_custom_rgb_bounds() {
+    fn keeps_valid_stock_palette() {
         let root =
             std::env::temp_dir().join(format!("nous-veritas-valid-config-{}", std::process::id()));
         let update = root.join("fake-game/veritas.update.json");
@@ -533,11 +517,13 @@ mod tests {
             ]),
             json!(["Blue","Cyan","Teal","Jade","Green","Grass","Brown","Bronze","Gold","Orange",{"Custom":[0,255,128]},"Gray"]),
         ] {
-            let options = PluginOptions {
-                theme: Some(theme.clone()),
-                ..PluginOptions::default()
-            };
-            write(&root, &update, "0.2.57", &options).unwrap();
+            std::fs::create_dir_all(root.join("config")).unwrap();
+            std::fs::write(
+                root.join("config/config.json"),
+                json!({ "theme": theme }).to_string(),
+            )
+            .unwrap();
+            write(&root, &update, "0.2.57", &PluginOptions::default()).unwrap();
             assert_eq!(
                 read_json(&root.join("config/config.json")).unwrap()["theme"],
                 theme
@@ -617,7 +603,7 @@ mod tests {
         assert_eq!(config["streamer_mode"], false);
         assert_eq!(read_json(&update).unwrap()["prompt_beta"], false);
         assert!(root.join("config/config.nous-original").exists());
-        assert!(read(&root, &update).unwrap().suppress_native);
+        assert!(read(&root).unwrap().suppress_native);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

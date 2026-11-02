@@ -29,7 +29,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::launch::LaunchState;
 mod geometry;
 pub mod host;
-mod hotkeys;
 mod plugin_config;
 mod settings;
 mod window;
@@ -242,7 +241,7 @@ struct Asset {
 
 /// Downloads the latest official release and checks it before anything is installed.
 fn fetch_release() -> Result<(String, Option<String>, Vec<u8>, String), String> {
-    let release = release_for("stable")?;
+    let release = release()?;
     download_release(release)
 }
 fn download_release(release: Release) -> Result<(String, Option<String>, Vec<u8>, String), String> {
@@ -337,7 +336,6 @@ pub fn get_veritas_status(
 pub async fn enable_veritas(
     app: AppHandle,
     accept_risk: bool,
-    channel: Option<String>,
     update_only: Option<bool>,
 ) -> Result<VeritasStatus, String> {
     if !accept_risk {
@@ -345,10 +343,6 @@ pub async fn enable_veritas(
     }
     if is_replay(&app) {
         return Err("В тестовом режиме установка и удаление плагина запрещены".into());
-    }
-    let channel = channel.unwrap_or_else(|| "stable".into());
-    if !["stable", "beta"].contains(&channel.as_str()) {
-        return Err("Неизвестный канал обновлений".into());
     }
     if update_only.unwrap_or(false) {
         let state = app.state::<VeritasState>();
@@ -381,11 +375,7 @@ pub async fn enable_veritas(
     }
 
     let (version, game_range, data, sha256) = tauri::async_runtime::spawn_blocking(move || {
-        if channel == "stable" {
-            fetch_release()
-        } else {
-            download_release(release_for(&channel)?)
-        }
+        fetch_release()
     })
     .await
     .map_err(|e| e.to_string())??;
@@ -499,29 +489,13 @@ pub struct UpdateInfo {
     game_range: Option<String>,
     prerelease: bool,
 }
-fn release_for(channel: &str) -> Result<Release, String> {
-    let mut release: Release = match channel {
-        "stable" => ureq::get(RELEASE_API)
-            .call()
-            .map_err(|e| e.to_string())?
-            .body_mut()
-            .read_json()
-            .map_err(|e| e.to_string())?,
-        "beta" => {
-            let releases: Vec<Release> =
-                ureq::get("https://api.github.com/repos/hessiser/veritas/releases?per_page=100")
-                    .call()
-                    .map_err(|e| e.to_string())?
-                    .body_mut()
-                    .read_json()
-                    .map_err(|e| e.to_string())?;
-            releases
-                .into_iter()
-                .find(|r| r.prerelease && !r.draft)
-                .ok_or("Официальных бета-релизов сейчас нет")?
-        }
-        _ => return Err("Неизвестный канал обновлений".into()),
-    };
+fn release() -> Result<Release, String> {
+    let mut release: Release = ureq::get(RELEASE_API)
+        .call()
+        .map_err(|e| e.to_string())?
+        .body_mut()
+        .read_json()
+        .map_err(|e| e.to_string())?;
     if release.draft || release.author.as_ref().map(|a| a.login.as_str()) != Some(TRUSTED_BUILDER) {
         return Err("Релиз создан не GitHub Actions".into());
     }
@@ -542,9 +516,9 @@ fn release_for(channel: &str) -> Result<Release, String> {
     Ok(release)
 }
 #[tauri::command]
-pub async fn check_veritas_update(channel: Option<String>) -> Result<UpdateInfo, String> {
+pub async fn check_veritas_update() -> Result<UpdateInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let release = release_for(channel.as_deref().unwrap_or("stable"))?;
+        let release = release()?;
         let notes = release.body.unwrap_or_default();
         let game_range = game_range_from_notes(&notes);
         Ok(UpdateInfo {

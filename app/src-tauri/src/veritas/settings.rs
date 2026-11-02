@@ -14,8 +14,6 @@ pub struct OverlaySettings {
     pub offset_x: f64,
     pub offset_y: f64,
     pub theme: String,
-    pub custom_colors: Vec<String>,
-    pub use_custom_colors: bool,
     pub font_sizes: BTreeMap<String, f64>,
     pub legend_size: String,
     pub pie_opacity: f64,
@@ -33,7 +31,6 @@ pub struct OverlaySettings {
     pub auto_export: bool,
     pub date_folders: bool,
     pub export_directory: Option<String>,
-    pub hotkeys: BTreeMap<String, String>,
 }
 impl Default for OverlaySettings {
     fn default() -> Self {
@@ -48,13 +45,6 @@ impl Default for OverlaySettings {
             offset_x: 24.0,
             offset_y: 24.0,
             theme: "nous".into(),
-            custom_colors: [
-                "#0c070b", "#171219", "#ecebe6", "#d8b875", "#b53e58", "#8fd4a4", "#8ec5ff",
-                "#b893f5", "#f1b358", "#ec8a8a", "#74aef0", "#e9e4da",
-            ]
-            .map(String::from)
-            .to_vec(),
-            use_custom_colors: false,
             font_sizes: [
                 ("body", 14.0),
                 ("heading", 20.0),
@@ -91,16 +81,6 @@ impl Default for OverlaySettings {
             auto_export: false,
             date_folders: true,
             export_directory: None,
-            hotkeys: [
-                ("menu", "Ctrl+Shift+M"),
-                ("hide", "Ctrl+Shift+H"),
-                ("zoomIn", "Ctrl+Shift+Up"),
-                ("zoomOut", "Ctrl+Shift+Down"),
-                ("zoomReset", "Ctrl+Shift+0"),
-            ]
-            .into_iter()
-            .map(|(k, v)| (k.into(), v.into()))
-            .collect(),
         }
     }
 }
@@ -124,19 +104,7 @@ impl OverlaySettings {
         {
             return Err("Неизвестная привязка окна".into());
         }
-        if self.custom_colors.len() != 12
-            || self.custom_colors.iter().any(|c| {
-                c.len() != 7
-                    || !c.starts_with('#')
-                    || !c[1..].bytes().all(|v| v.is_ascii_hexdigit())
-            })
-        {
-            return Err("Нужно 12 цветов в формате #RRGGBB".into());
-        }
-        if self.streamer_message.len() > 500
-            || self.hotkeys.len() > 8
-            || self.hotkeys.values().any(|v| v.len() > 80)
-        {
+        if self.streamer_message.len() > 500 {
             return Err("Слишком длинное значение настройки".into());
         }
         Ok(())

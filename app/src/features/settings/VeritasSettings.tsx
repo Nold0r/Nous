@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { disableVeritas, enableVeritas, useVeritasStatus } from '../../lib/veritas'
 import { Button, Panel, Switch } from '../../ui'
-import { VeritasControls } from '../../veritas/VeritasControls'
+import { VeritasOverlaySettings } from '../../veritas/VeritasControls'
 
 /**
  * Opt-in for Veritas. Turning it on asks for an explicit acceptance of the
@@ -44,7 +44,6 @@ export function VeritasSettings() {
     : 'Выключено. В папке игры ничего нет.'
 
   return (
-    <>
     <Panel title="Урон в реальном времени (Veritas)">
       <Switch
         checked={status?.enabled ?? false}
@@ -93,8 +92,8 @@ export function VeritasSettings() {
           </div>
         </div>
       )}
+
+      {!confirming && <VeritasOverlaySettings pluginEnabled={status?.enabled ?? false} />}
     </Panel>
-    <VeritasControls />
-    </>
   )
 }

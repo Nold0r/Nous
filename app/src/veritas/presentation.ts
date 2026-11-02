@@ -7,19 +7,6 @@ export const categoryNames: Record<string, string> = { Basic: 'Базовая а
 export const propertyNames: Record<string, string> = { CurrentHP: 'Текущие HP', MaxHP: 'Макс. HP', Attack: 'Сила атаки', Defence: 'Защита', Speed: 'Скорость', ActionDelay: 'Задержка действия', CriticalChance: 'Крит. шанс', CriticalDamage: 'Крит. урон', CurrentSP: 'Энергия', MaxSP: 'Макс. энергия' }
 export const seriesColors = ['var(--gold)', 'var(--info)', 'var(--success)', 'var(--rarity-4)', 'var(--danger)', 'var(--warning)', 'var(--crimson)']
 
-const gray = 'Gray'
-const textColor = { Custom: [180, 180, 180] }
-export const pluginThemes: Record<string, { label: string; colors: unknown[] }> = {
-  egui: { label: 'Egui', colors: [gray, gray, gray, gray, gray, gray, gray, gray, 'EguiBlue', 'EguiBlue', textColor, gray] },
-  'indigo-jade': { label: 'Индиго / нефрит', colors: [gray, gray, 'Indigo', gray, gray, gray, gray, 'Jade', 'Jade', 'Jade', textColor, gray] },
-  'grass-bronze': { label: 'Трава / бронза', colors: [gray, gray, 'Grass', 'Bronze', 'Bronze', gray, gray, 'Green', 'Bronze', 'Bronze', textColor, gray] },
-  warm: { label: 'Тёплая', colors: [gray, gray, 'Orange', 'Gold', 'Gold', 'Gold', 'Red', 'Red', 'Gold', 'Gold', textColor, 'Teal'] },
-  cool: { label: 'Холодная', colors: [gray, 'Indigo', 'Indigo', 'Iris', 'Indigo', gray, 'Iris', 'Indigo', 'Blue', 'Indigo', 'Orange', gray] },
-  seventies: { label: 'Семидесятые', colors: [{ Custom: [95, 78, 163] }, 'Pink', 'Pink', { Custom: [95, 78, 163] }, { Custom: [95, 78, 163] }, { Custom: [254, 180, 0] }, { Custom: [95, 78, 163] }, { Custom: [95, 78, 163] }, { Custom: [254, 180, 0] }, { Custom: [254, 180, 0] }, textColor, gray] },
-  'office-gray': { label: 'Офисная серая', colors: [{ Custom: [140, 149, 138] }, { Custom: [140, 149, 138] }, { Custom: [140, 149, 138] }, { Custom: [122, 166, 168] }, gray, { Custom: [122, 166, 168] }, { Custom: [122, 166, 168] }, { Custom: [122, 166, 168] }, { Custom: [59, 71, 97] }, { Custom: [59, 71, 97] }, { Custom: [185, 178, 168] }, { Custom: [185, 178, 168] }] },
-  vermillion: { label: 'Киноварь', colors: ['Gold', 'Gold', 'Gold', gray, gray, gray, 'Cyan', 'Cyan', { Custom: [232, 67, 0] }, { Custom: [232, 67, 0] }, textColor, 'Cyan'] },
-}
-
 const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 })
 const compact = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1, notation: 'compact' })
 export const finite = (value: number | undefined) => typeof value === 'number' && Number.isFinite(value) ? value : 0
@@ -78,9 +65,5 @@ export function themeVariables(settings: OverlaySettings): Record<string, string
     '--vt-legend-size': `${settings.legendSize === 'small' ? settings.fontSizes.small ?? 12 : settings.legendSize === 'large' ? settings.fontSizes.heading ?? 20 : settings.fontSizes.legend ?? 14}px`,
   }
   if (themes[settings.theme]) vars['--gold'] = themes[settings.theme]
-  if (settings.useCustomColors) {
-    const names = ['--vt-surface', '--panel', '--panel-strong', '--hover', '--line', '--line-strong', '--text-muted', '--text', '--gold', '--select-bg', '--info', '--success']
-    settings.customColors.slice(0, 12).forEach((color, i) => { if (/^#[\da-f]{6}$/i.test(color)) vars[names[i]] = color })
-  }
   return vars
 }

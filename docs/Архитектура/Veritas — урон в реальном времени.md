@@ -25,15 +25,34 @@ tags: [nous, архитектура, rust, данные, риск]
 
 **Совместимость.** В описании релиза есть `Game Version: 4.3.54 - 4.6.52`; Nous сравнивает с `game_version` из `config.ini` игры и предупреждает в настройках, если версия вне диапазона (плагин может ронять игру — тогда выключить).
 
+## Окно урона Nous
+
+Урон в бою показывает **окно Nous** (`src-tauri/src/veritas/{host,window,settings,plugin_config}.rs`, фронт `src/veritas/`), а не встроенный интерфейс Veritas. Данные — тот же поток Socket.IO, агрегирует их крейт `crates/nous-veritas`.
+
+- Окно создаётся только когда Veritas включён: прозрачное, без рамки, поверх игры, без кнопки в панели задач, не забирает фокус, по умолчанию пропускает клики.
+- Появляется на `OnBattleBegin`, прячется на `OnBattleEnd`, при закрытии игры, обрыве соединения и когда игра не на переднем плане. Если Windows сообщает эксклюзивный полноэкранный Direct3D, в настройках появляется подсказка включить оконный/безрамочный режим.
+- История боёв — `veritas-battles.json`, настройки окна — `veritas-overlay.json` (оба в папке данных Nous, отдельно от аккаунтов).
+
+**Настройки** — один раздел «Урон в реальном времени (Veritas)»: переключатель с предупреждением, а после включения вкладки «Окно урона» (показ в бою, клики, положение, масштаб, непрозрачность), «Вид» (блоки, колонки, сортировка, акцентный цвет), «Экспорт» (JSON/CSV после боя, папка). Свёрнуты: «Предпросмотр последнего боя» и «Дополнительно» — настройки самого плагина (скрыть его встроенные окна, язык; пишутся в его конфиг при закрытой игре и применяются при следующем запуске) и проверка обновления плагина.
+
+Намеренно **нет**: бета-канала плагина (обновления только из стабильных релизов, с теми же проверками), своих цветов и JSON-палитр, исключения Windows Defender, глобальных горячих клавиш.
+
+**Тест без игры.** `npm run dev:veritas` — поддельный сервер Veritas на `127.0.0.1:1305` (`POST /begin /turn /end /play`). Приложение в режиме проигрывания: debug-сборка, identifier `com.nous.devtest`, `NOUS_VERITAS_REPLAY=1`. В этом режиме Nous не ищет игру и не трогает её папку (кнопка «Играть» и установка плагина запрещены), вместо окна игры открывается тестовая сцена.
+
 ## API
 
 | Команда / событие | Что |
 |---|---|
 | `get_veritas_status` | `{ enabled, version, gameRange, gameVersion, compatible, connected }` |
-| `enable_veritas(acceptRisk)` | установка; без `acceptRisk: true` — отказ |
+| `enable_veritas(acceptRisk, updateOnly?)` | установка или обновление уже установленного; без `acceptRisk: true` — отказ |
+| `check_veritas_update` | последний стабильный релиз: версия, поддерживаемые версии игры |
+| `get_veritas_overlay`, `set_veritas_overlay_settings`, `veritas_overlay_action` | окно урона: состояние, настройки, показать/скрыть/сброс |
+| `read_veritas_plugin_config`, `write_veritas_plugin_config` | конфиг самого плагина |
+| `get_veritas_battle`, `export_veritas_battle` | бой из истории, экспорт JSON/CSV |
 | `disable_veritas` | удаление |
 | событие `veritas-status` | состояние изменилось (подключение, установка) |
 | событие `veritas` | `{ name, data }` — пакет Veritas |
+| событие `veritas-overlay` | новое состояние окна урона |
 | хуки | `useVeritasStatus()`, `useVeritasPackets(cb)` |
 
 Пакеты Veritas (`docs/API.md` в его репозитории): `OnBattleBegin`, `OnSetBattleLineup`, `OnDamage` (атакующий, урон, перебор урона, тип), `OnTurnBegin` (значение действия), `OnTurnEnd`, `OnUseSkill`, `OnEntityDefeated`, `OnUpdateWave`, `OnUpdateCycle`, `OnStatChange`, `OnUpdateTeamFormation`, `OnInitializeEnemy`, `OnBattleEnd` (итоги, история ходов и значения действия).

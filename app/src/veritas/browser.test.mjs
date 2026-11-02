@@ -11,16 +11,19 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(String(error)))
   await page.goto(`${process.env.NOUS_UI_URL ?? 'http://127.0.0.1:5174/'}#/settings`)
-  await page.getByRole('heading', { name: 'Оверлей Nous', exact: true }).waitFor()
-  await page.getByRole('tab', { name: 'Оформление', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Тема Nous', exact: true }).selectOption('light')
-  await page.getByRole('tab', { name: 'Окно и клавиши', exact: true }).click()
-  assert.equal(await page.getByRole('textbox', { name: 'Открыть настройки', exact: true }).inputValue(), 'Ctrl+Shift+M')
-  await page.getByRole('tab', { name: 'Плагин', exact: true }).click()
-  assert.equal(await page.getByRole('button', { name: 'Прочитать настройки плагина' }).isDisabled(), true)
-  await page.getByRole('tab', { name: 'Представления', exact: true }).click()
+  await page.getByRole('heading', { name: 'Урон в реальном времени (Veritas)', exact: true }).waitFor()
+  assert.equal(await page.getByRole('heading', { name: 'Оверлей Nous' }).count(), 0, 'overlay settings live inside the Veritas section')
+  await page.getByRole('tab', { name: 'Окно урона', exact: true }).waitFor()
+  await page.getByRole('combobox', { name: 'Положение', exact: true }).selectOption('bottom-left')
+  await page.getByRole('tab', { name: 'Вид', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Акцентный цвет', exact: true }).selectOption('light')
+  await page.getByRole('tab', { name: 'Экспорт', exact: true }).click()
+  await page.getByText('Дополнительно (настройки плагина)').click()
+  assert.equal(await page.getByRole('button', { name: 'Загрузить настройки плагина' }).isDisabled(), true)
+  for (const removed of ['Горячие', 'Бета', 'Defender', 'Собственные цвета']) assert.equal(await page.getByText(removed).count(), 0, `${removed} removed`)
+  await page.getByRole('tab', { name: 'Окно урона', exact: true }).click()
   await mkdir('../target/ui-evidence', { recursive: true })
-  await page.locator('.vt-controls').screenshot({ path: '../target/ui-evidence/veritas-settings-browser.png' })
+  await page.locator('.vt-settings').locator('xpath=..').screenshot({ path: '../target/ui-evidence/veritas-settings-browser.png' })
   await page.evaluate(async () => {
     const { default: React } = await import('/node_modules/.vite/deps/react.js')
     const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js')
@@ -72,7 +75,7 @@ try {
     assert.equal(bounds.scrollable, true, `all active views remain scrollable at ${scale}`)
   }
   assert.deepEqual(errors, [])
-  console.log('PASS: tabs, settings preview, hotkeys, explicit config load, populated dark/light views, category controls, no errors or renderer overflow')
+  console.log('PASS: single Veritas section, tabs, explicit config load, populated dark/light views, category controls, no errors or renderer overflow')
 } finally {
   await browser.close()
 }
