@@ -71,6 +71,10 @@ export interface BattleAvatar {
   deaths: number
   spUsed: number
   spGained: number
+  /** action value this character accumulated */
+  actionValue: number
+  /** damage per action value of the fight (Veritas' DPAV), 0 if unknown */
+  dpav: number
   relics: number[]
   lightCone: number | null
 }
@@ -95,8 +99,21 @@ export interface Battle {
   ultimates: number
   rounds: number
   challengeScore: number
+  /** action value the fight took */
+  actionValue: number
   avatars: BattleAvatar[]
   monsters: BattleMonster[]
+  /** client action log, in order; entity ids are battle-local (not verified yet) */
+  actions: BattleAction[]
+}
+
+export interface BattleAction {
+  turn: number
+  actor: number
+  target: number
+  opType: number
+  skillIndex: number
+  counter: number
 }
 
 /** Battle reports, newest last; a new one arrives as soon as a fight ends. */
