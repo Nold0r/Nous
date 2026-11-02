@@ -1,4 +1,6 @@
 mod account;
+mod battles;
+mod gacha;
 mod game;
 mod inventory;
 mod launch;
@@ -7,6 +9,8 @@ mod recorder;
 #[cfg(test)]
 mod replay;
 mod sniffer;
+mod snapshots;
+mod world;
 
 use std::sync::Mutex;
 
@@ -40,6 +44,13 @@ pub fn run() {
       profile::get_profile,
       account::get_inventory,
       account::get_relics,
+      account::get_world,
+      account::get_battles,
+      account::get_gacha,
+      account::get_snapshots,
+      account::get_snapshot,
+      gacha::import_gacha_history,
+      snapshots::get_snapshot_kinds,
       sniffer::get_sniffer_status,
       sniffer::restart_as_admin,
       launch::get_game_status,

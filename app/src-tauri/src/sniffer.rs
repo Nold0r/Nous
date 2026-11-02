@@ -11,7 +11,9 @@ use reliquary::network::{ConnectionPacket, GamePacket, GameSniffer};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::game::Shared;
+use crate::game::{Changes, Shared};
+use crate::profile::PlayerProfile;
+use crate::world::{World, WorldChange};
 use crate::inventory::InventoryChanges;
 use crate::recorder::Recorder;
 
@@ -103,25 +105,46 @@ async fn run(app: &AppHandle) -> Result<(), String> {
                     }
                     recorder.on_command(&command);
                     let shared = app.state::<Shared>();
-                    let (changes, profile) = {
+                    let (ch, profile, world) = {
                         let mut game = shared.game.lock().unwrap();
-                        let changes = game.handle(&command);
-                        (changes, game.profile().clone())
+                        let ch = game.handle(&command);
+                        let world = (ch.world == WorldChange::Changed).then(|| game.account.world.clone());
+                        (ch, game.profile().clone(), world)
                     };
-                    if changes.profile {
-                        app.emit("profile-changed", &profile).ok();
-                    }
-                    if changes.inventory_reset {
-                        app.emit("inventory-changed", InventoryEvent::Reset).ok();
-                    } else if !changes.inventory.is_empty() {
-                        app.emit("inventory-changed", InventoryEvent::Changed(changes.inventory)).ok();
-                    }
+                    emit_changes(app, ch, profile, world);
                 }
                 _ => {}
             }
         }
     }
     Err("capture stream ended".into())
+}
+
+/// Tells the UI what changed. Event names and payloads: docs "API данных игры".
+fn emit_changes(app: &AppHandle, ch: Changes, profile: PlayerProfile, world: Option<World>) {
+    if ch.profile {
+        app.emit("profile-changed", &profile).ok();
+    }
+    if ch.inventory_reset {
+        app.emit("inventory-changed", InventoryEvent::Reset).ok();
+    } else if !ch.inventory.is_empty() {
+        app.emit("inventory-changed", InventoryEvent::Changed(ch.inventory)).ok();
+    }
+    if let Some(world) = world {
+        app.emit("world-changed", &world).ok();
+    } else if ch.world == WorldChange::Moved {
+        let player = app.state::<Shared>().game.lock().unwrap().account.world.player;
+        app.emit("player-moved", &player).ok();
+    }
+    if let Some(battle) = ch.battle {
+        app.emit("battle-finished", &battle).ok();
+    }
+    if ch.gacha {
+        app.emit("gacha-changed", ()).ok();
+    }
+    if let Some(name) = ch.snapshot {
+        app.emit("snapshot-changed", &name).ok();
+    }
 }
 
 /// reliquary expects ethernet frames: prefix a bare IP packet with a zeroed

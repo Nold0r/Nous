@@ -9,7 +9,9 @@ use reliquary::network::command::proto;
 use tauri::{AppHandle, Manager};
 
 use crate::account::{Account, Store};
+use crate::battles::Battle;
 use crate::inventory::InventoryChanges;
+use crate::world::WorldChange;
 use crate::profile::{PlayerProfile, now};
 use crate::sniffer::SnifferStatus;
 
@@ -26,6 +28,12 @@ pub struct Changes {
     /// The whole inventory was replaced (login, other account).
     pub inventory_reset: bool,
     pub inventory: InventoryChanges,
+    pub world: WorldChange,
+    /// A fight just ended.
+    pub battle: Option<Battle>,
+    pub gacha: bool,
+    /// Name of the raw snapshot that was replaced.
+    pub snapshot: Option<String>,
 }
 
 pub struct GameState {
@@ -38,6 +46,10 @@ impl GameState {
         let store = Store::new(app.path().app_data_dir().ok());
         let account = store.load_current();
         Self { store, account }
+    }
+
+    pub fn save(&self) {
+        self.store.save(&self.account);
     }
 
     pub fn profile(&self) -> &PlayerProfile {
@@ -116,7 +128,23 @@ impl GameState {
             _ => {}
         }
 
-        if ch.profile || ch.inventory_reset || !ch.inventory.is_empty() {
+        let account = &mut self.account;
+        ch.world = account.world.handle(command);
+        ch.battle = account.battles.handle(command, now);
+        ch.gacha = account.gacha.handle(command, now);
+        if crate::snapshots::handle(&mut account.snapshots, command, now) {
+            ch.snapshot = command.get_command_name().map(str::to_string);
+        }
+
+        // movement alone isn't worth a write: the position is saved with the next change
+        if ch.profile
+            || ch.inventory_reset
+            || !ch.inventory.is_empty()
+            || ch.world == WorldChange::Changed
+            || ch.battle.is_some()
+            || ch.gacha
+            || ch.snapshot.is_some()
+        {
             self.store.save(&self.account);
         }
         ch
