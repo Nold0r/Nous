@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getAutostart, setAutostart } from '../../lib/game'
 import { Page, Panel, Switch } from '../../ui'
+import { VeritasSettings } from './VeritasSettings'
+import './settings.css'
 
 export function SettingsPage() {
   const [autostart, setAutostartState] = useState<boolean | null>(null)
@@ -36,6 +38,7 @@ export function SettingsPage() {
           }
         />
       </Panel>
+      <VeritasSettings />
     </Page>
   )
 }

@@ -10,6 +10,7 @@ mod recorder;
 mod replay;
 mod sniffer;
 mod snapshots;
+mod veritas;
 mod world;
 
 use std::sync::Mutex;
@@ -38,6 +39,8 @@ pub fn run() {
       });
       sniffer::start(app.handle().clone());
       launch::setup(app.handle())?;
+      // optional, off by default: see veritas.rs
+      veritas::setup(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -51,6 +54,9 @@ pub fn run() {
       account::get_snapshot,
       gacha::import_gacha_history,
       snapshots::get_snapshot_kinds,
+      veritas::get_veritas_status,
+      veritas::enable_veritas,
+      veritas::disable_veritas,
       sniffer::get_sniffer_status,
       sniffer::restart_as_admin,
       launch::get_game_status,
