@@ -7,18 +7,19 @@ export function PlayButton() {
   const game = useGameStatus()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  if (!game) return null
+  // nothing to start while the game is already running
+  if (!game || game.running) return null
 
   const play = () => {
     setStarting(true)
     setError(null)
     launchGame()
       .catch((e) => setError(String(e)))
-      // the button flips to "Игра запущена" when the watcher sees the process
+      // the button disappears once the watcher sees the game process
       .finally(() => setTimeout(() => setStarting(false), 5000))
   }
 
-  const label = game.running ? 'Игра запущена' : starting ? 'Запуск…' : 'Играть'
+  const label = starting ? 'Запуск…' : 'Играть'
   const hint = error ?? (game.path ? undefined : 'Путь к игре не найден. Запустите игру один раз, и Nous его запомнит.')
 
   return (
@@ -27,13 +28,13 @@ export function PlayButton() {
         type="button"
         className="play__button"
         onClick={play}
-        disabled={game.running || starting || !game.path}
+        disabled={starting || !game.path}
         title={game.path ?? undefined}
       >
         <Play size={16} />
         {label}
       </button>
-      {hint && !game.running && <span className="play__hint">{hint}</span>}
+      {hint && <span className="play__hint">{hint}</span>}
     </div>
   )
 }
