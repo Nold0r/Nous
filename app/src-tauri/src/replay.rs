@@ -18,6 +18,10 @@ use crate::inventory::{Inventory, SnapshotReport};
 
 struct Session {
     file: String,
+    world: crate::world::World,
+    snapshots: crate::snapshots::Snapshots,
+    gacha: crate::gacha::Gacha,
+    battles: crate::battles::Battles,
     uid: u32,
     inventory: Inventory,
     had_bag: bool,
@@ -33,6 +37,10 @@ fn recordings_dir() -> Option<PathBuf> {
 fn replay_file(path: &std::path::Path) -> Session {
     let mut s = Session {
         file: path.file_name().unwrap().to_string_lossy().into_owned(),
+        world: Default::default(),
+        snapshots: Default::default(),
+        gacha: Default::default(),
+        battles: Default::default(),
         uid: 0,
         inventory: Inventory::default(),
         had_bag: false,
@@ -44,6 +52,19 @@ fn replay_file(path: &std::path::Path) -> Session {
         let (Some(name), Some(b64)) = (v["name"].as_str(), v["b64"].as_str()) else { continue };
         let data = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
         let now = n as i64;
+        if let Some(id) = v["id"].as_u64() {
+            let command = reliquary::network::command::GameCommand {
+                command_id: id as u16,
+                header_len: 0,
+                data_len: data.len() as u32,
+                proto_header: vec![],
+                proto_data: data.clone(),
+            };
+            s.world.handle(&command);
+            s.battles.handle(&command, now);
+            s.gacha.handle(&command, now);
+            crate::snapshots::handle(&mut s.snapshots, &command, now);
+        }
         match name {
             "PlayerGetTokenScRsp" => {
                 s.uid = proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp::parse_from_bytes(&data).unwrap().uid;
@@ -180,6 +201,15 @@ fn replay_login_recordings() {
             inv.light_cones.len(),
             inv.materials.len(),
             inv.avatar_paths.len()
+        );
+        println!(
+            "  world: floor {:?}, player {}, {} floors with props; banners {}; battles {}; snapshots {:?}",
+            s.world.floor_id,
+            s.world.player.is_some(),
+            s.world.props.len(),
+            s.gacha.banners.len(),
+            s.battles.list.len(),
+            s.snapshots.keys().collect::<Vec<_>>()
         );
         for p in check_session(&s) {
             failures.push(format!("{}: {p}", s.file));

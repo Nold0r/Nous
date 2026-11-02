@@ -11,7 +11,11 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::battles::{Battle, Battles};
+use crate::gacha::Gacha;
 use crate::game::Shared;
+use crate::snapshots::{Snapshot, Snapshots};
+use crate::world::World;
 use crate::inventory::{Inventory, InventoryChanges, Relic, SnapshotReport};
 use crate::profile::{PlayerProfile, ProfileSource};
 
@@ -28,12 +32,30 @@ pub struct Account {
     pub profile: PlayerProfile,
     #[serde(flatten)]
     pub inventory: Inventory,
+    #[serde(default)]
+    pub world: World,
+    #[serde(default)]
+    pub gacha: Gacha,
+    #[serde(default)]
+    pub battles: Battles,
+    /// Raw answers of the game, see snapshots.rs.
+    #[serde(default)]
+    pub snapshots: Snapshots,
 }
 
 impl Account {
     /// No account linked yet.
     pub fn empty() -> Self {
-        Self { format: FORMAT, uid: None, profile: PlayerProfile::empty(), inventory: Inventory::default() }
+        Self {
+            format: FORMAT,
+            uid: None,
+            profile: PlayerProfile::empty(),
+            inventory: Inventory::default(),
+            world: World::default(),
+            gacha: Gacha::default(),
+            battles: Battles::default(),
+            snapshots: Snapshots::default(),
+        }
     }
 
     fn new(uid: u32) -> Self {
@@ -131,6 +153,36 @@ pub fn get_inventory(shared: State<'_, Shared>) -> Inventory {
 #[tauri::command]
 pub fn get_relics(shared: State<'_, Shared>) -> Vec<Relic> {
     shared.game.lock().unwrap().account.inventory.relics.values().cloned().collect()
+}
+
+/// Location, position, opened chests and object states.
+#[tauri::command]
+pub fn get_world(shared: State<'_, Shared>) -> World {
+    shared.game.lock().unwrap().account.world.clone()
+}
+
+/// Recorded battles, newest last.
+#[tauri::command]
+pub fn get_battles(shared: State<'_, Shared>) -> Vec<Battle> {
+    shared.game.lock().unwrap().account.battles.list.clone()
+}
+
+/// Banners, warp history and live pulls.
+#[tauri::command]
+pub fn get_gacha(shared: State<'_, Shared>) -> Gacha {
+    shared.game.lock().unwrap().account.gacha.clone()
+}
+
+/// Latest raw answers of the game by command name (see snapshots::KINDS).
+#[tauri::command]
+pub fn get_snapshots(shared: State<'_, Shared>) -> Snapshots {
+    shared.game.lock().unwrap().account.snapshots.clone()
+}
+
+/// One raw answer, e.g. "GetDailyActiveInfoScRsp".
+#[tauri::command]
+pub fn get_snapshot(shared: State<'_, Shared>, name: String) -> Option<Snapshot> {
+    shared.game.lock().unwrap().account.snapshots.get(&name).cloned()
 }
 
 /// Write to a temp file and rename, so a crash never leaves half a file.

@@ -26,8 +26,11 @@ tauri-plugin-log = "2"
 # game traffic: local clone of https://github.com/IceDynamix/reliquary (tag v24.0.0 = game 4.6)
 reliquary = { path = "../../vendor/reliquary" }
 protobuf = "=3.7.1" # must match reliquary's generated code
+protobuf-json-mapping = "=3.7.1" # raw snapshots (snapshots.rs)
 pktmon = { version = "0.6.2", features = ["tokio"] }
 futures = "0.3"
+# warp history from the official API (gacha.rs)
+ureq = { version = "3", features = ["json"] }
 # login recordings (recorder.rs)
 base64 = "0.22"
 is_elevated = "0.1.2"

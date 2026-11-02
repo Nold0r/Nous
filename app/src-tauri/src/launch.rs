@@ -38,6 +38,13 @@ pub struct LaunchState {
     status: Mutex<GameStatus>,
 }
 
+impl LaunchState {
+    /// StarRail.exe, if known.
+    pub fn game_path(&self) -> Option<String> {
+        self.status.lock().unwrap().path.clone()
+    }
+}
+
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     app.manage(LaunchState {
         status: Mutex::new(GameStatus { running: false, path: find_game(app).map(|p| p.display().to_string()) }),
