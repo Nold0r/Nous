@@ -39,9 +39,9 @@ test('sorting does not mutate lineup or corrupt per-character turn association',
   assert.equal(characterValue(sorted[1], 'effective', battle), '70')
 })
 
-test('theme only changes the accent and font variables', () => {
+test('widgets keep the Nous palette: only opacity and font sizes vary', () => {
   const variables = themeVariables({ theme: 'warm', opacity: .8, fontSizes: {}, legendSize: 'body' })
-  assert.equal(variables['--gold'], '#f0bd82')
+  assert.equal(variables['--gold'], undefined)
   assert.equal(variables['--vt-surface'], undefined)
   assert.equal(variables['--vt-opacity'], .8)
 })
