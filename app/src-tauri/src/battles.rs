@@ -32,8 +32,25 @@ pub struct Battle {
     /// Waves/cycles (MoC counts cycles here).
     pub rounds: u32,
     pub challenge_score: u32,
+    /// Action value the whole fight took (`total_delay_cumulate`).
+    pub action_value: f64,
     pub avatars: Vec<BattleAvatar>,
     pub monsters: Vec<BattleMonster>,
+    /// Client's action log (`op_list`): who acted on whom with which skill,
+    /// in order. Entity ids are battle-local; semantics still to be verified
+    /// on real fights.
+    pub actions: Vec<BattleAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BattleAction {
+    pub turn: u32,
+    pub actor: u32,
+    pub target: u32,
+    pub op_type: u32,
+    pub skill_index: u32,
+    pub counter: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +77,10 @@ pub struct BattleAvatar {
     pub deaths: u32,
     pub sp_used: f64,
     pub sp_gained: u32,
+    /// Action value this character accumulated (`delay_cumulate`).
+    pub action_value: f64,
+    /// Damage per action value of the whole fight, Veritas' DPAV; 0 if unknown.
+    pub dpav: f64,
     /// Relic unique ids worn in this fight.
     pub relics: Vec<u32>,
     /// Light cone (EquipmentConfig id), if any.
@@ -120,7 +141,24 @@ impl Battle {
             ultimates: stt.ultra_cnt,
             rounds: stt.round_cnt,
             challenge_score: stt.challenge_score,
-            avatars: stt.battle_avatar_list.iter().map(BattleAvatar::from_proto).collect(),
+            action_value: stt.total_delay_cumulate,
+            avatars: stt
+                .battle_avatar_list
+                .iter()
+                .map(|a| BattleAvatar::from_proto(a, stt.total_delay_cumulate))
+                .collect(),
+            actions: req
+                .op_list
+                .iter()
+                .map(|o| BattleAction {
+                    turn: o.turn_counter,
+                    actor: o.action_entity_id,
+                    target: o.target_entity_id,
+                    op_type: o.op_type,
+                    skill_index: o.skill_index,
+                    counter: o.operation_counter,
+                })
+                .collect(),
             monsters: stt
                 .monster_list
                 .iter()
@@ -137,7 +175,7 @@ impl Battle {
 }
 
 impl BattleAvatar {
-    fn from_proto(a: &proto::AvatarBattleInfo::AvatarBattleInfo) -> Self {
+    fn from_proto(a: &proto::AvatarBattleInfo::AvatarBattleInfo, battle_av: f64) -> Self {
         let by_type = |list: &[proto::AttackDamageProperty::AttackDamageProperty]| {
             let mut map = BTreeMap::new();
             for p in list {
@@ -172,6 +210,8 @@ impl BattleAvatar {
             deaths: a.die_times,
             sp_used: a.total_sp_cost,
             sp_gained: a.total_sp_add,
+            action_value: a.delay_cumulate,
+            dpav: if battle_av > 0.0 { a.total_damage / battle_av } else { 0.0 },
             relics: a.relics.iter().map(|r| r.unique_id).collect(),
             light_cone: a.avatar_equipment.first().map(|e| e.id),
         }
@@ -196,10 +236,15 @@ mod tests {
         let mut stt = proto::BattleStatistics::BattleStatistics::new();
         stt.battle_avatar_list = vec![avatar];
         stt.total_battle_turns = 7;
+        stt.total_delay_cumulate = 300.0;
         let mut req = proto::PVEBattleResultCsReq::PVEBattleResultCsReq::new();
         req.stage_id = 30_101;
         req.end_status = proto::BattleEndStatus::BattleEndStatus::BATTLE_END_WIN.into();
         req.stt = Some(stt).into();
+        let mut op = proto::BattleOp::BattleOp::new();
+        op.turn_counter = 1;
+        op.skill_index = 2;
+        req.op_list = vec![op];
 
         let command = GameCommand {
             command_id: cmd::PVEBattleResultCsReq,
@@ -214,6 +259,8 @@ mod tests {
         assert_eq!(b.turns, 7);
         assert_eq!(b.avatars[0].damage, 150_000.0);
         assert_eq!(b.avatars[0].damage_by_type["Ultra"], 240_000.0, "same attack type is summed");
+        assert_eq!(b.avatars[0].dpav, 500.0, "damage / action value of the fight");
+        assert_eq!(b.actions[0].skill_index, 2);
         assert_eq!(battles.list.len(), 1);
     }
 }
