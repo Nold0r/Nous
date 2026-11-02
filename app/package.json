@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "assets": "node scripts/fetch-assets.mjs",
-    "tauri:user": "cross-env VITE_USER_MODE=true tauri dev"
+    "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
+    "test:data": "cd src-tauri && cargo test --lib replay -- --nocapture"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

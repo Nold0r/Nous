@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::game::Shared;
 use crate::inventory::InventoryChanges;
+use crate::recorder::Recorder;
 
 const PORTS: [u16; 2] = [23301, 23302];
 
@@ -75,6 +76,7 @@ async fn run(app: &AppHandle) -> Result<(), String> {
     set_status(app, SnifferStatus::WaitingForLogin);
 
     let mut sniffer = GameSniffer::new();
+    let mut recorder = Recorder::new(app.path().app_data_dir().ok());
     // pktmon reports a packet once per component it passes (e.g. VPN adapter + stack)
     let mut component: Option<u16> = None;
 
@@ -99,6 +101,7 @@ async fn run(app: &AppHandle) -> Result<(), String> {
                     if command.command_id == cmd::PlayerGetTokenScRsp {
                         set_status(app, SnifferStatus::Connected);
                     }
+                    recorder.on_command(&command);
                     let shared = app.state::<Shared>();
                     let (changes, profile) = {
                         let mut game = shared.game.lock().unwrap();
