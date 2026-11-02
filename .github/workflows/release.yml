@@ -9,6 +9,11 @@ name: Release
 on:
   push:
     branches: [main]
+    # docs and dev-only scripts don't change the app: no release for them
+    paths-ignore:
+      - 'docs/**'
+      - 'app/scripts/dev/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:

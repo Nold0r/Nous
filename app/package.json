@@ -11,7 +11,10 @@
     "tauri": "tauri",
     "assets": "node scripts/fetch-assets.mjs",
     "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
-    "test:data": "cd src-tauri && cargo test --lib replay -- --nocapture"
+    "test:data": "cd src-tauri && cargo test --lib replay -- --nocapture",
+    "game:login": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/hsr-session.ps1 login",
+    "game:logout": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/hsr-session.ps1 logout",
+    "game:relogin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/hsr-session.ps1 relogin"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
