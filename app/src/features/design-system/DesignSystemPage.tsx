@@ -15,6 +15,7 @@ import {
   SectionTitle,
   StatList,
   StatRow,
+  Switch,
   Tabs,
   type Tone,
 } from '../../ui'
@@ -55,6 +56,7 @@ const tabItems = [
 
 export function DesignSystemPage() {
   const [tab, setTab] = useState<(typeof tabItems)[number]['id']>('stats')
+  const [switchOn, setSwitchOn] = useState(true)
 
   return (
     <Page
@@ -113,6 +115,11 @@ export function DesignSystemPage() {
             </Button>
             <Button size="sm">Подробнее</Button>
           </div>
+        </Panel>
+
+        <Panel title="Переключатель">
+          <Switch checked={switchOn} onChange={setSwitchOn} label="Настройка" hint="Пояснение под названием" />
+          <Switch checked={false} onChange={() => {}} disabled label="Недоступно" />
         </Panel>
 
         <Panel title="Вкладки и метки">

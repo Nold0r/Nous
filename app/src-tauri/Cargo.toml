@@ -21,7 +21,7 @@ tauri-build = { version = "2.7.4", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.12.5", features = [] }
+tauri = { version = "2.12.5", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 # game traffic: local clone of https://github.com/IceDynamix/reliquary (tag v24.0.0 = game 4.6)
 reliquary = { path = "../../vendor/reliquary" }
@@ -29,6 +29,9 @@ protobuf = "=3.7.1" # must match reliquary's generated code
 pktmon = { version = "0.6.2", features = ["tokio"] }
 futures = "0.3"
 is_elevated = "0.1.2"
+tauri-plugin-single-instance = "2"
+sysinfo = "0.38.4"
+winreg = "0.56.0"
 
 [profile.dev]
 # hoyo's kcp uses a header field in a way that overflows the kcp crate's math (as in reliquary-archiver)

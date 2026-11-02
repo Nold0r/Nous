@@ -59,6 +59,44 @@
   border-top: 1px solid var(--line);
 }
 
+.play {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.play__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 38px;
+  border: 1px solid var(--gold-dim);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--gold);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.play__button:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: var(--hover);
+}
+
+.play__button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.play__hint {
+  padding: 0 var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .update-notice {
   display: flex;
   align-items: center;
