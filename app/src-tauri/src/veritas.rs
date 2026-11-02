@@ -27,6 +27,18 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::launch::LaunchState;
+mod geometry;
+pub mod host;
+mod hotkeys;
+mod plugin_config;
+mod settings;
+mod window;
+
+pub fn is_replay(app: &AppHandle) -> bool {
+    cfg!(debug_assertions)
+        && app.config().identifier == "com.nous.devtest"
+        && std::env::var("NOUS_VERITAS_REPLAY").as_deref() == Ok("1")
+}
 
 const RELEASE_API: &str = "https://api.github.com/repos/hessiser/veritas/releases/latest";
 const TRUSTED_BUILDER: &str = "github-actions[bot]";
@@ -83,20 +95,33 @@ pub struct VeritasPacket {
     pub data: serde_json::Value,
 }
 
-pub fn setup(app: &AppHandle) {
-    let file = app.path().app_data_dir().ok().map(|d| d.join(SETTINGS_FILE));
+pub fn setup(app: &AppHandle) -> tauri::Result<()> {
+    let file = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join(SETTINGS_FILE));
     let settings = file
         .as_ref()
         .and_then(|f| fs::read_to_string(f).ok())
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
-    app.manage(VeritasState { settings: Mutex::new(settings), file, connected: AtomicBool::new(false) });
+    app.manage(VeritasState {
+        settings: Mutex::new(settings),
+        file,
+        connected: AtomicBool::new(false),
+    });
 
+    host::setup(app)?;
     let app = app.clone();
     tauri::async_runtime::spawn(async move { client_loop(app).await });
+    Ok(())
 }
 
 impl VeritasState {
+    pub fn enabled(&self) -> bool {
+        self.settings.lock().unwrap().enabled
+    }
     fn save(&self) {
         let Some(file) = &self.file else { return };
         if let Some(dir) = file.parent() {
@@ -130,8 +155,9 @@ async fn client_loop(app: AppHandle) {
     loop {
         tokio::time::sleep(RETRY).await;
         let state = app.state::<VeritasState>();
-        let running = app.state::<LaunchState>().game_running();
-        if !state.settings.lock().unwrap().enabled || !running {
+        let replay = is_replay(&app);
+        let running = replay || app.state::<LaunchState>().game_running();
+        if (!state.settings.lock().unwrap().enabled && !replay) || !running {
             continue;
         }
         let forward = app.clone();
@@ -145,14 +171,25 @@ async fn client_loop(app: AppHandle) {
                         Payload::Text(values) => serde_json::Value::Array(values),
                         _ => serde_json::Value::Null,
                     };
-                    app.emit("veritas", VeritasPacket { name: event.to_string(), data }).ok();
+                    host::on_packet(&app, &event.to_string(), data.clone());
+                    app.emit(
+                        "veritas",
+                        VeritasPacket {
+                            name: event.to_string(),
+                            data,
+                        },
+                    )
+                    .ok();
                 }
                 .boxed()
             })
             .on("close", move |_, _| {
                 let app = closed.clone();
                 async move {
-                    app.state::<VeritasState>().connected.store(false, Ordering::Relaxed);
+                    app.state::<VeritasState>()
+                        .connected
+                        .store(false, Ordering::Relaxed);
+                    host::set_connected(&app, false);
                     app.emit("veritas-status", ()).ok();
                 }
                 .boxed()
@@ -161,17 +198,19 @@ async fn client_loop(app: AppHandle) {
             .await;
         let Ok(client) = client else { continue };
         state.connected.store(true, Ordering::Relaxed);
+        host::set_connected(&app, true);
         app.emit("veritas-status", ()).ok();
 
         // stay until Veritas goes away, the game closes or the option is turned off
         while state.connected.load(Ordering::Relaxed)
-            && app.state::<LaunchState>().game_running()
-            && state.settings.lock().unwrap().enabled
+            && (replay || app.state::<LaunchState>().game_running())
+            && (replay || state.settings.lock().unwrap().enabled)
         {
-            tokio::time::sleep(RETRY).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
         }
         client.disconnect().await.ok();
         state.connected.store(false, Ordering::Relaxed);
+        host::set_connected(&app, false);
         app.emit("veritas-status", ()).ok();
     }
 }
@@ -182,6 +221,10 @@ struct Release {
     body: Option<String>,
     author: Option<Account>,
     assets: Vec<Asset>,
+    #[serde(default)]
+    prerelease: bool,
+    #[serde(default)]
+    draft: bool,
 }
 
 #[derive(Deserialize)]
@@ -199,20 +242,26 @@ struct Asset {
 
 /// Downloads the latest official release and checks it before anything is installed.
 fn fetch_release() -> Result<(String, Option<String>, Vec<u8>, String), String> {
-    let release: Release = ureq::get(RELEASE_API)
-        .call()
-        .map_err(|e| format!("GitHub: {e}"))?
-        .body_mut()
-        .read_json()
-        .map_err(|e| format!("GitHub: {e}"))?;
+    let release = release_for("stable")?;
+    download_release(release)
+}
+fn download_release(release: Release) -> Result<(String, Option<String>, Vec<u8>, String), String> {
     if release.author.as_ref().map(|a| a.login.as_str()) != Some(TRUSTED_BUILDER) {
         return Err("релиз Veritas собран не GitHub Actions: отказ от установки".into());
     }
-    let asset = release.assets.iter().find(|a| a.name == ASSET).ok_or("в релизе нет veritas.dll")?;
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == ASSET)
+        .ok_or("в релизе нет veritas.dll")?;
     if asset.uploader.as_ref().map(|a| a.login.as_str()) != Some(TRUSTED_BUILDER) {
         return Err("veritas.dll загружен не GitHub Actions: отказ от установки".into());
     }
-    let expected = asset.digest.as_deref().and_then(|d| d.strip_prefix("sha256:")).ok_or("у файла нет контрольной суммы")?;
+    let expected = asset
+        .digest
+        .as_deref()
+        .and_then(|d| d.strip_prefix("sha256:"))
+        .ok_or("у файла нет контрольной суммы")?;
     let mut data = Vec::new();
     use std::io::Read;
     ureq::get(&asset.browser_download_url)
@@ -234,18 +283,27 @@ fn fetch_release() -> Result<(String, Option<String>, Vec<u8>, String), String> 
 
 /// "Game Version: 4.3.54 - 4.6.52" in the release notes.
 fn game_range_from_notes(body: &str) -> Option<String> {
-    let line = body.lines().find(|l| l.trim_start().starts_with("Game Version:"))?;
+    let line = body
+        .lines()
+        .find(|l| l.trim_start().starts_with("Game Version:"))?;
     Some(line.split_once(':')?.1.trim().to_string())
 }
 
 /// `game_version=4.6.0` from config.ini next to StarRail.exe.
 fn game_version(game_exe: &str) -> Option<String> {
     let ini = fs::read_to_string(Path::new(game_exe).parent()?.join("config.ini")).ok()?;
-    ini.lines().find_map(|l| l.strip_prefix("game_version=")).map(|v| v.trim().to_string())
+    ini.lines()
+        .find_map(|l| l.strip_prefix("game_version="))
+        .map(|v| v.trim().to_string())
 }
 
 fn in_range(version: &str, range: &str) -> Option<bool> {
-    let parse = |v: &str| v.trim().split('.').map(|x| x.parse::<u32>().ok()).collect::<Option<Vec<_>>>();
+    let parse = |v: &str| {
+        v.trim()
+            .split('.')
+            .map(|x| x.parse::<u32>().ok())
+            .collect::<Option<Vec<_>>>()
+    };
     let (lo, hi) = range.split_once('-')?;
     let (v, lo, hi) = (parse(version)?, parse(lo)?, parse(hi)?);
     Some(lo <= v && v <= hi)
@@ -260,39 +318,109 @@ fn file_sha256(path: &Path) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn get_veritas_status(state: State<'_, VeritasState>, launch: State<'_, LaunchState>) -> VeritasStatus {
-    state.status(launch.game_path().as_deref())
+pub fn get_veritas_status(
+    app: AppHandle,
+    state: State<'_, VeritasState>,
+    launch: State<'_, LaunchState>,
+) -> VeritasStatus {
+    let path = if is_replay(&app) {
+        None
+    } else {
+        launch.game_path()
+    };
+    state.status(path.as_deref())
 }
 
 /// Installs Veritas into the game folder. `accept_risk` must be true: the
 /// player confirmed the injection warning in Settings.
 #[tauri::command]
-pub async fn enable_veritas(app: AppHandle, accept_risk: bool) -> Result<VeritasStatus, String> {
+pub async fn enable_veritas(
+    app: AppHandle,
+    accept_risk: bool,
+    channel: Option<String>,
+    update_only: Option<bool>,
+) -> Result<VeritasStatus, String> {
     if !accept_risk {
         return Err("нужно подтвердить, что вы принимаете риск".into());
+    }
+    if is_replay(&app) {
+        return Err("В тестовом режиме установка и удаление плагина запрещены".into());
+    }
+    let channel = channel.unwrap_or_else(|| "stable".into());
+    if !["stable", "beta"].contains(&channel.as_str()) {
+        return Err("Неизвестный канал обновлений".into());
+    }
+    if update_only.unwrap_or(false) {
+        let state = app.state::<VeritasState>();
+        let s = state.settings.lock().unwrap();
+        if !s.enabled || s.accepted_at.is_none() || s.installed.is_none() {
+            return Err("Сначала включите Veritas через предупреждение с принятием риска".into());
+        }
     }
     let launch = app.state::<LaunchState>();
     if launch.game_running() {
         return Err("закройте игру: файл кладётся в её папку".into());
     }
     let exe = launch.game_path().ok_or("путь к игре неизвестен")?;
-    let target = Path::new(&exe).parent().ok_or("неверный путь к игре")?.join(INSTALLED_NAME);
+    let target = Path::new(&exe)
+        .parent()
+        .ok_or("неверный путь к игре")?
+        .join(INSTALLED_NAME);
     let state = app.state::<VeritasState>();
-    let ours = state.settings.lock().unwrap().installed.as_ref().map(|i| i.sha256.clone());
+    let ours = state
+        .settings
+        .lock()
+        .unwrap()
+        .installed
+        .as_ref()
+        .map(|i| i.sha256.clone());
     if target.exists() && file_sha256(&target) != ours {
-        return Err(format!("в папке игры уже есть чужой {INSTALLED_NAME}: Nous его не трогает"));
+        return Err(format!(
+            "в папке игры уже есть чужой {INSTALLED_NAME}: Nous его не трогает"
+        ));
     }
 
-    let (version, game_range, data, sha256) =
-        tauri::async_runtime::spawn_blocking(fetch_release).await.map_err(|e| e.to_string())??;
+    let (version, game_range, data, sha256) = tauri::async_runtime::spawn_blocking(move || {
+        if channel == "stable" {
+            fetch_release()
+        } else {
+            download_release(release_for(&channel)?)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if launch.game_running() || launch.game_path().as_deref() != Some(exe.as_str()) {
+        return Err(
+            "Игра запущена или путь изменился во время загрузки: повторите после закрытия игры"
+                .into(),
+        );
+    }
+    let ours = state
+        .settings
+        .lock()
+        .unwrap()
+        .installed
+        .as_ref()
+        .map(|i| i.sha256.clone());
+    if target.exists() && file_sha256(&target) != ours {
+        return Err("Файл в папке игры изменился во время загрузки: установка отменена".into());
+    }
+    host::prepare_plugin(&app, &exe, &version)?;
     let tmp = target.with_extension("dll.nous-tmp");
-    fs::write(&tmp, &data).and_then(|_| fs::rename(&tmp, &target)).map_err(|e| format!("запись в папку игры: {e}"))?;
+    fs::write(&tmp, &data)
+        .and_then(|_| fs::rename(&tmp, &target))
+        .map_err(|e| format!("запись в папку игры: {e}"))?;
 
     {
         let mut s = state.settings.lock().unwrap();
         s.enabled = true;
         s.accepted_at = Some(nous_core::profile::now());
-        s.installed = Some(Installed { version, path: target.display().to_string(), sha256, game_range });
+        s.installed = Some(Installed {
+            version,
+            path: target.display().to_string(),
+            sha256,
+            game_range,
+        });
     }
     state.save();
     log::warn!("Veritas installed into the game folder at the player's request");
@@ -303,6 +431,9 @@ pub async fn enable_veritas(app: AppHandle, accept_risk: bool) -> Result<Veritas
 /// Removes Veritas from the game folder (only the file Nous put there).
 #[tauri::command]
 pub fn disable_veritas(app: AppHandle) -> Result<VeritasStatus, String> {
+    if is_replay(&app) {
+        return Err("В тестовом режиме установка и удаление плагина запрещены".into());
+    }
     let launch = app.state::<LaunchState>();
     if launch.game_running() {
         return Err("закройте игру: игра держит файл открытым".into());
@@ -313,7 +444,9 @@ pub fn disable_veritas(app: AppHandle) -> Result<VeritasStatus, String> {
         let path = PathBuf::from(&i.path);
         if path.exists() {
             if file_sha256(&path).as_deref() != Some(i.sha256.as_str()) {
-                return Err(format!("{INSTALLED_NAME} в папке игры изменён не Nous: удалите его вручную, если нужно"));
+                return Err(format!(
+                    "{INSTALLED_NAME} в папке игры изменён не Nous: удалите его вручную, если нужно"
+                ));
             }
             fs::remove_file(&path).map_err(|e| format!("удаление: {e}"))?;
         }
@@ -324,6 +457,7 @@ pub fn disable_veritas(app: AppHandle) -> Result<VeritasStatus, String> {
         s.installed = None;
     }
     state.save();
+    host::set_connected(&app, false);
     app.emit("veritas-status", ()).ok();
     Ok(state.status(launch.game_path().as_deref()))
 }
@@ -338,17 +472,88 @@ mod tests {
     #[ignore]
     fn live_release() {
         let (version, range, data, sha) = fetch_release().unwrap();
-        println!("Veritas {version}, game {range:?}, {} bytes, sha256 {sha}", data.len());
+        println!(
+            "Veritas {version}, game {range:?}, {} bytes, sha256 {sha}",
+            data.len()
+        );
         assert!(data.starts_with(b"MZ"), "a Windows DLL");
     }
 
     #[test]
     fn reads_the_supported_game_range() {
-        let notes = "**Full Changelog**: x\r\n\r\nGame Version: 4.3.54 - 4.6.52\r\n\r\n### Changelog";
+        let notes =
+            "**Full Changelog**: x\r\n\r\nGame Version: 4.3.54 - 4.6.52\r\n\r\n### Changelog";
         let range = game_range_from_notes(notes).unwrap();
         assert_eq!(range, "4.3.54 - 4.6.52");
         assert_eq!(in_range("4.6.0", &range), Some(true));
         assert_eq!(in_range("4.7.0", &range), Some(false));
         assert_eq!(in_range("4.3.0", &range), Some(false));
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    version: String,
+    notes: String,
+    game_range: Option<String>,
+    prerelease: bool,
+}
+fn release_for(channel: &str) -> Result<Release, String> {
+    let mut release: Release = match channel {
+        "stable" => ureq::get(RELEASE_API)
+            .call()
+            .map_err(|e| e.to_string())?
+            .body_mut()
+            .read_json()
+            .map_err(|e| e.to_string())?,
+        "beta" => {
+            let releases: Vec<Release> =
+                ureq::get("https://api.github.com/repos/hessiser/veritas/releases?per_page=100")
+                    .call()
+                    .map_err(|e| e.to_string())?
+                    .body_mut()
+                    .read_json()
+                    .map_err(|e| e.to_string())?;
+            releases
+                .into_iter()
+                .find(|r| r.prerelease && !r.draft)
+                .ok_or("Официальных бета-релизов сейчас нет")?
+        }
+        _ => return Err("Неизвестный канал обновлений".into()),
+    };
+    if release.draft || release.author.as_ref().map(|a| a.login.as_str()) != Some(TRUSTED_BUILDER) {
+        return Err("Релиз создан не GitHub Actions".into());
+    }
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == ASSET)
+        .ok_or("В релизе нет veritas.dll")?;
+    if asset.uploader.as_ref().map(|a| a.login.as_str()) != Some(TRUSTED_BUILDER)
+        || !asset.digest.as_deref().is_some_and(|d| {
+            d.strip_prefix("sha256:")
+                .is_some_and(|h| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()))
+        })
+    {
+        return Err("Файл не прошёл проверку источника и SHA-256".into());
+    }
+    release.body.get_or_insert_default();
+    Ok(release)
+}
+#[tauri::command]
+pub async fn check_veritas_update(channel: Option<String>) -> Result<UpdateInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let release = release_for(channel.as_deref().unwrap_or("stable"))?;
+        let notes = release.body.unwrap_or_default();
+        let game_range = game_range_from_notes(&notes);
+        Ok(UpdateInfo {
+            version: release.tag_name,
+            notes,
+            game_range,
+            prerelease: release.prerelease,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

@@ -12,6 +12,7 @@ const HISTORY_LIMIT: usize = 20;
 const DETAIL_LIMIT: usize = 4096;
 const ENTITY_LIMIT: usize = 256;
 const PROPERTY_LIMIT: usize = 256;
+const STATS_HISTORY_LIMIT: usize = 256;
 
 #[derive(Default)]
 pub struct Engine {
@@ -22,6 +23,9 @@ pub struct Engine {
     next_id: u64,
     began: bool,
     lineup: bool,
+    // A fresh connection may join an already-running battle without its begin packets.
+    // Keep the last result visible until the first new battle packet arrives.
+    accept_partial_after_connect: bool,
     diagnostics: Vec<String>,
 }
 
@@ -34,7 +38,7 @@ impl Engine {
         use wire::Event::*;
         match event {
             Connected { version } => {
-                self.connected = true;
+                self.set_connected(true);
                 self.diagnostic(format!(
                     "Veritas {version}; relative AV reset is not exposed by this protocol"
                 ));
@@ -86,6 +90,7 @@ impl Engine {
                     .current
                     .as_ref()
                     .is_some_and(|battle| battle.ended_at.is_some())
+                    && !self.accept_partial_after_connect
                 {
                     return Ok(false);
                 }
@@ -127,6 +132,7 @@ impl Engine {
                     .current
                     .as_ref()
                     .is_some_and(|battle| battle.ended_at.is_some())
+                    && !self.accept_partial_after_connect
                 {
                     return Ok(false);
                 }
@@ -219,31 +225,52 @@ impl Engine {
                             skill_config_id: skill.skill_config_id,
                             damage: 0.0,
                             details: Vec::new(),
-                            turn_index: battle.entity_turns.len(),
+                            turn_index: battle.entity_turn_offset + battle.entity_turns.len(),
                         });
                     }
                     OnUpdateWave { wave } => battle.wave = wave,
                     OnUpdateCycle { cycle } => battle.cycle = cycle,
                     OnStatChange { entity, property } => {
-                        let properties = match entity.team {
-                            Team::Player => &mut avatar_mut(battle, entity.uid).properties,
-                            Team::Enemy => &mut enemy_mut(battle, entity.uid).properties,
+                        let turn_index = battle.entity_turn_offset + battle.entity_turns.len();
+                        let (properties, history) = match entity.team {
+                            Team::Player => {
+                                let target = avatar_mut(battle, entity.uid);
+                                (&mut target.properties, &mut target.stats_history)
+                            }
+                            Team::Enemy => {
+                                let target = enemy_mut(battle, entity.uid);
+                                (&mut target.properties, &mut target.stats_history)
+                            }
                         };
                         if properties.len() < PROPERTY_LIMIT
                             || properties.contains_key(&property.r#type)
                         {
                             properties.insert(property.r#type, property.value);
+                            history.push(StatsObservation {
+                                turn_index,
+                                properties: properties.clone(),
+                            });
                         } else {
                             battle.partial = true;
                         }
                     }
                     OnEntityDefeated {
-                        entity_defeated, ..
+                        killer,
+                        entity_defeated,
                     } => match entity_defeated.team {
-                        Team::Player => avatar_mut(battle, entity_defeated.uid).dead = true,
-                        Team::Enemy => enemy_mut(battle, entity_defeated.uid).dead = true,
+                        Team::Player => {
+                            let target = avatar_mut(battle, entity_defeated.uid);
+                            target.dead = true;
+                            target.killer_uid = Some(killer.uid);
+                        }
+                        Team::Enemy => {
+                            let target = enemy_mut(battle, entity_defeated.uid);
+                            target.dead = true;
+                            target.killer_uid = Some(killer.uid);
+                        }
                     },
                     OnInitializeEnemy { enemy } => {
+                        let turn_index = battle.entity_turn_offset + battle.entity_turns.len();
                         let target = enemy_mut(battle, enemy.uid);
                         target.id = enemy.id;
                         target.name = enemy.name;
@@ -252,6 +279,10 @@ impl Engine {
                         {
                             target.properties.entry(key).or_insert(value);
                         }
+                        target.stats_history.push(StatsObservation {
+                            turn_index,
+                            properties: target.properties.clone(),
+                        });
                     }
                     OnUpdateTeamFormation { entities, team } => {
                         if team == Team::Enemy {
@@ -285,6 +316,9 @@ impl Engine {
         }
         if self.connected != connected {
             self.connected = connected;
+            if connected {
+                self.accept_partial_after_connect = !self.active();
+            }
             self.revision = self.revision.wrapping_add(1);
         }
     }
@@ -355,6 +389,7 @@ impl Engine {
             partial,
             ..Battle::default()
         });
+        self.accept_partial_after_connect = false;
         self.began = false;
         self.lineup = false;
     }
@@ -363,6 +398,7 @@ impl Engine {
         if !self.active() {
             return;
         }
+        self.accept_partial_after_connect = false;
         let battle = self.current.as_mut().unwrap();
         battle.ended_at = Some(now_millis());
         battle.interrupted = interrupted;
@@ -513,7 +549,24 @@ fn bound_battle(battle: &mut Battle) {
     retain_tail(&mut battle.turn_history, DETAIL_LIMIT);
     retain_tail(&mut battle.av_history, DETAIL_LIMIT);
     retain_tail(&mut battle.skills, DETAIL_LIMIT);
+    battle.entity_turn_offset += battle.entity_turns.len().saturating_sub(DETAIL_LIMIT);
     retain_tail(&mut battle.entity_turns, DETAIL_LIMIT);
+    for history in battle
+        .avatars
+        .iter_mut()
+        .map(|avatar| &mut avatar.stats_history)
+        .chain(
+            battle
+                .enemies
+                .iter_mut()
+                .map(|enemy| &mut enemy.stats_history),
+        )
+    {
+        if history.len() > STATS_HISTORY_LIMIT {
+            battle.partial = true;
+        }
+        retain_tail(history, STATS_HISTORY_LIMIT);
+    }
     for turn in battle
         .turn_history
         .iter_mut()

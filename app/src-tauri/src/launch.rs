@@ -35,10 +35,16 @@ pub struct GameStatus {
 }
 
 pub struct LaunchState {
+    pid: std::sync::atomic::AtomicU32,
     status: Mutex<GameStatus>,
 }
 
 impl LaunchState {
+    pub fn game_pid(&self) -> Option<u32> {
+        let pid = self.pid.load(std::sync::atomic::Ordering::Relaxed);
+        (pid != 0).then_some(pid)
+    }
+
     /// StarRail.exe, if known.
     pub fn game_path(&self) -> Option<String> {
         self.status.lock().unwrap().path.clone()
@@ -50,8 +56,17 @@ impl LaunchState {
 }
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
+    let replay = crate::veritas::is_replay(app);
     app.manage(LaunchState {
-        status: Mutex::new(GameStatus { running: false, path: find_game(app).map(|p| p.display().to_string()) }),
+        pid: std::sync::atomic::AtomicU32::new(0),
+        status: Mutex::new(GameStatus {
+            running: false,
+            path: if replay {
+                None
+            } else {
+                find_game(app).map(|p| p.display().to_string())
+            },
+        }),
     });
 
     let open = MenuItem::with_id(app, "open", "Открыть Nous", true, None::<&str>)?;
@@ -67,7 +82,12 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = e
+            {
                 show_main(tray.app_handle());
             }
         })
@@ -89,7 +109,9 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     }
 
     let app = app.clone();
-    std::thread::spawn(move || watch_game(app));
+    if !replay {
+        std::thread::spawn(move || watch_game(app));
+    }
     Ok(())
 }
 
@@ -111,10 +133,14 @@ fn watch_game(app: AppHandle) {
         sys.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh);
         let game = sys.processes_by_exact_name(OsStr::new(GAME_EXE)).next();
         let running = game.is_some();
+        let game_pid = game.map(|p| p.pid().as_u32()).unwrap_or(0);
         // the exe path is readable only when Nous is elevated like the game
         let seen_path = game.and_then(|p| p.exe()).map(Path::to_path_buf);
 
         let state = app.state::<LaunchState>();
+        state
+            .pid
+            .store(game_pid, std::sync::atomic::Ordering::Relaxed);
         let update = {
             let mut s = state.status.lock().unwrap();
             let started = running && !s.running;
@@ -149,7 +175,9 @@ fn find_game(app: &AppHandle) -> Option<PathBuf> {
         .ok()
         .and_then(|d| fs::read_to_string(d.join(GAME_PATH_FILE)).ok())
         .map(|s| PathBuf::from(s.trim()));
-    remembered.filter(|p| p.is_file()).or_else(game_from_registry)
+    remembered
+        .filter(|p| p.is_file())
+        .or_else(game_from_registry)
 }
 
 fn remember_game(app: &AppHandle, path: &str) {
@@ -168,7 +196,9 @@ fn game_from_registry() -> Option<PathBuf> {
 
     fn search(key: &RegKey, depth: u32) -> Option<PathBuf> {
         for name in key.enum_keys().flatten() {
-            let Ok(sub) = key.open_subkey(&name) else { continue };
+            let Ok(sub) = key.open_subkey(&name) else {
+                continue;
+            };
             if name.starts_with("hkrpg_") {
                 if let Ok(dir) = sub.get_value::<String, _>("GameInstallPath") {
                     let exe = Path::new(&dir).join(GAME_EXE);
@@ -196,7 +226,8 @@ fn game_from_registry() -> Option<PathBuf> {
 /// Runs a PowerShell script; through a UAC prompt when Nous isn't elevated.
 fn powershell(script: &str, elevate: bool) -> Result<(), String> {
     let mut cmd = Command::new("powershell");
-    cmd.creation_flags(CREATE_NO_WINDOW).args(["-NoProfile", "-ExecutionPolicy", "Bypass"]);
+    cmd.creation_flags(CREATE_NO_WINDOW)
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass"]);
     if elevate && !is_elevated::is_elevated() {
         let file = std::env::temp_dir().join("nous-task.ps1");
         fs::write(&file, script).map_err(|e| e.to_string())?;
@@ -245,7 +276,13 @@ catch {{
     );
     let out = Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &script,
+        ])
         .output()
         .map_err(|e| e.to_string())?;
     match out.status.code() {
@@ -258,10 +295,19 @@ catch {{
 /// Starts the game. If Nous isn't elevated, Windows asks for the game's admin
 /// rights; declining resolves to false, not an error.
 #[tauri::command]
-pub async fn launch_game(state: State<'_, LaunchState>) -> Result<bool, String> {
+pub async fn launch_game(app: AppHandle, state: State<'_, LaunchState>) -> Result<bool, String> {
+    if crate::veritas::is_replay(&app) {return Err("Запуск игры запрещён в debug-replay".into());}
     let path = state.game_path().ok_or("Путь к игре неизвестен")?;
-    let dir = Path::new(&path).parent().ok_or("Неверный путь к игре")?.display().to_string();
-    let command = format!("Start-Process -FilePath {} -WorkingDirectory {}", ps_quote(&path), ps_quote(&dir));
+    let dir = Path::new(&path)
+        .parent()
+        .ok_or("Неверный путь к игре")?
+        .display()
+        .to_string();
+    let command = format!(
+        "Start-Process -FilePath {} -WorkingDirectory {}",
+        ps_quote(&path),
+        ps_quote(&dir)
+    );
     tauri::async_runtime::spawn_blocking(move || shell_start(&command))
         .await
         .map_err(|e| e.to_string())?
@@ -295,7 +341,10 @@ Register-ScheduledTask -TaskName {task} -Action $action -Trigger $trigger -Princ
             task = ps_quote(TASK_NAME),
         )
     } else {
-        format!("Unregister-ScheduledTask -TaskName {} -Confirm:$false", ps_quote(TASK_NAME))
+        format!(
+            "Unregister-ScheduledTask -TaskName {} -Confirm:$false",
+            ps_quote(TASK_NAME)
+        )
     };
     tauri::async_runtime::spawn_blocking(move || powershell(&script, true))
         .await
@@ -309,10 +358,15 @@ mod tests {
 
     #[test]
     fn shell_start_reports_start_and_readable_errors() {
-        let ok = shell_start("Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','exit' -WindowStyle Hidden");
+        let ok = shell_start(
+            "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','exit' -WindowStyle Hidden",
+        );
         assert_eq!(ok, Ok(true));
         let err = shell_start("Start-Process -FilePath 'C:/nous-test/missing.exe'").unwrap_err();
-        assert!(!err.is_empty() && !err.contains('\u{FFFD}'), "readable message: {err}");
+        assert!(
+            !err.is_empty() && !err.contains('\u{FFFD}'),
+            "readable message: {err}"
+        );
         println!("error text: {err}");
     }
 }

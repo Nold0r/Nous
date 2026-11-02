@@ -33,6 +33,10 @@ pub struct Combatant {
     pub by_type: BTreeMap<String, f64>,
     pub properties: BTreeMap<String, f64>,
     pub dead: bool,
+    #[serde(default)]
+    pub killer_uid: Option<u32>,
+    #[serde(default)]
+    pub stats_history: Vec<StatsObservation>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -43,6 +47,18 @@ pub struct EnemyState {
     pub name: String,
     pub properties: BTreeMap<String, f64>,
     pub dead: bool,
+    #[serde(default)]
+    pub killer_uid: Option<u32>,
+    #[serde(default)]
+    pub stats_history: Vec<StatsObservation>,
+}
+
+/// A property snapshot observed on the wire, indexed like the source turnHistory.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsObservation {
+    pub turn_index: usize,
+    pub properties: BTreeMap<String, f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -89,6 +105,8 @@ pub struct Battle {
     pub av_history: Vec<TurnInfo>,
     pub skills: Vec<SkillRecord>,
     pub entity_turns: Vec<EntityTurn>,
+    #[serde(default)]
+    pub entity_turn_offset: usize,
     pub total_damage: f64,
     pub action_value: f64,
     pub wave: u32,

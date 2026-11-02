@@ -1,4 +1,4 @@
-use crate::{Battle, EntityTurn};
+use crate::{Battle, EntityTurn, StatsObservation};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -35,8 +35,8 @@ impl Battle {
                 (
                     avatar.id.to_string(),
                     json!({
-                        "id":avatar.id,"isDie":avatar.dead,"killer_uid":-1,"stats":stats,
-                        "statsHistory":stats_history(&stats)
+                        "id":avatar.id,"isDie":avatar.dead,"killer_uid":avatar.killer_uid.map(i64::from).unwrap_or(-1),"stats":stats,
+                        "statsHistory":stats_history(&avatar.stats_history)
                     }),
                 )
             })
@@ -44,15 +44,17 @@ impl Battle {
         let enemies: BTreeMap<_,_> = self.enemies.iter().enumerate().map(|(index,enemy)| {
             let stats = tracked_stats(&enemy.properties);
             (enemy.uid.to_string(),json!({
-            "id":enemy.id,"isDie":enemy.dead,"killer_uid":-1,"positionIndex":index,"waveIndex":self.wave,
+            "id":enemy.id,"isDie":enemy.dead,"killer_uid":enemy.killer_uid.map(i64::from).unwrap_or(-1),"positionIndex":index,"waveIndex":self.wave,
             "name":enemy.name,"maxHP":enemy.properties.get("MaxHP").copied().unwrap_or(0.0),
             "level":enemy.properties.get("Level").copied().unwrap_or(0.0) as u32,"stats":stats,
-            "statsHistory":stats_history(&stats)
+            "statsHistory":stats_history(&enemy.stats_history)
         }))}).collect();
         json!({"lineup":lineup,"turnHistory":turns,"skillHistory":skills,"dataAvatar":[],
             "totalAV":self.action_value,"totalDamage":self.total_damage,"damagePerAV":dpav(self.total_damage,self.action_value),
             "cycleIndex":self.cycle,"waveIndex":self.wave,"maxWave":self.max_waves,"maxCycle":self.max_cycles,
-            "version":version,"avatarDetail":avatars,"enemyDetail":enemies})
+            "version":version,"avatarDetail":avatars,"enemyDetail":enemies,
+            "_nous":{"partial":self.partial,"interrupted":self.interrupted,
+                "observedStatsHistory":true,"entityTurnOffset":self.entity_turn_offset}})
     }
 
     /// The source's 24-column comprehensive CSV with summaries followed by skills.
@@ -119,7 +121,7 @@ impl Battle {
             // turnBattleId is one-based in the source JSON; correct its CSV lookup.
             let turn: Option<&EntityTurn> = skill
                 .turn_index
-                .checked_sub(1)
+                .checked_sub(self.entity_turn_offset + 1)
                 .and_then(|index| self.entity_turns.get(index));
             let mut row = vec![String::new(); 24];
             row[0] = "skill_detail".into();
@@ -173,12 +175,16 @@ fn tracked_stats(properties: &BTreeMap<String, f64>) -> BTreeMap<&str, f64> {
     .collect()
 }
 
-fn stats_history(stats: &BTreeMap<&str, f64>) -> Value {
-    if stats.is_empty() {
-        json!([])
-    } else {
-        json!([{"stats":stats,"turnBattleId":0}])
-    }
+fn stats_history(observations: &[StatsObservation]) -> Value {
+    let history: Vec<_> = observations
+        .iter()
+        .filter_map(|observation| {
+            let stats = tracked_stats(&observation.properties);
+            (!stats.is_empty())
+                .then(|| json!({"stats":stats,"turnBattleId":observation.turn_index}))
+        })
+        .collect();
+    json!(history)
 }
 
 fn write_row(output: &mut String, values: &[String]) {

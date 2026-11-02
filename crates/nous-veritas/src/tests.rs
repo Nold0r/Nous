@@ -273,6 +273,8 @@ fn retained_details_are_bounded_and_truncation_marks_partial() {
     assert!(battle.turn_history.len() <= 4096);
     assert!(battle.entity_turns.len() <= 4096);
     assert!(battle.skills.len() <= 4096);
+    assert_eq!(battle.entity_turn_offset, 4);
+    assert_eq!(battle.skills.last().unwrap().turn_index, 4100);
 }
 
 #[test]
@@ -330,7 +332,203 @@ fn source_json_uses_tracked_stat_subset_and_omits_empty_stat_history() {
         json!({"Attack":123.0})
     );
     assert_eq!(
-        exported["avatarDetail"]["1"]["statsHistory"][0]["stats"],
-        json!({"Attack":123.0})
+        exported["avatarDetail"]["1"]["statsHistory"],
+        json!([]),
+        "properties restored without observed history must not invent a turn-zero observation"
     );
+}
+
+#[test]
+fn exports_observed_property_changes_at_their_entity_turn_indices() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    engine.apply("OnStatChange",json!({"entity":{"uid":1002,"team":"Player"},"property":{"type":"Attack","value":1000}})).unwrap();
+    engine.apply("OnInitializeEnemy",json!({"enemy":{"id":77,"uid":9001,"name":"Reaver","base_stats":{"properties":{"CurrentHP":1000,"MaxHP":1000,"Level":85}}}})).unwrap();
+    engine
+        .apply(
+            "OnTurnBegin",
+            json!({"action_value":75,"turn_owner":{"uid":1002,"team":"Player"}}),
+        )
+        .unwrap();
+    engine.apply("OnStatChange",json!({"entity":{"uid":1002,"team":"Player"},"property":{"type":"Attack","value":1500}})).unwrap();
+    engine.apply("OnStatChange",json!({"entity":{"uid":1002,"team":"Player"},"property":{"type":"CurrentHP","value":3500}})).unwrap();
+    engine
+        .apply(
+            "OnTurnBegin",
+            json!({"action_value":100,"turn_owner":{"uid":9001,"team":"Enemy"}}),
+        )
+        .unwrap();
+    engine.apply("OnStatChange",json!({"entity":{"uid":1002,"team":"Player"},"property":{"type":"CurrentHP","value":2000}})).unwrap();
+    engine.apply("OnStatChange",json!({"entity":{"uid":9001,"team":"Enemy"},"property":{"type":"CurrentHP","value":250}})).unwrap();
+    let battle = engine.snapshot().battle.unwrap();
+    let exported = battle.export_json("0.2.57");
+    assert_eq!(
+        exported["avatarDetail"]["1002"]["statsHistory"],
+        json!([
+            {"stats":{"Attack":1000.0},"turnBattleId":0},
+            {"stats":{"Attack":1500.0},"turnBattleId":1},
+            {"stats":{"Attack":1500.0,"CurrentHP":3500.0},"turnBattleId":1},
+            {"stats":{"Attack":1500.0,"CurrentHP":2000.0},"turnBattleId":2}
+        ])
+    );
+    assert_eq!(
+        exported["enemyDetail"]["9001"]["statsHistory"],
+        json!([
+            {"stats":{"CurrentHP":1000.0,"MaxHP":1000.0},"turnBattleId":0},
+            {"stats":{"CurrentHP":250.0,"MaxHP":1000.0},"turnBattleId":2}
+        ])
+    );
+}
+
+#[test]
+fn entity_defeat_preserves_both_player_and_enemy_killer_ids_in_export() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    engine.apply("OnInitializeEnemy",json!({"enemy":{"id":77,"uid":9001,"name":"Reaver","base_stats":{"properties":{"CurrentHP":1000,"MaxHP":1000}}}})).unwrap();
+    engine.apply("OnEntityDefeated",json!({"killer":{"uid":9001,"team":"Enemy"},"entity_defeated":{"uid":1003,"team":"Player"}})).unwrap();
+    engine.apply("OnEntityDefeated",json!({"killer":{"uid":1002,"team":"Player"},"entity_defeated":{"uid":9001,"team":"Enemy"}})).unwrap();
+    let exported = engine.snapshot().battle.unwrap().export_json("0.2.57");
+    assert_eq!(exported["avatarDetail"]["1003"]["killer_uid"], 9001);
+    assert_eq!(exported["enemyDetail"]["9001"]["killer_uid"], 1002);
+    assert_eq!(exported["avatarDetail"]["1003"]["isDie"], true);
+    assert_eq!(exported["enemyDetail"]["9001"]["isDie"], true);
+    assert_eq!(exported["avatarDetail"]["1002"]["killer_uid"], -1);
+}
+
+#[test]
+fn exports_namespaced_capture_completeness_without_changing_source_fields() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    engine.finish_interrupted();
+    let exported = engine.history()[0].export_json("0.2.57");
+    assert_eq!(exported["_nous"]["interrupted"], true);
+    assert_eq!(exported["_nous"]["partial"], false);
+    assert_eq!(exported["_nous"]["observedStatsHistory"], true);
+    assert_eq!(exported["version"], "0.2.57");
+    assert!(exported["lineup"].is_array());
+}
+
+#[test]
+fn per_entity_stat_history_is_bounded_and_retains_latest_observation() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    for value in 0..260 {
+        engine.apply("OnStatChange",json!({"entity":{"uid":1002,"team":"Player"},"property":{"type":"Attack","value":value}})).unwrap();
+    }
+    let battle = engine.snapshot().battle.unwrap();
+    assert!(battle.partial);
+    let exported = battle.export_json("0.2.57");
+    let history = exported["avatarDetail"]["1002"]["statsHistory"]
+        .as_array()
+        .unwrap();
+    assert!(history.len() <= 256);
+    assert_eq!(history.last().unwrap()["stats"]["Attack"], 259.0);
+}
+
+#[test]
+fn old_persisted_entities_deserialize_without_inventing_killer_or_stat_history() {
+    let restored: Combatant = serde_json::from_value(json!({"id":1002,"name":"Dan Heng","damage":10,"overkill":0,"byType":{"Basic":10},"properties":{"Attack":123},"dead":false})).unwrap();
+    assert_eq!(restored.killer_uid, None);
+    assert!(restored.stats_history.is_empty());
+    let enemy: EnemyState = serde_json::from_value(
+        json!({"id":77,"uid":9001,"name":"Reaver","properties":{"MaxHP":1000},"dead":true}),
+    )
+    .unwrap();
+    assert_eq!(enemy.killer_uid, None);
+    assert!(enemy.stats_history.is_empty());
+}
+
+#[test]
+fn new_connection_after_restore_accepts_mid_battle_data_as_a_new_partial_battle() {
+    let mut previous = Engine::default();
+    begin(&mut previous, true);
+    turn(&mut previous, 60.0, 75.0);
+    end(&mut previous);
+    let previous_id = previous.history()[0].id;
+    let mut engine = Engine::default();
+    engine.restore_history(previous.history().to_vec());
+    engine
+        .apply("Connected", json!({"version":"0.2.57"}))
+        .unwrap();
+    assert_eq!(engine.snapshot().battle.unwrap().id, previous_id);
+    assert!(
+        !engine.snapshot().active,
+        "connection alone keeps the saved battle for display"
+    );
+    assert!(engine.apply("OnDamage", json!({"attacker":{"uid":1002,"team":"Player"},"damage":20,"overkill_damage":0,"type":"Basic"})).unwrap());
+    engine
+        .apply(
+            "OnTurnBegin",
+            json!({"action_value":125,"turn_owner":{"uid":1002,"team":"Player"}}),
+        )
+        .unwrap();
+    let current = engine.snapshot().battle.unwrap();
+    assert!(current.id > previous_id);
+    assert!(current.partial);
+    assert_eq!(current.total_damage, 20.0);
+    end(&mut engine);
+    assert_eq!(engine.history().len(), 2);
+    assert!(engine.history()[1].partial);
+    assert_eq!(engine.history()[0].total_damage, 60.0);
+}
+
+#[test]
+fn reconnect_records_interrupted_battle_remainder_without_dropping_packets() {
+    let mut engine = Engine::default();
+    engine.set_connected(true);
+    begin(&mut engine, true);
+    turn(&mut engine, 60.0, 75.0);
+    engine.set_connected(false);
+    engine.set_connected(true);
+    assert!(
+        engine
+            .apply(
+                "OnTurnBegin",
+                json!({"action_value":125,"turn_owner":{"uid":1002,"team":"Player"}})
+            )
+            .unwrap()
+    );
+    engine.apply("OnDamage", json!({"attacker":{"uid":1002,"team":"Player"},"damage":20,"overkill_damage":0,"type":"Basic"})).unwrap();
+    end(&mut engine);
+    assert_eq!(engine.history().len(), 2);
+    assert!(engine.history()[0].interrupted);
+    assert!(engine.history()[1].partial);
+    assert!(!engine.history()[1].interrupted);
+    assert_eq!(engine.history()[1].total_damage, 20.0);
+    let history_len = engine.history().len();
+    engine
+        .apply("Connected", json!({"version":"0.2.57"}))
+        .unwrap();
+    end(&mut engine);
+    assert_eq!(
+        engine.history().len(),
+        history_len,
+        "repeated Connected within one connection must not reopen a finalized battle"
+    );
+}
+
+#[test]
+fn final_summary_on_new_connection_recovers_partial_battle_but_ignores_same_connection_repeat() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    end(&mut engine);
+    engine.set_connected(true);
+    let summary = json!({"avatars":[{"id":1002,"name":"Dan Heng"}],"turn_history":[{"action_value":125,"cycle":29,"wave":1,"avatars_turn_damage":[25],"total_damage":25}],"av_history":[],"turn_count":1,"total_damage":25,"action_value":125,"cycle":29,"wave":1,"stage_id":1001});
+    assert!(engine.apply("OnBattleEnd", summary.clone()).unwrap());
+    assert!(!engine.apply("OnBattleEnd", summary).unwrap());
+    assert_eq!(engine.history().len(), 2);
+    assert!(engine.history()[1].partial);
+    assert_eq!(engine.history()[1].total_damage, 25.0);
+}
+
+#[test]
+fn connection_notification_after_first_battle_packets_does_not_reopen_duplicate_final() {
+    let mut engine = Engine::default();
+    begin(&mut engine, true);
+    engine
+        .apply("Connected", json!({"version":"0.2.57"}))
+        .unwrap();
+    end(&mut engine);
+    end(&mut engine);
+    assert_eq!(engine.history().len(), 1);
 }

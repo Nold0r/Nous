@@ -21,7 +21,14 @@ pub fn get_sniffer_status(sdk: State<'_, Sdk>) -> SnifferStatus {
     sdk.status()
 }
 #[tauri::command]
-pub fn set_capture_enabled(sdk: State<'_, Sdk>, enabled: bool) -> Result<(), String> {
+pub fn set_capture_enabled(
+    app: AppHandle,
+    sdk: State<'_, Sdk>,
+    enabled: bool,
+) -> Result<(), String> {
+    if crate::veritas::is_replay(&app) {
+        return sdk.stop_capture();
+    }
     if enabled {
         sdk.start_capture()
     } else {
