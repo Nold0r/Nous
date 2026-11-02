@@ -4,11 +4,18 @@
 #
 # Version: major.minor come from app/src-tauri/tauri.conf.json, the patch is the
 # workflow run number, so each release is newer than the last one.
+# Patch notes: the "## Unreleased" section of CHANGELOG.md (see the steps below).
 name: Release
 
 on:
   push:
     branches: [main]
+    # docs, dev-only scripts, CI and notes don't change the app: no release for them
+    paths-ignore:
+      - 'docs/**'
+      - 'app/scripts/dev/**'
+      - '.github/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:
@@ -27,6 +34,8 @@ jobs:
         with:
           # reliquary is a submodule (path dependency of src-tauri)
           submodules: recursive
+          # tags, for the fallback notes (commits since the last release)
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -52,6 +61,25 @@ jobs:
             Set-Content tauri.conf.json -NoNewline
           echo "Nous $version"
 
+      # Patch notes: the "## Unreleased" section of CHANGELOG.md, written before
+      # merging. If it's empty, the merge commits since the last release.
+      - name: Release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $text = Get-Content CHANGELOG.md -Raw -Encoding utf8
+          $section = '(?ms)^## Unreleased[^\n]*\n(.*?)(?=^## |\z)'
+          $notes = [regex]::Match($text, $section).Groups[1].Value.Trim()
+          if (-not $notes) {
+            $prev = git describe --tags --abbrev=0 2>$null
+            $range = if ($prev) { "$prev..HEAD" } else { 'HEAD' }
+            $notes = ((git log $range --merges --pretty='- %s') -join "`n").Trim()
+            if (-not $notes) { $notes = ((git log $range --no-merges --pretty='- %s') -join "`n").Trim() }
+            Write-Host '::warning::CHANGELOG.md has no Unreleased notes, using commit subjects'
+          }
+          $notes += "`n`n---`nУже установленный Nous обновится сам. Запускайте его от администратора, чтобы он видел вход в игру."
+          "body<<NOTES_EOF`n$notes`nNOTES_EOF" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+
       - name: Install frontend dependencies
         working-directory: app
         run: npm ci
@@ -66,6 +94,26 @@ jobs:
           projectPath: app
           tagName: v__VERSION__
           releaseName: Nous v__VERSION__
-          releaseBody: Установщики для Windows ниже. Уже установленный Nous обновится сам. Запускайте его от администратора, чтобы он видел вход в игру.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
+
+      # The notes now belong to this version: rename "Unreleased" to it and
+      # open a new empty section. *.md pushes don't trigger releases.
+      - name: Stamp CHANGELOG
+        shell: pwsh
+        run: |
+          $text = Get-Content CHANGELOG.md -Raw -Encoding utf8
+          $section = '(?ms)^## Unreleased[^\n]*\n(.*?)(?=^## |\z)'
+          if (-not [regex]::Match($text, $section).Groups[1].Value.Trim()) { exit 0 }
+          $version = (Get-Content app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $date = Get-Date -Format 'yyyy-MM-dd'
+          $text = [regex]::Replace($text, '(?m)^## Unreleased[^\n]*$', "## Unreleased`n`n## v$version — $date", 1)
+          [IO.File]::WriteAllText("$PWD/CHANGELOG.md", $text, [Text.UTF8Encoding]::new($false))
+          git checkout -- app/src-tauri/tauri.conf.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md
+          git commit -m "CHANGELOG: v$version"
+          git pull --rebase
+          git push
