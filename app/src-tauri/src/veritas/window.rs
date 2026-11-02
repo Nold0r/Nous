@@ -2,6 +2,7 @@
 use super::{
     geometry::{Rect, place},
     host::{Host, Presentation},
+    overlay_host::{self, Placement, Status},
     settings::OverlaySettings,
 };
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
@@ -138,16 +139,25 @@ pub fn refresh(app: &AppHandle) {
                 let _ = window.hide();
             }
         }
+        overlay_host::hide(app);
         host.update_presentation(app, Presentation::default());
         return;
     }
-    let Some(overlay) = overlay(app) else {
-        return;
+    // composition surface first; a Tauri window only if it can't be created
+    let surface = overlay_host::status(app);
+    let fallback = if surface == Status::Failed {
+        match overlay(app) {
+            Some(window) => Some(window),
+            None => return,
+        }
+    } else {
+        None
     };
     let target = target(app);
     let settings = host.settings();
     let mut presentation = Presentation::default();
     let mut rectangle = None;
+    let mut dpi = 96;
     if let Some(hwnd) = target {
         presentation.target_found = unsafe { IsWindow(hwnd) } != 0;
         let foreground = host.replay || unsafe { GetForegroundWindow() } == hwnd;
@@ -166,9 +176,10 @@ pub fn refresh(app: &AppHandle) {
                 width: (native.right - native.left).max(1) as u32,
                 height: (native.bottom - native.top).max(1) as u32,
             };
+            dpi = unsafe { GetDpiForWindow(hwnd) };
             rectangle = Some(place(
                 bounds,
-                unsafe { GetDpiForWindow(hwnd) },
+                dpi,
                 settings.width,
                 settings.height,
                 &settings.anchor,
@@ -208,15 +219,31 @@ pub fn refresh(app: &AppHandle) {
     } else {
         None
     };
-    if let Some(rectangle) = rectangle {
-        apply_geometry(&overlay, rectangle, &settings);
-    }
-    if presentation.visible {
-        if !overlay.is_visible().unwrap_or(false) {
-            let _ = overlay.show();
+    if let Some(overlay) = fallback {
+        if let Some(rectangle) = rectangle {
+            apply_geometry(&overlay, rectangle, &settings);
         }
-    } else if overlay.is_visible().unwrap_or(false) {
-        let _ = overlay.hide();
+        if presentation.visible {
+            if !overlay.is_visible().unwrap_or(false) {
+                let _ = overlay.show();
+            }
+        } else if overlay.is_visible().unwrap_or(false) {
+            let _ = overlay.hide();
+        }
+    } else {
+        let rect = rectangle.unwrap_or(Rect { x: 0, y: 0, width: 0, height: 0 });
+        overlay_host::apply(
+            app,
+            Placement {
+                visible: presentation.visible && rectangle.is_some(),
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+                dpi,
+                click_through: settings.click_through,
+            },
+        );
     }
     host.update_presentation(app, presentation);
 }

@@ -137,7 +137,9 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 }
 pub fn publish(app: &AppHandle) {
     if let Some(host) = app.try_state::<Host>() {
-        app.emit("veritas-overlay", host.state()).ok();
+        let state = host.state();
+        super::overlay_host::emit(app, "veritas-overlay", &state);
+        app.emit("veritas-overlay", state).ok();
     }
 }
 pub fn diagnostic(app: &AppHandle, message: impl Into<String>) {
@@ -205,6 +207,7 @@ pub fn shutdown(app: &AppHandle) {
         host.stop.store(true, Ordering::Relaxed);
         host.inner.lock().unwrap().engine.finish_interrupted();
         let _ = persist_history(app);
+        super::overlay_host::hide(app);
         if let Some(window) = app.get_webview_window("veritas-overlay") {
             let _ = window.hide();
         }
@@ -478,6 +481,9 @@ mod tests {
 pub fn inspect_veritas_replay_window(app:AppHandle)->Result<serde_json::Value,String>{
     if !super::is_replay(&app){return Err("Только debug-replay".into());}
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
+    if let Some(facts) = super::overlay_host::inspect() {
+        return Ok(facts);
+    }
     let w=app.get_webview_window("veritas-overlay").ok_or("Нет окна")?;
     let hwnd=w.hwnd().map_err(|e|e.to_string())?.0;
     let style=unsafe{GetWindowLongPtrW(hwnd,GWL_EXSTYLE)} as u32;

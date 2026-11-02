@@ -28,6 +28,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::launch::LaunchState;
 mod geometry;
+pub mod overlay_host;
 pub mod host;
 mod plugin_config;
 mod settings;
@@ -361,18 +362,9 @@ pub async fn enable_veritas(
         .ok_or("неверный путь к игре")?
         .join(INSTALLED_NAME);
     let state = app.state::<VeritasState>();
-    let ours = state
-        .settings
-        .lock()
-        .unwrap()
-        .installed
-        .as_ref()
-        .map(|i| i.sha256.clone());
-    if target.exists() && file_sha256(&target) != ours {
-        return Err(format!(
-            "в папке игры уже есть чужой {INSTALLED_NAME}: Nous его не трогает"
-        ));
-    }
+    // what is in the game folder now: nothing, our file, the same official
+    // release (installed by another Nous profile), or something foreign
+    let existing = target.exists().then(|| file_sha256(&target));
 
     let (version, game_range, data, sha256) = tauri::async_runtime::spawn_blocking(move || {
         fetch_release()
@@ -392,14 +384,24 @@ pub async fn enable_veritas(
         .installed
         .as_ref()
         .map(|i| i.sha256.clone());
-    if target.exists() && file_sha256(&target) != ours {
+    if let Some(found) = &existing {
+        if *found != ours && found.as_deref() != Some(sha256.as_str()) {
+            return Err(format!(
+                "в папке игры уже есть чужой {INSTALLED_NAME}: Nous его не трогает"
+            ));
+        }
+    }
+    if target.exists().then(|| file_sha256(&target)) != existing {
         return Err("Файл в папке игры изменился во время загрузки: установка отменена".into());
     }
     host::prepare_plugin(&app, &exe, &version)?;
-    let tmp = target.with_extension("dll.nous-tmp");
-    fs::write(&tmp, &data)
-        .and_then(|_| fs::rename(&tmp, &target))
-        .map_err(|e| format!("запись в папку игры: {e}"))?;
+    // the very same official file is already there: nothing to write
+    if existing.flatten().as_deref() != Some(sha256.as_str()) {
+        let tmp = target.with_extension("dll.nous-tmp");
+        fs::write(&tmp, &data)
+            .and_then(|_| fs::rename(&tmp, &target))
+            .map_err(|e| format!("запись в папку игры: {e}"))?;
+    }
 
     {
         let mut s = state.settings.lock().unwrap();
