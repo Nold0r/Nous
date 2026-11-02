@@ -90,6 +90,7 @@ jobs:
         run: |
           npm run lint
           npx tsc -b
+          npm run test:modules
 
       - name: Rust workspace tests
         run: cargo test --workspace --all-targets

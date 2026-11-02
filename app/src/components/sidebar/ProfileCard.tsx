@@ -15,6 +15,9 @@ function fallbackAvatar(e: SyntheticEvent<HTMLImageElement>) {
 
 /** Why the game login can't be caught right now, if it can't. */
 function LoginNotice({ status }: { status: SnifferStatus | null }) {
+  if (status?.state === 'stopped') {
+    return <p className="profile-popover__notice">Сбор данных остановлен: нет включённых модулей, которым нужны данные игры.</p>
+  }
   if (status?.state === 'needs_admin') {
     return (
       <div className="profile-popover__notice">

@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 
 // Mirrors `SnifferStatus` in src-tauri/src/sniffer.rs
 export type SnifferStatus =
+  | { state: 'stopped' }
   | { state: 'starting' }
   | { state: 'needs_admin' }
   | { state: 'waiting_for_login' }

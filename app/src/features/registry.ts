@@ -1,46 +1,43 @@
 import { categories } from './categories'
-import type { CategoryDef, FeatureDef } from './types'
+import settings from './settings'
+import type { CategoryDef, ModuleDef, ScreenDef } from './types'
 
-/**
- * Dev launch: Vite dev server, or any Tauri debug build (`tauri dev`,
- * `tauri build --debug`). Features with `devOnly` are shown only then.
- * `npm run tauri:user` turns it off to see the app as a user would.
- */
+/** Dev server or Tauri debug build. User mode deliberately ignores dev choices. */
 export const isDevLaunch =
   (import.meta.env.DEV || import.meta.env.TAURI_ENV_DEBUG === 'true') && import.meta.env.VITE_USER_MODE !== 'true'
 
-// Every `features/<name>/index.ts` is picked up automatically.
-const modules = import.meta.glob<{ default: FeatureDef }>('./*/index.ts', { eager: true })
+// Settings belongs to the shell and cannot be disabled.
+const entries = import.meta.glob<{ default: ModuleDef }>('./*/index.ts', { eager: true })
+export const modules: ModuleDef[] = Object.entries(entries)
+  .filter(([path]) => path !== './settings/index.ts')
+  .map(([, entry]) => entry.default)
+  .filter((module) => !module.devOnly || isDevLaunch)
 
-export const features: FeatureDef[] = Object.entries(modules)
-  .map(([file, m]) => {
-    if (!m.default) console.error(`[features] ${file} has no default export (use defineFeature)`)
-    return m.default
-  })
-  .filter((f) => f && (!f.devOnly || isDevLaunch))
-  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-
-// mistakes the type checker can't catch
-const seen = new Set<string>()
-for (const f of features) {
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(f.id)) console.error(`[features] id "${f.id}" must be kebab-case`)
-  if (seen.has(f.id)) console.error(`[features] duplicate feature id "${f.id}"`)
-  seen.add(f.id)
+const seen = new Set<string>([settings.id])
+const moduleIds = new Set<string>()
+for (const module of modules) {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(module.id) || moduleIds.has(module.id)) {
+    throw new Error(`Invalid or duplicate module id: ${module.id}`)
+  }
+  moduleIds.add(module.id)
+  for (const screen of module.screens ?? []) {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(screen.id) || seen.has(screen.id)) {
+      throw new Error(`Invalid or duplicate screen id: ${screen.id}`)
+    }
+    seen.add(screen.id)
+  }
 }
-if (features.filter((f) => f.isDefault).length > 1) console.error('[features] more than one feature has isDefault')
-
-export interface FeatureGroup {
-  category: CategoryDef
-  features: FeatureDef[]
+if (modules.flatMap((m) => m.screens ?? []).filter((s) => s.isDefault).length > 1) {
+  throw new Error('Only one screen may be the default')
 }
-
-/** Categories with their features, in sidebar order. Empty categories are skipped. */
-export function groupFeatures(pinBottom: boolean): FeatureGroup[] {
-  return [...categories]
-    .filter((c: CategoryDef) => !!c.pinBottom === pinBottom)
-    .sort((a, b) => a.order - b.order)
+export function enabledScreens(enabled: ReadonlySet<string>): ScreenDef[] {
+  return [...modules.filter((m) => enabled.has(m.id)).flatMap((m) => m.screens ?? []), settings]
+    .filter((s) => !s.devOnly || isDevLaunch)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+export interface FeatureGroup { category: CategoryDef; features: ScreenDef[] }
+export function groupFeatures(features: ScreenDef[], pinBottom: boolean): FeatureGroup[] {
+  return [...categories].filter((c: CategoryDef) => !!c.pinBottom === pinBottom).sort((a, b) => a.order - b.order)
     .map((category) => ({ category, features: features.filter((f) => f.category === category.id) }))
-    .filter((g) => g.features.length > 0)
+    .filter((group) => group.features.length > 0)
 }
-
-export const defaultFeature: FeatureDef | undefined = features.find((f) => f.isDefault) ?? features[0]

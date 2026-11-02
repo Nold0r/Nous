@@ -11,7 +11,9 @@
     "tauri": "tauri",
     "assets": "node scripts/fetch-assets.mjs",
     "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
-    "test:data": "cd src-tauri && cargo test --lib replay -- --nocapture"
+    "test:ui": "node scripts/tests/ui-smoke.mjs",
+    "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs",
+    "test:data": "cargo test -p nous-hsr --lib replay -- --nocapture"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
@@ -31,6 +33,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "cross-env": "^10.1.0",
     "oxlint": "^1.89.0",
+    "playwright": "^1.64.1",
     "sharp": "^0.35.5",
     "subset-font": "^2.9.0",
     "typescript": "~7.0.2",

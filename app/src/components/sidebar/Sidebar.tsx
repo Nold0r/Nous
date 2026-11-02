@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import logo from '../../assets/brand/nous-logo.svg'
 import { groupFeatures, type FeatureGroup } from '../../features/registry'
+import { useModules } from '../../features/module-context'
 import { GameIcon } from '../../ui'
 import { PlayButton } from './PlayButton'
 import { ProfileCard } from './ProfileCard'
@@ -22,8 +23,9 @@ function NavGroup({ group }: { group: FeatureGroup }) {
 }
 
 export function Sidebar() {
-  const top = groupFeatures(false)
-  const bottom = groupFeatures(true)
+  const { screens } = useModules()
+  const top = groupFeatures(screens, false)
+  const bottom = groupFeatures(screens, true)
 
   return (
     <aside className="sidebar acrylic">

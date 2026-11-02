@@ -13,12 +13,7 @@ export interface CategoryDef {
   pinBottom?: boolean
 }
 
-/**
- * One screen of the app. Drop a folder with an `index.ts` exporting this as
- * default and it shows up in the sidebar.
- * Docs: docs/Архитектура/Регистрация экранов.md
- */
-export interface FeatureDef {
+export interface ScreenDef {
   /** Unique kebab-case id, also the route: `/#/<id>`. */
   id: string
   title: string
@@ -41,6 +36,34 @@ export interface FeatureDef {
   devOnly?: boolean
 }
 
-export function defineFeature(def: FeatureDef): FeatureDef {
+export function defineScreen(def: ScreenDef): ScreenDef {
   return def
 }
+
+export type ServiceId = 'hsr'
+export type ModuleSettings = Record<string, unknown>
+export interface ModuleStorage {
+  get: (key: string) => unknown
+  set: (key: string, value: unknown) => void
+}
+/** Capabilities supplied by the shell; background work must respect signal. */
+export interface ModuleContext {
+  signal: AbortSignal
+  services: { hsr?: { read: <T>(command: string) => Promise<T> } }
+  settings: ModuleSettings
+  storage: ModuleStorage
+  navigate: (screenId: string) => void
+}
+export type StopModule = () => void
+/** A built-in module may expose zero, one or several screens. */
+export interface ModuleDef {
+  id: string
+  title: string
+  requires?: readonly ServiceId[]
+  screens?: readonly ScreenDef[]
+  devOnly?: boolean
+  settings?: { defaults: ModuleSettings }
+  /** Started once when enabled, independently of the current route. */
+  start?: (context: ModuleContext) => StopModule | void
+}
+export function defineModule(def: ModuleDef): ModuleDef { return def }

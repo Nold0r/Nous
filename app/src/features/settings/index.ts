@@ -1,7 +1,7 @@
-import { defineFeature } from '../types'
+import { defineScreen } from '../types'
 import { SettingsPage } from './SettingsPage'
 
-export default defineFeature({
+export default defineScreen({
   id: 'settings',
   title: 'Настройки',
   icon: 'settings',
