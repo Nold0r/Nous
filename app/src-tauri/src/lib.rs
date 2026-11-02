@@ -19,6 +19,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  sniffer::wait_for_previous();
   tauri::Builder::default()
     // a second launch (e.g. from the Start menu while Nous sits in the tray) brings the window up
     .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| launch::show_main(app)))

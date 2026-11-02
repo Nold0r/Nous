@@ -14,9 +14,16 @@ export function PlayButton() {
     setStarting(true)
     setError(null)
     launchGame()
-      .catch((e) => setError(String(e)))
-      // the button disappears once the watcher sees the game process
-      .finally(() => setTimeout(() => setStarting(false), 5000))
+      .then((launched) => {
+        // declined in the UAC prompt: nothing happened, nothing to report
+        if (!launched) setStarting(false)
+        // otherwise the button disappears once the watcher sees the game process
+        else setTimeout(() => setStarting(false), 5000)
+      })
+      .catch((e) => {
+        setError(String(e))
+        setStarting(false)
+      })
   }
 
   const label = starting ? 'Запуск…' : 'Играть'

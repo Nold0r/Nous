@@ -25,7 +25,8 @@ export function useGameStatus(): GameStatus | null {
   return status
 }
 
-export function launchGame(): Promise<void> {
+/** Starts the game; false if the player declined the UAC prompt. */
+export function launchGame(): Promise<boolean> {
   return invoke('launch_game')
 }
 

@@ -220,7 +220,7 @@ fn powershell(script: &str, elevate: bool) -> Result<(), String> {
     }
 }
 
-fn ps_quote(s: &str) -> String {
+pub fn ps_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
@@ -229,20 +229,43 @@ pub fn get_game_status(state: State<'_, LaunchState>) -> GameStatus {
     state.status.lock().unwrap().clone()
 }
 
-/// Starts the game. Start-Process goes through the shell, so the game's own
-/// admin request works whether Nous is elevated or not.
+/// Runs a `Start-Process …` command (through the shell, so UAC prompts work).
+/// Ok(true): started; Ok(false): the player said "No" in the UAC prompt
+/// (Windows error 1223), which isn't an error to show.
+pub fn shell_start(start_process: &str) -> Result<bool, String> {
+    let script = format!(
+        "[Console]::OutputEncoding = [Text.Encoding]::UTF8
+try {{ {start_process} -ErrorAction Stop }}
+catch {{
+  $e = $_.Exception
+  while ($e) {{ if ($e.NativeErrorCode -eq 1223) {{ exit 2 }}; $e = $e.InnerException }}
+  [Console]::Error.WriteLine($_.Exception.Message)
+  exit 1
+}}"
+    );
+    let out = Command::new("powershell")
+        .creation_flags(CREATE_NO_WINDOW)
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .output()
+        .map_err(|e| e.to_string())?;
+    match out.status.code() {
+        Some(0) => Ok(true),
+        Some(2) => Ok(false),
+        _ => Err(String::from_utf8_lossy(&out.stderr).trim().to_string()),
+    }
+}
+
+/// Starts the game. If Nous isn't elevated, Windows asks for the game's admin
+/// rights; declining resolves to false, not an error.
 #[tauri::command]
-pub fn launch_game(state: State<'_, LaunchState>) -> Result<(), String> {
-    let path = state.status.lock().unwrap().path.clone().ok_or("Путь к игре неизвестен")?;
-    let dir = Path::new(&path).parent().ok_or("Неверный путь к игре")?;
-    powershell(
-        &format!(
-            "Start-Process -FilePath {} -WorkingDirectory {}",
-            ps_quote(&path),
-            ps_quote(&dir.display().to_string())
-        ),
-        false,
-    )
+pub async fn launch_game(state: State<'_, LaunchState>) -> Result<bool, String> {
+    let path = state.game_path().ok_or("Путь к игре неизвестен")?;
+    let dir = Path::new(&path).parent().ok_or("Неверный путь к игре")?.display().to_string();
+    let command = format!("Start-Process -FilePath {} -WorkingDirectory {}", ps_quote(&path), ps_quote(&dir));
+    tauri::async_runtime::spawn_blocking(move || shell_start(&command))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| format!("Не удалось запустить игру: {e}"))
 }
 
 /// Whether the autostart task exists.
@@ -278,4 +301,18 @@ Register-ScheduledTask -TaskName {task} -Action $action -Trigger $trigger -Princ
         .await
         .map_err(|e| e.to_string())??;
     Ok(get_autostart())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_start_reports_start_and_readable_errors() {
+        let ok = shell_start("Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','exit' -WindowStyle Hidden");
+        assert_eq!(ok, Ok(true));
+        let err = shell_start("Start-Process -FilePath 'C:/nous-test/missing.exe'").unwrap_err();
+        assert!(!err.is_empty() && !err.contains('\u{FFFD}'), "readable message: {err}");
+        println!("error text: {err}");
+    }
 }
