@@ -12,5 +12,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     watch: { ignored: ['**/src-tauri/**'] },
+    // CHANGELOG.md lives at the repo root (lib/changelog.ts imports it)
+    fs: { allow: ['..'] },
   },
 })

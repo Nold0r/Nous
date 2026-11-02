@@ -1,5 +1,6 @@
 import { useUpdater } from '../../lib/updater'
 import { Button } from '../../ui'
+import { openPatchNotes } from '../../lib/patch-notes'
 
 /** Bottom of the sidebar: offers a newer version from GitHub. */
 export function UpdateNotice() {
@@ -13,9 +14,14 @@ export function UpdateNotice() {
           <span className="update-notice__text">
             Доступна версия <b>{update.version}</b>
           </span>
-          <Button size="sm" variant="primary" onClick={install}>
-            Обновить
-          </Button>
+          <span className="update-notice__actions">
+            <Button size="sm" variant="ghost" onClick={() => openPatchNotes({ version: update.version, notes: update.notes })}>
+              Что нового
+            </Button>
+            <Button size="sm" variant="primary" onClick={install}>
+              Обновить
+            </Button>
+          </span>
         </>
       )}
       {update.state === 'installing' && (

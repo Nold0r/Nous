@@ -99,6 +99,7 @@
 
 .update-notice {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
@@ -107,6 +108,11 @@
   border-radius: var(--radius);
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.update-notice__actions {
+  display: flex;
+  gap: var(--space-1);
 }
 
 .update-notice__text b {

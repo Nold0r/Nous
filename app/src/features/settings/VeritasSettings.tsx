@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { disableVeritas, enableVeritas, useVeritasStatus } from '../../lib/veritas'
 import { Button, Panel, Switch } from '../../ui'
 
@@ -55,7 +56,13 @@ export function VeritasSettings() {
         <div className="risk">
           <p className="risk__title">Это внедрение в игру</p>
           <p>
-            <a href="https://github.com/hessiser/veritas" target="_blank" rel="noreferrer">
+            <a
+              href="https://github.com/hessiser/veritas"
+              onClick={(e) => {
+                e.preventDefault()
+                openUrl('https://github.com/hessiser/veritas').catch(console.error)
+              }}
+            >
               Veritas
             </a>{' '}
             — сторонний плагин. Nous положит его библиотеку в папку игры, игра загрузит её в свой процесс, и плагин будет

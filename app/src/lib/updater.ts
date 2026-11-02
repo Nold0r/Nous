@@ -6,7 +6,7 @@ import { isDevLaunch } from '../features/registry'
 
 export type UpdateState =
   | { state: 'none' }
-  | { state: 'available'; version: string }
+  | { state: 'available'; version: string; notes: string }
   | { state: 'installing'; percent: number | null }
   | { state: 'error'; message: string }
 
@@ -24,7 +24,7 @@ export function useUpdater(): { update: UpdateState; install: () => void } {
       .then((u) => {
         if (!u) return
         setFound(u)
-        setUpdate({ state: 'available', version: u.version })
+        setUpdate({ state: 'available', version: u.version, notes: u.body ?? '' })
       })
       // offline or GitHub unavailable: try again next launch
       .catch((e) => console.warn('update check failed', e))
