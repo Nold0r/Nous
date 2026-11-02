@@ -1,0 +1,18 @@
+# build output and dependencies
+node_modules/
+dist/
+target/
+*.log
+
+# scratch art files
+Untitled*
+*.paint
+
+# local datamine clone (large, fetched by the spike)
+spike/datamine/tbgd/
+
+# reference repos, not needed to build
+vendor/reliquary-archiver/
+
+# Obsidian per-user state
+docs/.obsidian/workspace.json

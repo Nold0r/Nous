@@ -1,0 +1,40 @@
+{
+  "source": "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/",
+  "groups": {
+    "items": {
+      "path": "icon/item/{id}.png",
+      "content": 112,
+      "icons": {
+        "stellar-jade": 900001,
+        "credits": 2,
+        "trailblaze-power": 11,
+        "reserved-trailblaze-power": 12
+      }
+    },
+    "sign": {
+      "path": "icon/sign/{id}.png",
+      "content": 104,
+      "icons": {
+        "overview": "DataBankIcon",
+        "map": "MapIcon",
+        "characters": "AvatarIcon",
+        "inventory": "InventoryIcon",
+        "settings": "SettingsIcon"
+      }
+    },
+    "avatar": {
+      "path": "icon/avatar/{id}.png",
+      "content": 128,
+      "icons": {
+        "8001": 8001,
+        "8002": 8002
+      }
+    }
+  },
+  "fonts": {
+    "path": "font/{id}.ttf",
+    "fonts": {
+      "hsr-ui": "RPG_CN"
+    }
+  }
+}

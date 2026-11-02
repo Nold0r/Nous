@@ -1,0 +1,3 @@
+[submodule "vendor/reliquary"]
+	path = vendor/reliquary
+	url = https://github.com/IceDynamix/reliquary.git

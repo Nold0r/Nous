@@ -1,0 +1,79 @@
+/* Global base styles and utility classes of the design system. */
+
+:root {
+  color-scheme: dark;
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  user-select: none;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+  font-weight: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Acrylic surface: tint + blur of the backdrop + grain.
+   Note: backdrop-filter makes the element the containing block of its
+   position:fixed descendants, so popovers inside must be portalled. */
+.acrylic {
+  position: relative;
+  background: var(--acrylic);
+  backdrop-filter: var(--acrylic-blur);
+  -webkit-backdrop-filter: var(--acrylic-blur);
+}
+
+.acrylic::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--grain);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-dim {
+  color: var(--text-dim);
+}
+
+.text-gold {
+  color: var(--gold);
+}
+
+/* thin dark scrollbars (WebView2 / Chromium) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 235, 230, 0.18) transparent;
+}

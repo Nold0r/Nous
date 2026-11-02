@@ -1,0 +1,106 @@
+/* Nous design tokens. Every colour, size and timing used by the UI comes from
+   here; components and screens must not hard-code their own values.
+   Docs: docs/Дизайн-система/Токены.md */
+
+/* The game's UI font (HYQiHei 65J, RPG_CN.ttf from StarRailRes), subset to
+   Latin + Cyrillic by `npm run assets`. It has a single weight. */
+@font-face {
+  font-family: 'HSR';
+  src: url('../assets/fonts/hsr-ui.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+
+:root {
+  /* ---- surfaces ---- */
+  --bg: #0c070b;
+  --panel: rgba(255, 255, 255, 0.05);
+  --panel-strong: rgba(255, 255, 255, 0.09);
+  --hover: rgba(255, 255, 255, 0.07);
+  /* acrylic: translucent tint + blur of the animated backdrop + grain */
+  --acrylic: rgba(16, 11, 16, 0.5);
+  --acrylic-strong: rgba(18, 13, 19, 0.72);
+  --acrylic-blur: blur(26px) saturate(150%);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* stat-row style band, like the character screen */
+  --band: linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+
+  /* ---- lines ---- */
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+
+  /* ---- text ---- */
+  --text: #ecebe6;
+  --text-muted: rgba(236, 235, 230, 0.6);
+  --text-dim: rgba(236, 235, 230, 0.38);
+
+  /* ---- brand: the three colours of the Nous logo (assets/brand/nous-logo.svg) ---- */
+  --brand-cream: #e9e4da;
+  --brand-gold: #d8b875;
+  --brand-crimson: #b53e58;
+
+  /* ---- accents ---- */
+  /* selected tab / primary button: warm-white pill in the logo's cream */
+  --select-bg: var(--brand-cream);
+  --select-text: #17171a;
+  /* secondary accent: section diamonds, notes, "not linked" */
+  --gold: var(--brand-gold);
+  --gold-dim: rgba(216, 184, 117, 0.35);
+  /* brand accent, the logo's needle: used sparingly as a thin line or dot */
+  --crimson: var(--brand-crimson);
+  --crimson-dim: rgba(181, 62, 88, 0.45);
+
+  /* ---- states ---- */
+  --success: #8fd4a4;
+  --warning: #f0c36d;
+  --danger: #ec8a8a;
+  --info: #8ec5ff;
+
+  /* ---- rarity (stars), as in the game ---- */
+  --rarity-5: #f1b358;
+  --rarity-4: #b893f5;
+  --rarity-3: #74aef0;
+
+  /* ---- spacing scale (4px grid) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* ---- radii ---- */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* ---- typography ---- */
+  --font-ui: 'HSR', 'Segoe UI', system-ui, sans-serif;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --tracking-caps: 2px;
+
+  /* ---- motion ---- */
+  --dur-fast: 0.15s;
+  --dur: 0.25s;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ---- shadows ---- */
+  --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.55);
+  --glow-select: 0 0 18px rgba(233, 228, 218, 0.18);
+
+  /* ---- layers ---- */
+  --z-background: 0;
+  --z-app: 1;
+  --z-popover: 100;
+
+  /* ---- shell ---- */
+  --sidebar-width: 272px;
+}

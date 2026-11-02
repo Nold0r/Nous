@@ -1,0 +1,117 @@
+/* Backdrop modelled on the HSR character screen (without its platform). --px/--py (-0.5..0.5) come
+   from SpaceBackground and shift each layer by its own depth (parallax). */
+
+.space {
+  --px: 0;
+  --py: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0c070b;
+}
+
+.space__layer {
+  position: absolute;
+  will-change: transform;
+}
+
+/* far: nebula clouds and the sky colour */
+.space__nebula {
+  inset: -6%;
+  transform: translate3d(calc(var(--px) * -6px), calc(var(--py) * -4px), 0);
+  background:
+    radial-gradient(38% 30% at 28% 30%, rgba(170, 82, 96, 0.42), transparent 70%),
+    radial-gradient(34% 26% at 74% 22%, rgba(118, 62, 120, 0.34), transparent 70%),
+    radial-gradient(60% 22% at 50% 58%, rgba(214, 128, 104, 0.36), transparent 72%),
+    radial-gradient(30% 20% at 88% 48%, rgba(150, 70, 70, 0.3), transparent 70%),
+    linear-gradient(180deg, #160b12 0%, #2c141c 35%, #4a2228 58%, #5a2c2e 70%, #3a1b20 85%, #241015 100%);
+}
+
+/* cloudy texture on top of the gradients */
+.space__nebula::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='700'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0035 .006' numOctaves='5' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .78 0 0 0 0 .8 0 0 0 1.4 -.45'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-size: cover;
+}
+
+.space__stars {
+  inset: -4%;
+  width: 108%;
+  height: 108%;
+  transform: translate3d(calc(var(--px) * -10px), calc(var(--py) * -6px), 0);
+}
+
+/* near: warm glow low in the sky that the fog rises into */
+.space__haze {
+  left: -20%;
+  right: -20%;
+  top: 48%;
+  height: 70%;
+  transform: translate3d(calc(var(--px) * -16px), calc(var(--py) * -6px), 0);
+  background:
+    radial-gradient(45% 22% at 50% 18%, rgba(255, 196, 190, 0.28), transparent 70%),
+    radial-gradient(70% 40% at 50% 40%, rgba(170, 88, 92, 0.35), transparent 75%);
+  filter: blur(10px);
+}
+
+/* fog rising from the bottom edge, two drifting layers at different depths */
+.space__fog {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -8%;
+  height: 46%;
+  filter: blur(28px);
+  will-change: transform;
+}
+
+.space__fog--back {
+  opacity: 0.55;
+  background:
+    radial-gradient(40% 60% at 20% 100%, rgba(232, 186, 196, 0.5), transparent 70%),
+    radial-gradient(35% 55% at 62% 100%, rgba(210, 160, 190, 0.45), transparent 70%),
+    radial-gradient(30% 50% at 92% 100%, rgba(240, 196, 200, 0.4), transparent 70%);
+  animation: fog-drift 46s ease-in-out infinite alternate;
+  translate: calc(var(--px) * -24px) calc(var(--py) * -4px);
+}
+
+.space__fog--front {
+  opacity: 0.7;
+  height: 30%;
+  background:
+    radial-gradient(45% 70% at 38% 100%, rgba(255, 226, 230, 0.6), transparent 70%),
+    radial-gradient(40% 70% at 80% 100%, rgba(240, 206, 220, 0.5), transparent 70%),
+    radial-gradient(30% 60% at 4% 100%, rgba(255, 216, 220, 0.5), transparent 70%),
+    linear-gradient(0deg, rgba(236, 200, 208, 0.35), transparent 60%);
+  animation: fog-drift 32s ease-in-out infinite alternate-reverse;
+  translate: calc(var(--px) * -34px) calc(var(--py) * -6px);
+}
+
+@keyframes fog-drift {
+  from {
+    transform: translateX(-6%);
+  }
+  to {
+    transform: translateX(6%);
+  }
+}
+
+.space__vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(6, 3, 6, 0.75) 100%),
+    linear-gradient(90deg, rgba(6, 3, 6, 0.45), transparent 30%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space__fog {
+    animation: none;
+  }
+}

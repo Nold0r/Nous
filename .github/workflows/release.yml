@@ -1,0 +1,49 @@
+# Builds the Windows installers and publishes them as a GitHub release.
+# Runs on a pushed version tag (git tag v0.1.0 && git push origin v0.1.0)
+# or by hand from the Actions tab (then the tag comes from tauri.conf.json).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # reliquary is a submodule (path dependency of src-tauri)
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # reliquary needs a recent stable Rust (cfg_select!, 1.95+)
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri -> target
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tagName: v__VERSION__
+          releaseName: Nous v__VERSION__
+          releaseBody: Установщики для Windows ниже. Nous нужно запускать от администратора, чтобы он видел вход в игру.
+          releaseDraft: false
+          prerelease: false
