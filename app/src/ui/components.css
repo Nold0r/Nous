@@ -202,6 +202,76 @@
   box-shadow: none;
 }
 
+/* ---------- switch (on/off setting row) ---------- */
+
+.ui-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  cursor: pointer;
+}
+
+.ui-switch--disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ui-switch__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ui-switch__hint {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.ui-switch__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-switch__track {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--hover);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ui-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.ui-switch__input:checked + .ui-switch__track {
+  background: var(--select-bg);
+  border-color: var(--select-bg);
+}
+
+.ui-switch__input:checked + .ui-switch__track::after {
+  transform: translateX(18px);
+  background: var(--select-text);
+}
+
+.ui-switch__input:focus-visible + .ui-switch__track {
+  box-shadow: var(--glow-select);
+}
+
 /* ---------- tabs (segmented pill, like "Характеристики | Умения") ---------- */
 
 .ui-tabs {

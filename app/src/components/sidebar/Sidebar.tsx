@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import logo from '../../assets/brand/nous-logo.svg'
 import { groupFeatures, type FeatureGroup } from '../../features/registry'
 import { GameIcon } from '../../ui'
+import { PlayButton } from './PlayButton'
 import { ProfileCard } from './ProfileCard'
 import { UpdateNotice } from './UpdateNotice'
 
@@ -32,6 +33,7 @@ export function Sidebar() {
       </div>
 
       <ProfileCard />
+      <PlayButton />
 
       <nav className="sidebar__nav">
         {top.map((g) => (
