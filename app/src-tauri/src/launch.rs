@@ -43,6 +43,10 @@ impl LaunchState {
     pub fn game_path(&self) -> Option<String> {
         self.status.lock().unwrap().path.clone()
     }
+
+    pub fn game_running(&self) -> bool {
+        self.status.lock().unwrap().running
+    }
 }
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
