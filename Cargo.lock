@@ -2537,6 +2537,7 @@ dependencies = [
 name = "nous"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "is_elevated",
  "log",
  "nous-core",
@@ -2554,6 +2555,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tokio",
+ "ureq",
  "winreg",
 ]
 

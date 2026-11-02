@@ -226,3 +226,71 @@ fn reads_and_packet_handling_continue_while_a_snapshot_is_being_saved() {
     worker.join().unwrap();
     assert_eq!(client.read().revision, revision);
 }
+
+#[test]
+fn a_multi_domain_command_is_one_revision_with_the_existing_event_envelopes() {
+    use nous_core::world::{Entity, WorldCommand};
+    let client = Client::new(MemoryStore::default()).unwrap();
+    let events = client.subscribe();
+    let mut command = bag();
+    command.login = Some(77);
+    command.world = Some(WorldCommand::Scene {
+        plane: 1,
+        floor: 2,
+        entry: 3,
+        leader: 4,
+        entities: vec![Entity {
+            id: 4,
+            group: 0,
+            config: 0,
+            prop_state: None,
+            position: None,
+        }],
+    });
+    command.battle = Some(nous_core::battles::Battle {
+        stage_id: 5,
+        ..Default::default()
+    });
+    command.banners = Some(vec![nous_core::gacha::Banner {
+        gacha_id: 6,
+        ..Default::default()
+    }]);
+    command.snapshot = Some((
+        "GetDailyActiveInfoScRsp".into(),
+        nous_core::snapshots::Snapshot {
+            at: 10,
+            data: serde_json::json!({ "score": 20 }),
+        },
+    ));
+    let revision = client.handle(&command).unwrap();
+    assert_eq!(revision, 1);
+    let snapshot = client.read();
+    assert_eq!(snapshot.data.world.floor_id, Some(2));
+    assert_eq!(snapshot.data.battles.list[0].stage_id, 5);
+    assert_eq!(snapshot.data.gacha.banners[0].gacha_id, 6);
+    assert_eq!(
+        snapshot.data.snapshots["GetDailyActiveInfoScRsp"].data["score"],
+        20
+    );
+    let emitted: Vec<_> = events.try_iter().collect();
+    assert_eq!(
+        emitted.iter().map(|e| e.name).collect::<Vec<_>>(),
+        [
+            "account-changed",
+            "profile-changed",
+            "inventory-changed",
+            "world-changed",
+            "battle-finished",
+            "gacha-changed",
+            "snapshot-changed"
+        ]
+    );
+    assert!(
+        emitted
+            .iter()
+            .all(|e| e.payload["revision"] == snapshot.revision)
+    );
+    assert_eq!(emitted[0].payload["data"], 77);
+    assert_eq!(emitted[5].payload["data"], serde_json::Value::Null);
+    assert_eq!(emitted[6].payload["data"], "GetDailyActiveInfoScRsp");
+}

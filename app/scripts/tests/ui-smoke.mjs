@@ -18,6 +18,18 @@ page.on('console', (message) => { if (message.type() === 'error') errors.push(me
 const ids = ['overview', 'map', 'characters', 'relics', 'design-system']
 if (!connected) await page.goto(process.env.NOUS_UI_URL ?? 'http://localhost:5173/')
 await page.evaluate(() => { location.hash = '/settings' })
+if (process.env.NOUS_EXPECT_USER_MODE === 'true') {
+  await page.evaluate((ids) => localStorage.setItem('nous.modules.v1', JSON.stringify({ disabled: ids, settings: {} })), ids)
+  await page.reload()
+  await page.getByRole('heading', { name: 'Настройки', exact: true }).waitFor()
+  assert.equal(await page.getByRole('heading', { name: 'Модули', exact: true }).count(), 0)
+  for (const id of ids.filter((id) => id !== 'design-system')) assert.equal(await page.locator(`a[href="#/${id}"]`).count(), 1)
+  assert.equal(await page.locator('a[href="#/design-system"]').count(), 0)
+  assert.deepEqual(errors, [])
+  console.log('User mode: no module switches, dev choices ignored, four user tabs enabled')
+  await browser.close()
+  process.exit(0)
+}
 await page.getByRole('heading', { name: 'Модули', exact: true }).waitFor()
 
 if (process.env.NOUS_EXPECT_PERSISTED === 'true') {

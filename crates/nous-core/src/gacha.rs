@@ -68,3 +68,25 @@ impl Gacha {
         self.history.len() - before
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn merge_counts_new_pulls_only() {
+        let pull = |id: &str| Pull {
+            id: id.into(),
+            gacha_type: 11,
+            gacha_id: 0,
+            item_id: 1310,
+            rank: 5,
+            item_type: String::new(),
+            name: String::new(),
+            time: String::new(),
+        };
+        let mut g = Gacha::default();
+        assert_eq!(g.merge(vec![pull("1"), pull("2")], 1), 2);
+        assert_eq!(g.merge(vec![pull("2"), pull("3")], 2), 1);
+        assert_eq!(g.history.len(), 3);
+    }
+}

@@ -273,3 +273,50 @@ fn replay_login_recordings() {
         failures.join("\n")
     );
 }
+
+#[test]
+fn a_new_account_may_have_no_relics_but_must_have_a_complete_login() {
+    let mut inventory = Inventory::default();
+    inventory.avatar_paths.insert(
+        8001,
+        nous_core::inventory::AvatarPath {
+            avatar_id: 8001,
+            ..Default::default()
+        },
+    );
+    let mut session = Session {
+        file: "new-account-fixture".into(),
+        uid: 1,
+        inventory,
+        world: Default::default(),
+        snapshots: Default::default(),
+        gacha: Default::default(),
+        battles: Default::default(),
+        had_bag: true,
+        had_avatars: true,
+    };
+    assert!(
+        check_session(&session).is_empty(),
+        "an empty relic list is valid at the start of the game"
+    );
+    session.had_bag = false;
+    assert!(
+        check_session(&session)
+            .iter()
+            .any(|e| e.contains("no GetBagScRsp"))
+    );
+    session.had_bag = true;
+    session
+        .inventory
+        .avatar_paths
+        .get_mut(&8001)
+        .unwrap()
+        .relics
+        .insert(1, 99);
+    assert!(
+        check_session(&session)
+            .iter()
+            .any(|e| e.contains("relic 99 not in bag")),
+        "equipped items must still exist"
+    );
+}
