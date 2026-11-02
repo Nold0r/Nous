@@ -35,7 +35,10 @@ struct Recording {
 
 impl Recorder {
     pub fn new(app_data: Option<PathBuf>) -> Self {
-        Self { dir: app_data.map(|d| d.join(DIR)), current: None }
+        Self {
+            dir: app_data.map(|d| d.join(DIR)),
+            current: None,
+        }
     }
 
     pub fn on_command(&mut self, command: &GameCommand) {
@@ -70,14 +73,26 @@ impl Recorder {
         prune(dir);
         let name = chrono_like_now();
         let file = File::create(dir.join(format!("{name}.jsonl"))).ok()?;
-        Some(Recording { file: BufWriter::new(file), started: Instant::now(), bag: false, avatars: false, finished: false })
+        Some(Recording {
+            file: BufWriter::new(file),
+            started: Instant::now(),
+            bag: false,
+            avatars: false,
+            finished: false,
+        })
     }
 }
 
 /// Keeps the newest KEEP - 1 recordings (one is about to be added).
 fn prune(dir: &PathBuf) {
-    let Ok(entries) = fs::read_dir(dir) else { return };
-    let mut files: Vec<_> = entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "jsonl")).collect();
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    let mut files: Vec<_> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "jsonl"))
+        .collect();
     files.sort();
     let excess = (files.len() + 1).saturating_sub(KEEP);
     for old in files.into_iter().take(excess) {
@@ -87,7 +102,7 @@ fn prune(dir: &PathBuf) {
 
 /// `YYYYMMDD-HHMMSS` (UTC): sortable file names without a date crate.
 fn chrono_like_now() -> String {
-    let secs = crate::profile::now();
+    let secs = nous_core::profile::now();
     let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
     // civil-from-days (Howard Hinnant)
     let z = days + 719_468;
@@ -99,7 +114,12 @@ fn chrono_like_now() -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = yoe + era * 400 + i64::from(m <= 2);
-    format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
+    format!(
+        "{y:04}{m:02}{d:02}-{:02}{:02}{:02}",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
 }
 
 #[cfg(test)]
@@ -107,7 +127,13 @@ mod tests {
     use super::*;
 
     fn command(id: u16, data: &[u8]) -> GameCommand {
-        GameCommand { command_id: id, header_len: 0, data_len: data.len() as u32, proto_header: vec![], proto_data: data.to_vec() }
+        GameCommand {
+            command_id: id,
+            header_len: 0,
+            data_len: data.len() as u32,
+            proto_header: vec![],
+            proto_data: data.to_vec(),
+        }
     }
 
     #[test]
@@ -115,7 +141,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("nous-recorder-test-{}", std::process::id()));
         let mut rec = Recorder::new(Some(dir.clone()));
         rec.on_command(&command(cmd::GetBagScRsp, b"before login: not recorded"));
-        for id in [cmd::PlayerGetTokenScRsp, cmd::GetBagScRsp, cmd::GetAvatarDataScRsp, cmd::PlayerLoginFinishScRsp] {
+        for id in [
+            cmd::PlayerGetTokenScRsp,
+            cmd::GetBagScRsp,
+            cmd::GetAvatarDataScRsp,
+            cmd::PlayerLoginFinishScRsp,
+        ] {
             rec.on_command(&command(id, b"x"));
         }
         rec.on_command(&command(cmd::PlayerSyncScNotify, b"after: not recorded"));
@@ -124,7 +155,10 @@ mod tests {
         let files: Vec<_> = fs::read_dir(dir.join(DIR)).unwrap().flatten().collect();
         assert_eq!(files.len(), 1);
         let text = fs::read_to_string(files[0].path()).unwrap();
-        let names: Vec<_> = text.lines().map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap()["name"].clone()).collect();
+        let names: Vec<_> = text
+            .lines()
+            .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap()["name"].clone())
+            .collect();
         assert_eq!(names.len(), 4);
         assert_eq!(names[0], "PlayerGetTokenScRsp");
         assert_eq!(names[3], "PlayerLoginFinishScRsp");

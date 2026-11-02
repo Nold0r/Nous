@@ -48,7 +48,7 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: app/src-tauri -> target
+          workspaces: . -> target
 
       - name: Stamp version
         working-directory: app/src-tauri
@@ -91,9 +91,8 @@ jobs:
           npm run lint
           npx tsc -b
 
-      - name: Rust tests
-        working-directory: app/src-tauri
-        run: cargo test --lib
+      - name: Rust workspace tests
+        run: cargo test --workspace --all-targets
 
       - uses: tauri-apps/tauri-action@v0
         env:

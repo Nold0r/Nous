@@ -14,14 +14,14 @@ use std::path::PathBuf;
 use base64::Engine;
 use reliquary::network::command::proto;
 
-use crate::inventory::{Inventory, SnapshotReport};
+use nous_core::inventory::{Inventory, SnapshotReport};
 
 struct Session {
     file: String,
-    world: crate::world::World,
-    snapshots: crate::snapshots::Snapshots,
-    gacha: crate::gacha::Gacha,
-    battles: crate::battles::Battles,
+    world: nous_core::world::World,
+    snapshots: nous_core::snapshots::Snapshots,
+    gacha: nous_core::gacha::Gacha,
+    battles: nous_core::battles::Battles,
     uid: u32,
     inventory: Inventory,
     had_bag: bool,
@@ -31,7 +31,13 @@ struct Session {
 fn recordings_dir() -> Option<PathBuf> {
     std::env::var_os("NOUS_RECORDINGS")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("com.nous.companion").join(crate::recorder::DIR)))
+        .or_else(|| {
+            std::env::var_os("APPDATA").map(|d| {
+                PathBuf::from(d)
+                    .join("com.nous.companion")
+                    .join(crate::recorder::DIR)
+            })
+        })
 }
 
 /// Feeds a recording through the real path, `GameState::handle`, over a
@@ -40,15 +46,21 @@ fn replay_file(path: &std::path::Path) -> Session {
     let file = path.file_name().unwrap().to_string_lossy().into_owned();
     let dir = std::env::temp_dir().join(format!("nous-replay-{}-{file}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
-    let store = crate::account::Store::new(Some(dir.clone()));
-    let mut game = crate::game::GameState::new(store.clone());
+    let store = nous_core::account::FileStore::new(Some(dir.clone()));
+    let mut game = nous_core::game::GameState::new(store.clone()).unwrap();
     let (mut had_bag, mut had_avatars) = (false, false);
 
     let text = std::fs::read_to_string(path).unwrap();
     for line in text.lines() {
-        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
-        let (Some(id), Some(b64)) = (v["id"].as_u64(), v["b64"].as_str()) else { continue };
-        let data = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        let (Some(id), Some(b64)) = (v["id"].as_u64(), v["b64"].as_str()) else {
+            continue;
+        };
+        let data = base64::engine::general_purpose::STANDARD
+            .decode(b64)
+            .unwrap();
         let command = reliquary::network::command::GameCommand {
             command_id: id as u16,
             header_len: 0,
@@ -61,12 +73,12 @@ fn replay_file(path: &std::path::Path) -> Session {
             Some("GetAvatarDataScRsp") => had_avatars = true,
             _ => {}
         }
-        game.handle(&command);
+        game.handle(&crate::decode(&command)).unwrap();
     }
 
     // what was recorded must survive a write and a fresh start
-    game.flush();
-    let reloaded = crate::game::GameState::new(store);
+    game.flush().unwrap();
+    let reloaded = nous_core::game::GameState::new(store).unwrap();
     assert_eq!(
         reloaded.account.inventory.relics.len(),
         game.account.inventory.relics.len(),
@@ -99,30 +111,60 @@ fn check_session(s: &Session) -> Vec<String> {
     };
 
     fail(s.uid == 0, "no PlayerGetTokenScRsp".into());
-    fail(!s.had_bag, "no GetBagScRsp (login not fully recorded?)".into());
+    fail(
+        !s.had_bag,
+        "no GetBagScRsp (login not fully recorded?)".into(),
+    );
     fail(!s.had_avatars, "no GetAvatarDataScRsp".into());
-    fail(s.had_bag && inv.relics.is_empty(), "bag has no relics".into());
-    fail(s.had_avatars && inv.avatar_paths.is_empty(), "no characters".into());
+    fail(
+        s.had_bag && inv.relics.is_empty(),
+        "bag has no relics".into(),
+    );
+    fail(
+        s.had_avatars && inv.avatar_paths.is_empty(),
+        "no characters".into(),
+    );
 
     for r in inv.relics.values() {
-        fail(r.tid == 0 || r.main_affix_id == 0, format!("relic {}: empty tid/main stat", r.uid));
+        fail(
+            r.tid == 0 || r.main_affix_id == 0,
+            format!("relic {}: empty tid/main stat", r.uid),
+        );
         fail(r.level > 15, format!("relic {}: level {}", r.uid, r.level));
-        fail(r.sub_affixes.len() > 4, format!("relic {}: {} substats", r.uid, r.sub_affixes.len()));
-        fail(r.sub_affixes.iter().any(|a| a.cnt == 0), format!("relic {}: substat with 0 rolls", r.uid));
+        fail(
+            r.sub_affixes.len() > 4,
+            format!("relic {}: {} substats", r.uid, r.sub_affixes.len()),
+        );
+        fail(
+            r.sub_affixes.iter().any(|a| a.cnt == 0),
+            format!("relic {}: substat with 0 rolls", r.uid),
+        );
     }
     // gear worn by a character must exist, and point back at that character
     for path in inv.avatar_paths.values() {
         for (slot, uid) in &path.relics {
             match inv.relics.get(uid) {
-                None => fail(true, format!("character {} slot {slot}: relic {uid} not in bag", path.avatar_id)),
+                None => fail(
+                    true,
+                    format!(
+                        "character {} slot {slot}: relic {uid} not in bag",
+                        path.avatar_id
+                    ),
+                ),
                 Some(r) => fail(
                     r.equipped_by != Some(path.avatar_id),
-                    format!("relic {uid} worn by {} but says {:?}", path.avatar_id, r.equipped_by),
+                    format!(
+                        "relic {uid} worn by {} but says {:?}",
+                        path.avatar_id, r.equipped_by
+                    ),
                 ),
             }
         }
         if let Some(lc) = path.light_cone {
-            fail(!inv.light_cones.contains_key(&lc), format!("character {}: light cone {lc} not in bag", path.avatar_id));
+            fail(
+                !inv.light_cones.contains_key(&lc),
+                format!("character {}: light cone {lc} not in bag", path.avatar_id),
+            );
         }
     }
     problems
@@ -153,10 +195,10 @@ fn compare(prev: &Session, next: &Session) -> SnapshotReport {
             p
         })
         .collect();
-    inv.apply_bag(&bag, i64::MAX)
+    inv.apply_bag(&crate::inventory::bag(&bag), i64::MAX)
 }
 
-fn to_proto(affixes: &[crate::inventory::Affix]) -> Vec<proto::RelicAffix::RelicAffix> {
+fn to_proto(affixes: &[nous_core::inventory::Affix]) -> Vec<proto::RelicAffix::RelicAffix> {
     affixes
         .iter()
         .map(|a| {
@@ -217,10 +259,17 @@ fn replay_login_recordings() {
             let report = compare(prev, &s);
             println!("  vs {}: {report:?}", prev.file);
             if report.reassigned > 0 {
-                failures.push(format!("{}: {} relic ids now point at other relics (vs {})", s.file, report.reassigned, prev.file));
+                failures.push(format!(
+                    "{}: {} relic ids now point at other relics (vs {})",
+                    s.file, report.reassigned, prev.file
+                ));
             }
         }
         last_by_uid.insert(s.uid, s);
     }
-    assert!(failures.is_empty(), "data problems:\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "data problems:\n{}",
+        failures.join("\n")
+    );
 }

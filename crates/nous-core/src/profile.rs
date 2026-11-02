@@ -1,7 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
-
-use crate::game::{Shared, Versioned};
 
 /// Game caps, shown even before an account is linked; live data overrides them.
 const TRAILBLAZE_POWER_MAX: u32 = 300;
@@ -69,10 +66,4 @@ pub fn now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or_default()
-}
-
-#[tauri::command]
-pub fn get_profile(shared: State<'_, Shared>) -> Versioned<PlayerProfile> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.profile().clone())
 }

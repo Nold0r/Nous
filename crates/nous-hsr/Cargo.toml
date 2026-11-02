@@ -1,0 +1,24 @@
+[package]
+name = "nous-hsr"
+version = "0.1.0"
+edition = "2024"
+description = "Passive HSR traffic adapter and standalone Nous SDK"
+
+[dependencies]
+nous-core = { path = "../nous-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+reliquary = { path = "../../vendor/reliquary" }
+protobuf = "=3.7.1"
+protobuf-json-mapping = "=3.7.1"
+pktmon = { version = "0.6.2", features = ["tokio"] }
+futures = "0.3"
+ureq = { version = "3", features = ["json"] }
+base64 = "0.22"
+is_elevated = "0.1.2"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "time", "sync", "macros"] }
+
+[[example]]
+name = "events"
+path = "../../examples/events.rs"

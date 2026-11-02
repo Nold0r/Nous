@@ -291,7 +291,7 @@ pub async fn enable_veritas(app: AppHandle, accept_risk: bool) -> Result<Veritas
     {
         let mut s = state.settings.lock().unwrap();
         s.enabled = true;
-        s.accepted_at = Some(crate::profile::now());
+        s.accepted_at = Some(nous_core::profile::now());
         s.installed = Some(Installed { version, path: target.display().to_string(), sha256, game_range });
     }
     state.save();

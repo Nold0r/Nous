@@ -2537,14 +2537,10 @@ dependencies = [
 name = "nous"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
- "futures",
  "is_elevated",
  "log",
- "pktmon",
- "protobuf",
- "protobuf-json-mapping",
- "reliquary",
+ "nous-core",
+ "nous-hsr",
  "rust_socketio",
  "serde",
  "serde_json",
@@ -2558,8 +2554,35 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tokio",
- "ureq",
  "winreg",
+]
+
+[[package]]
+name = "nous-core"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "nous-hsr"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "futures",
+ "is_elevated",
+ "log",
+ "nous-core",
+ "pktmon",
+ "protobuf",
+ "protobuf-json-mapping",
+ "reliquary",
+ "serde",
+ "serde_json",
+ "tokio",
+ "ureq",
 ]
 
 [[package]]

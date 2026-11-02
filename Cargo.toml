@@ -1,0 +1,11 @@
+[workspace]
+members = ["crates/nous-core", "crates/nous-hsr", "app/src-tauri"]
+exclude = ["vendor/reliquary", "spike/hsr-sniff"]
+resolver = "2"
+
+[profile.dev]
+# The game's KCP header overflows the upstream kcp arithmetic.
+overflow-checks = false
+
+[profile.release]
+overflow-checks = false

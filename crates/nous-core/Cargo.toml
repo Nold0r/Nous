@@ -1,0 +1,10 @@
+[package]
+name = "nous-core"
+version = "0.1.0"
+edition = "2024"
+description = "Nous account models, commands, storage and event API without a desktop shell"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"

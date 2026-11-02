@@ -1,40 +1,11 @@
-mod account;
-mod battles;
-mod gacha;
-mod game;
-mod inventory;
+mod ipc;
 mod launch;
-mod profile;
-mod recorder;
-#[cfg(test)]
-mod replay;
 mod sniffer;
-mod snapshots;
 mod veritas;
-mod world;
-
-use std::sync::Mutex;
-use std::time::Duration;
-
-use tauri::{AppHandle, Manager, RunEvent};
-
-/// How often the saver thread writes a changed account.
-const SAVE_INTERVAL: Duration = Duration::from_millis(1500);
-
-/// Writes the account off the packet path: `GameState::handle` only marks it
-/// changed; here a copy is taken under the lock and written without it.
-fn spawn_saver(app: AppHandle) {
-  std::thread::spawn(move || loop {
-    std::thread::sleep(SAVE_INTERVAL);
-    let shared = app.state::<game::Shared>();
-    let unsaved = {
-      let mut game = shared.game.lock().unwrap();
-      game.take_unsaved().map(|account| (game.store(), account))
-    };
-    if let Some((store, account)) = unsaved {
-      store.save(&account);
-    }
-  });
+use tauri::{Manager, RunEvent, Emitter};
+struct Bridge {
+  stop: std::sync::mpsc::Sender<()>,
+  thread: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,32 +27,41 @@ pub fn run() {
             .build(),
         )?;
       }
-      app.manage(game::Shared {
-        game: Mutex::new(game::GameState::load(app.handle())),
-        status: Mutex::new(sniffer::SnifferStatus::Starting),
+      let sdk = nous_hsr::Sdk::new(Some(app.path().app_data_dir()?)).map_err(std::io::Error::other)?;
+      let events = sdk.subscribe();
+      let handle = app.handle().clone();
+      let (stop, stopped) = std::sync::mpsc::channel();
+      let bridge = std::thread::spawn(move || loop {
+        if stopped.try_recv().is_ok() { break; }
+        match events.recv_timeout(std::time::Duration::from_millis(100)) {
+          Ok(event) => { handle.emit(event.name, event.payload).ok(); }
+          Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+          Err(_) => break,
+        }
       });
-      spawn_saver(app.handle().clone());
-      sniffer::start(app.handle().clone());
+      app.manage(Bridge { stop, thread: std::sync::Mutex::new(Some(bridge)) });
+      app.manage(sdk);
       launch::setup(app.handle())?;
       // optional, off by default: see veritas.rs
       veritas::setup(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      profile::get_profile,
-      account::get_inventory,
-      account::get_relics,
-      account::get_world,
-      account::get_battles,
-      account::get_gacha,
-      account::get_snapshots,
-      account::get_snapshot,
-      gacha::import_gacha_history,
-      snapshots::get_snapshot_kinds,
+      ipc::get_profile,
+      ipc::get_inventory,
+      ipc::get_relics,
+      ipc::get_world,
+      ipc::get_battles,
+      ipc::get_gacha,
+      ipc::get_snapshots,
+      ipc::get_snapshot,
+      ipc::import_gacha_history,
+      ipc::get_snapshot_kinds,
       veritas::get_veritas_status,
       veritas::enable_veritas,
       veritas::disable_veritas,
-      sniffer::get_sniffer_status,
+      ipc::get_sniffer_status,
+      ipc::set_capture_enabled,
       sniffer::restart_as_admin,
       launch::get_game_status,
       launch::launch_game,
@@ -93,8 +73,12 @@ pub fn run() {
     .run(|app, event| {
       // whatever the saver thread hasn't written yet
       if let RunEvent::Exit = event {
-        if let Some(shared) = app.try_state::<game::Shared>() {
-          shared.game.lock().unwrap().flush();
+        if let Some(sdk) = app.try_state::<nous_hsr::Sdk>() {
+          if let Err(e) = sdk.stop_capture() { log::error!("SDK shutdown: {e}"); }
+        }
+        if let Some(bridge) = app.try_state::<Bridge>() {
+          bridge.stop.send(()).ok();
+          if let Some(thread) = bridge.thread.lock().unwrap().take() { thread.join().ok(); }
         }
       }
     });

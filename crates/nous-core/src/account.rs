@@ -9,15 +9,13 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
-use crate::battles::{Battle, Battles};
+use crate::battles::Battles;
 use crate::gacha::Gacha;
-use crate::game::{Shared, Versioned};
-use crate::snapshots::{Snapshot, Snapshots};
-use crate::world::World;
-use crate::inventory::{Inventory, InventoryChanges, Relic, SnapshotReport};
+use crate::inventory::{Inventory, InventoryChanges, SnapshotReport};
 use crate::profile::{PlayerProfile, ProfileSource};
+use crate::snapshots::Snapshots;
+use crate::world::World;
 
 /// File layout version. Older layouts are migrated on load (see `migrate`);
 /// files that can't be read are set aside, never overwritten.
@@ -61,7 +59,7 @@ impl Account {
         }
     }
 
-    fn new(uid: u32) -> Self {
+    pub fn new(uid: u32) -> Self {
         let mut account = Self::empty();
         account.uid = Some(uid);
         account.profile.uid = Some(uid);
@@ -70,33 +68,27 @@ impl Account {
 }
 
 #[derive(Clone)]
-pub struct Store {
+pub struct FileStore {
     dir: Option<PathBuf>,
 }
 
-impl Store {
+impl FileStore {
     pub fn new(app_data: Option<PathBuf>) -> Self {
-        Self { dir: app_data.map(|d| d.join(DIR)) }
+        Self {
+            dir: app_data.map(|d| d.join(DIR)),
+        }
     }
 
-    /// The last account seen, marked as cached.
-    pub fn load_current(&self) -> Account {
-        self.dir
-            .as_ref()
-            .and_then(|d| fs::read_to_string(d.join(CURRENT_FILE)).ok())
-            .and_then(|s| s.trim().parse().ok())
-            .and_then(|uid| self.load(uid))
-            .unwrap_or_else(Account::empty)
-    }
-
-    /// The stored account `uid`, or a new one.
-    pub fn load_or_new(&self, uid: u32) -> Account {
-        self.load(uid).unwrap_or_else(|| Account::new(uid))
-    }
-
-    fn load(&self, uid: u32) -> Option<Account> {
-        let path = self.dir.as_ref()?.join(format!("{uid}.json"));
-        let text = fs::read_to_string(&path).ok()?;
+    fn load(&self, uid: u32) -> Result<Option<Account>, String> {
+        let Some(dir) = &self.dir else {
+            return Ok(None);
+        };
+        let path = dir.join(format!("{uid}.json"));
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(format!("{}: {e}", path.display())),
+        };
         let account = serde_json::from_str::<serde_json::Value>(&text)
             .map_err(|e| e.to_string())
             .and_then(migrate)
@@ -104,101 +96,90 @@ impl Store {
         let mut account = match account {
             Ok(a) => a,
             Err(e) => {
-                set_aside(&path, &format!("unreadable: {e}"));
-                return None;
+                set_aside(&path, &e)?;
+                return Ok(None);
             }
         };
+        if account.uid != Some(uid) || account.profile.uid != Some(uid) {
+            set_aside(&path, "account uid does not match its file name")?;
+            return Ok(None);
+        }
         if account.profile.source == ProfileSource::Live {
             account.profile.source = ProfileSource::Cached;
         }
-        Some(account)
+        Ok(Some(account))
     }
+}
 
-    pub fn save(&self, account: &Account) {
-        let (Some(dir), Some(uid)) = (&self.dir, account.uid) else { return };
-        let result = fs::create_dir_all(dir)
-            .and_then(|_| serde_json::to_vec(account).map_err(std::io::Error::other))
-            .and_then(|json| write_atomic(&dir.join(format!("{uid}.json")), &json))
-            .and_then(|_| fs::write(dir.join(CURRENT_FILE), uid.to_string()));
-        if let Err(e) = result {
-            log::warn!("cannot save account {uid}: {e}");
-        }
+/// Replaceable storage boundary. Implementations must serialize writes and
+/// preserve unreadable originals before permitting a replacement account.
+pub trait AccountStore: Send + Sync {
+    fn load_current(&self) -> Result<Account, String>;
+    fn load_or_new(&self, uid: u32) -> Result<Account, String>;
+    fn save(&self, account: &Account) -> Result<(), String>;
+    fn append_log(&self, _uid: u32, _line: &serde_json::Value) -> Result<(), String> {
+        Ok(())
     }
 
     /// Login list compared with the stored one.
-    pub fn log_snapshot(&self, uid: u32, report: &SnapshotReport, now: i64) {
-        self.append_log(uid, &serde_json::json!({ "t": now, "event": "login", "report": report }));
+    fn log_snapshot(&self, uid: u32, report: &SnapshotReport, now: i64) -> Result<(), String> {
+        self.append_log(
+            uid,
+            &serde_json::json!({ "t": now, "event": "login", "report": report }),
+        )
     }
 
     /// Relics changed or deleted while the game was running.
-    pub fn log_changes(&self, uid: u32, changes: &InventoryChanges, now: i64) {
+    fn log_changes(&self, uid: u32, changes: &InventoryChanges, now: i64) -> Result<(), String> {
         for relic in &changes.relics {
-            self.append_log(uid, &serde_json::json!({ "t": now, "event": "relic", "relic": relic }));
+            self.append_log(
+                uid,
+                &serde_json::json!({ "t": now, "event": "relic", "relic": relic }),
+            )?;
         }
         if !changes.deleted_relics.is_empty() {
-            self.append_log(uid, &serde_json::json!({ "t": now, "event": "deleted", "uids": changes.deleted_relics }));
+            self.append_log(uid, &serde_json::json!({ "t": now, "event": "deleted", "uids": changes.deleted_relics }))?;
         }
-    }
-
-    fn append_log(&self, uid: u32, line: &serde_json::Value) {
-        let Some(dir) = &self.dir else { return };
-        let file = fs::create_dir_all(dir).and_then(|_| {
-            OpenOptions::new().create(true).append(true).open(dir.join(format!("{uid}.relics.jsonl")))
-        });
-        if let Ok(mut f) = file {
-            writeln!(f, "{line}").ok();
-        }
+        Ok(())
     }
 }
 
-/// Inventory of the current account (live, or as stored from the last session).
-#[tauri::command]
-pub fn get_inventory(shared: State<'_, Shared>) -> Versioned<Inventory> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.inventory.clone())
-}
-
-/// Relics of the current account. `uid` is the game's unique_id, stable while
-/// the relic exists (levelling, rerolls, equipping), see docs: Данные аккаунта.
-#[tauri::command]
-pub fn get_relics(shared: State<'_, Shared>) -> Versioned<Vec<Relic>> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.inventory.relics.values().cloned().collect())
-}
-
-/// Location, position, opened chests and object states.
-#[tauri::command]
-pub fn get_world(shared: State<'_, Shared>) -> Versioned<World> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.world.clone())
-}
-
-/// Recorded battles, newest last.
-#[tauri::command]
-pub fn get_battles(shared: State<'_, Shared>) -> Versioned<Vec<Battle>> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.battles.list.clone())
-}
-
-/// Banners, warp history and live pulls.
-#[tauri::command]
-pub fn get_gacha(shared: State<'_, Shared>) -> Versioned<Gacha> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.gacha.clone())
-}
-
-/// Latest raw answers of the game by command name (see snapshots::KINDS).
-#[tauri::command]
-pub fn get_snapshots(shared: State<'_, Shared>) -> Versioned<Snapshots> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.snapshots.clone())
-}
-
-/// One raw answer, e.g. "GetDailyActiveInfoScRsp".
-#[tauri::command]
-pub fn get_snapshot(shared: State<'_, Shared>, name: String) -> Versioned<Option<Snapshot>> {
-    let game = shared.game.lock().unwrap();
-    game.versioned(game.account.snapshots.get(&name).cloned())
+impl AccountStore for FileStore {
+    fn load_current(&self) -> Result<Account, String> {
+        let Some(dir) = &self.dir else {
+            return Ok(Account::empty());
+        };
+        match fs::read_to_string(dir.join(CURRENT_FILE)) {
+            Ok(text) => self.load_or_new(text.trim().parse::<u32>().map_err(|e| e.to_string())?),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Account::empty()),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    fn load_or_new(&self, uid: u32) -> Result<Account, String> {
+        Ok(self.load(uid)?.unwrap_or_else(|| Account::new(uid)))
+    }
+    fn save(&self, account: &Account) -> Result<(), String> {
+        let (Some(dir), Some(uid)) = (&self.dir, account.uid) else {
+            return Ok(());
+        };
+        fs::create_dir_all(dir)
+            .and_then(|_| serde_json::to_vec(account).map_err(std::io::Error::other))
+            .and_then(|json| write_atomic(&dir.join(format!("{uid}.json")), &json))
+            .and_then(|_| write_atomic(&dir.join(CURRENT_FILE), uid.to_string().as_bytes()))
+            .map_err(|e| format!("cannot save account {uid}: {e}"))
+    }
+    fn append_log(&self, uid: u32, line: &serde_json::Value) -> Result<(), String> {
+        let Some(dir) = &self.dir else { return Ok(()) };
+        fs::create_dir_all(dir)
+            .and_then(|_| {
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(dir.join(format!("{uid}.relics.jsonl")))?;
+                writeln!(file, "{line}")
+            })
+            .map_err(|e| format!("relic log {uid}: {e}"))
+    }
 }
 
 /// Brings an older file layout up to FORMAT.
@@ -207,7 +188,14 @@ fn migrate(mut v: serde_json::Value) -> Result<serde_json::Value, String> {
     let obj = v.as_object_mut().ok_or("not an object")?;
     if format == 1 {
         let mut inventory = serde_json::Map::new();
-        for key in ["relics", "lightCones", "materials", "avatars", "avatarPaths", "syncedAt"] {
+        for key in [
+            "relics",
+            "lightCones",
+            "materials",
+            "avatars",
+            "avatarPaths",
+            "syncedAt",
+        ] {
             if let Some(value) = obj.remove(key) {
                 inventory.insert(key.into(), value);
             }
@@ -223,12 +211,16 @@ fn migrate(mut v: serde_json::Value) -> Result<serde_json::Value, String> {
 /// Keeps a file Nous can't use (`<uid>.json.unreadable-<time>`) before a new
 /// account replaces it, so nothing is lost: a later version or a person can
 /// still recover it.
-fn set_aside(path: &Path, why: &str) {
-    let kept = path.with_extension(format!("json.unreadable-{}", crate::profile::now()));
-    match fs::rename(path, &kept) {
-        Ok(()) => log::warn!("{}: {why}; kept as {}, starting over", path.display(), kept.display()),
-        Err(e) => log::error!("{}: {why}; could not set it aside ({e})", path.display()),
-    }
+fn set_aside(path: &Path, why: &str) -> Result<(), String> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let kept = path.with_extension(format!("json.unreadable-{stamp}"));
+    fs::rename(path, &kept)
+        .map_err(|e| format!("{}: {why}; cannot preserve original: {e}", path.display()))?;
+    log::warn!("{}: {why}; kept as {}", path.display(), kept.display());
+    Ok(())
 }
 
 /// Write to a temp file and rename, so a crash never leaves half a file.
@@ -245,19 +237,33 @@ mod tests {
     #[test]
     fn save_and_load_round_trip() {
         let dir = std::env::temp_dir().join(format!("nous-account-test-{}", std::process::id()));
-        let store = Store::new(Some(dir.clone()));
+        let store = FileStore::new(Some(dir.clone()));
 
-        let mut account = store.load_or_new(42);
+        let mut account = store.load_or_new(42).unwrap();
         account.profile.nickname = Some("Стелла".into());
-        account.inventory.relics.insert(254, crate::inventory::Relic { uid: 254, tid: 61011, ..Default::default() });
+        account.inventory.relics.insert(
+            254,
+            crate::inventory::Relic {
+                uid: 254,
+                tid: 61011,
+                ..Default::default()
+            },
+        );
         account.profile.source = ProfileSource::Live;
-        store.save(&account);
+        store.save(&account).unwrap();
 
-        let back = store.load_current();
+        let back = store.load_current().unwrap();
         assert_eq!(back.uid, Some(42));
         assert_eq!(back.profile.nickname.as_deref(), Some("Стелла"));
-        assert_eq!(back.profile.source, ProfileSource::Cached, "stored data shows as cached");
-        assert_eq!(back.inventory.relics[&254].tid, 61011, "relics keyed by number read back");
+        assert_eq!(
+            back.profile.source,
+            ProfileSource::Cached,
+            "stored data shows as cached"
+        );
+        assert_eq!(
+            back.inventory.relics[&254].tid, 61011,
+            "relics keyed by number read back"
+        );
         fs::remove_dir_all(dir).ok();
     }
 
@@ -282,8 +288,14 @@ mod tests {
     fn real_account_file() {
         let text = fs::read_to_string(std::env::var("NOUS_ACCOUNT_FILE").unwrap()).unwrap();
         let v = serde_json::from_str::<serde_json::Value>(&text).unwrap();
-        match migrate(v).and_then(|v| serde_json::from_value::<Account>(v).map_err(|e| e.to_string())) {
-            Ok(a) => println!("loads: {} relics, {} battles", a.inventory.relics.len(), a.battles.list.len()),
+        match migrate(v)
+            .and_then(|v| serde_json::from_value::<Account>(v).map_err(|e| e.to_string()))
+        {
+            Ok(a) => println!(
+                "loads: {} relics, {} battles",
+                a.inventory.relics.len(),
+                a.battles.list.len()
+            ),
             Err(e) => panic!("does not load: {e}"),
         }
     }
@@ -294,16 +306,20 @@ mod tests {
         let accounts = dir.join(DIR);
         fs::create_dir_all(&accounts).unwrap();
         fs::write(accounts.join("7.json"), "{ not json").unwrap();
-        let store = Store::new(Some(dir.clone()));
+        let store = FileStore::new(Some(dir.clone()));
 
-        let fresh = store.load_or_new(7);
+        let fresh = store.load_or_new(7).unwrap();
         assert!(fresh.inventory.relics.is_empty());
-        store.save(&fresh);
+        store.save(&fresh).unwrap();
 
         let kept: Vec<_> = fs::read_dir(&accounts)
             .unwrap()
             .flatten()
-            .filter(|e| e.file_name().to_string_lossy().starts_with("7.json.unreadable-"))
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("7.json.unreadable-")
+            })
             .collect();
         assert_eq!(kept.len(), 1, "the old file survives next to the new one");
         assert_eq!(fs::read_to_string(kept[0].path()).unwrap(), "{ not json");
