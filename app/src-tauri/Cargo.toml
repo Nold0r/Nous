@@ -40,6 +40,7 @@ winreg = "0.56.0"
 rust_socketio = { version = "0.6.0", features = ["async"] }
 sha2 = "0.11.1"
 tokio = { version = "1.54.1", features = ["time"] }
+tauri-plugin-opener = "2"
 
 [profile.dev]
 # hoyo's kcp uses a header field in a way that overflows the kcp crate's math (as in reliquary-archiver)

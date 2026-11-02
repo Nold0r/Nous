@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { getAutostart, setAutostart } from '../../lib/game'
-import { Page, Panel, Switch } from '../../ui'
+import { getVersion } from '@tauri-apps/api/app'
+import { openPatchNotes } from '../../lib/patch-notes'
+import { Button, Page, Panel, StatList, StatRow, Switch } from '../../ui'
 import { VeritasSettings } from './VeritasSettings'
 import './settings.css'
 
@@ -9,10 +11,12 @@ export function SettingsPage() {
   const [autostart, setAutostartState] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isTauri()) return
     getAutostart().then(setAutostartState).catch(console.error)
+    getVersion().then(setVersion).catch(console.error)
   }, [])
 
   const toggle = (enabled: boolean) => {
@@ -39,6 +43,18 @@ export function SettingsPage() {
         />
       </Panel>
       <VeritasSettings />
+      <Panel
+        title="О программе"
+        aside={
+          <Button size="sm" onClick={() => openPatchNotes()}>
+            Что нового
+          </Button>
+        }
+      >
+        <StatList>
+          <StatRow label="Версия Nous" value={version ?? '—'} />
+        </StatList>
+      </Panel>
     </Page>
   )
 }

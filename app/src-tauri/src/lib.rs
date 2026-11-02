@@ -25,6 +25,8 @@ pub fn run() {
     // self-update from GitHub releases (see lib/updater.ts)
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    // links in patch notes and settings open in the browser
+    .plugin(tauri_plugin_opener::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
