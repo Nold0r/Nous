@@ -3,6 +3,7 @@ import logo from '../../assets/brand/nous-logo.svg'
 import { groupFeatures, type FeatureGroup } from '../../features/registry'
 import { GameIcon } from '../../ui'
 import { ProfileCard } from './ProfileCard'
+import { UpdateNotice } from './UpdateNotice'
 
 function NavGroup({ group }: { group: FeatureGroup }) {
   return (
@@ -45,6 +46,8 @@ export function Sidebar() {
           ))}
         </nav>
       )}
+
+      <UpdateNotice />
     </aside>
   )
 }

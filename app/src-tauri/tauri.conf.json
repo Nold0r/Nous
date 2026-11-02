@@ -38,6 +38,18 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJDRjA2OTUxODdEMkNBMjAKUldRZ3l0S0hVV253dkVsRDJNVXJTbEhvejIxek9DK1B4NVhoTS93UFBTM0RVbWc1UXNROGxZRjQK",
+      "endpoints": [
+        "https://github.com/Nold0r/Nous/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

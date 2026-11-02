@@ -1,15 +1,23 @@
-# Builds the Windows installers and publishes them as a GitHub release.
-# Runs on a pushed version tag (git tag v0.1.0 && git push origin v0.1.0)
-# or by hand from the Actions tab (then the tag comes from tauri.conf.json).
+# Every push to main builds the Windows installers and publishes them as a new
+# GitHub release. Installed copies of Nous find it through latest.json and
+# update themselves (tauri-plugin-updater).
+#
+# Version: major.minor come from app/src-tauri/tauri.conf.json, the patch is the
+# workflow run number, so each release is newer than the last one.
 name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# one release at a time, in push order
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -33,6 +41,17 @@ jobs:
         with:
           workspaces: app/src-tauri -> target
 
+      - name: Stamp version
+        working-directory: app/src-tauri
+        shell: pwsh
+        run: |
+          $conf = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
+          $parts = $conf.version.Split('.')
+          $version = "$($parts[0]).$($parts[1]).${{ github.run_number }}"
+          (Get-Content tauri.conf.json -Raw) -replace '"version": "[^"]+"', "`"version`": `"$version`"" |
+            Set-Content tauri.conf.json -NoNewline
+          echo "Nous $version"
+
       - name: Install frontend dependencies
         working-directory: app
         run: npm ci
@@ -40,10 +59,13 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # signs the update packages; the public key is in tauri.conf.json
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           projectPath: app
           tagName: v__VERSION__
           releaseName: Nous v__VERSION__
-          releaseBody: Установщики для Windows ниже. Nous нужно запускать от администратора, чтобы он видел вход в игру.
+          releaseBody: Установщики для Windows ниже. Уже установленный Nous обновится сам. Запускайте его от администратора, чтобы он видел вход в игру.
           releaseDraft: false
           prerelease: false
