@@ -3,6 +3,9 @@ mod game;
 mod inventory;
 mod launch;
 mod profile;
+mod recorder;
+#[cfg(test)]
+mod replay;
 mod sniffer;
 
 use std::sync::Mutex;
