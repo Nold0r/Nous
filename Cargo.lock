@@ -2542,6 +2542,9 @@ dependencies = [
  "log",
  "nous-core",
  "nous-hsr",
+ "nous-veritas",
+ "regex",
+ "ron",
  "rust_socketio",
  "serde",
  "serde_json",
@@ -2556,6 +2559,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "ureq",
+ "windows-sys 0.61.2",
  "winreg",
 ]
 
@@ -2585,6 +2589,14 @@ dependencies = [
  "serde_json",
  "tokio",
  "ureq",
+]
+
+[[package]]
+name = "nous-veritas"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3549,6 +3561,19 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "ron"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "beceb6f7bf81c73e73aeef6dd1356d9a1b2b4909e1f0fc3e59b034f9572d7b7f"
+dependencies = [
+ "base64 0.22.1",
+ "bitflags 2.13.2",
+ "serde",
+ "serde_derive",
+ "unicode-ident",
 ]
 
 [[package]]
