@@ -11,9 +11,9 @@ use reliquary::network::{ConnectionPacket, GamePacket, GameSniffer};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::game::{Changes, Shared};
+use crate::game::{Changes, Shared, Versioned};
 use crate::profile::PlayerProfile;
-use crate::world::{World, WorldChange};
+use crate::world::{Position, World, WorldChange};
 use crate::inventory::InventoryChanges;
 use crate::recorder::Recorder;
 
@@ -105,13 +105,15 @@ async fn run(app: &AppHandle) -> Result<(), String> {
                     }
                     recorder.on_command(&command);
                     let shared = app.state::<Shared>();
-                    let (ch, profile, world) = {
+                    // everything an event carries is taken under the same lock as the
+                    // change, so it matches the revision
+                    let (ch, profile, world, player, uid) = {
                         let mut game = shared.game.lock().unwrap();
                         let ch = game.handle(&command);
                         let world = (ch.world == WorldChange::Changed).then(|| game.account.world.clone());
-                        (ch, game.profile().clone(), world)
+                        (ch, game.profile().clone(), world, game.account.world.player, game.account.uid)
                     };
-                    emit_changes(app, ch, profile, world);
+                    emit_changes(app, ch, profile, world, player, uid);
                 }
                 _ => {}
             }
@@ -120,30 +122,42 @@ async fn run(app: &AppHandle) -> Result<(), String> {
     Err("capture stream ended".into())
 }
 
-/// Tells the UI what changed. Event names and payloads: docs "API данных игры".
-fn emit_changes(app: &AppHandle, ch: Changes, profile: PlayerProfile, world: Option<World>) {
+/// Tells the UI what changed. Every payload is `{ revision, data }` (see
+/// game.rs `Versioned`); event names: docs "API данных игры".
+fn emit_changes(
+    app: &AppHandle,
+    ch: Changes,
+    profile: PlayerProfile,
+    world: Option<World>,
+    player: Option<Position>,
+    uid: Option<u32>,
+) {
+    let v = |data| Versioned { revision: ch.revision, data };
+    if ch.account_switched {
+        // consumers drop everything from the previous account and read again
+        app.emit("account-changed", v(serde_json::json!(uid))).ok();
+    }
     if ch.profile {
-        app.emit("profile-changed", &profile).ok();
+        app.emit("profile-changed", Versioned { revision: ch.revision, data: &profile }).ok();
     }
     if ch.inventory_reset {
-        app.emit("inventory-changed", InventoryEvent::Reset).ok();
+        app.emit("inventory-changed", Versioned { revision: ch.revision, data: InventoryEvent::Reset }).ok();
     } else if !ch.inventory.is_empty() {
-        app.emit("inventory-changed", InventoryEvent::Changed(ch.inventory)).ok();
+        app.emit("inventory-changed", Versioned { revision: ch.revision, data: InventoryEvent::Changed(ch.inventory) }).ok();
     }
     if let Some(world) = world {
-        app.emit("world-changed", &world).ok();
+        app.emit("world-changed", Versioned { revision: ch.revision, data: &world }).ok();
     } else if ch.world == WorldChange::Moved {
-        let player = app.state::<Shared>().game.lock().unwrap().account.world.player;
-        app.emit("player-moved", &player).ok();
+        app.emit("player-moved", Versioned { revision: ch.revision, data: player }).ok();
     }
     if let Some(battle) = ch.battle {
-        app.emit("battle-finished", &battle).ok();
+        app.emit("battle-finished", Versioned { revision: ch.revision, data: battle }).ok();
     }
     if ch.gacha {
-        app.emit("gacha-changed", ()).ok();
+        app.emit("gacha-changed", v(serde_json::Value::Null)).ok();
     }
     if let Some(name) = ch.snapshot {
-        app.emit("snapshot-changed", &name).ok();
+        app.emit("snapshot-changed", Versioned { revision: ch.revision, data: name }).ok();
     }
 }
 

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
+import { useLive, type Versioned } from './live'
 
 // Mirrors `PlayerProfile` in src-tauri/src/profile.rs
 export interface PlayerProfile {
@@ -35,23 +34,15 @@ const empty: PlayerProfile = {
   updatedAt: null,
 }
 
+const readProfile = () => invoke<Versioned<PlayerProfile>>('get_profile')
+
 /** Current profile; updates live while the game is running (event `profile-changed`). */
 export function useProfile(): PlayerProfile {
-  const [profile, setProfile] = useState<PlayerProfile>(empty)
-
-  useEffect(() => {
-    // plain `npm run dev` in a browser has no Rust backend
-    if (!isTauri()) return
-    invoke<PlayerProfile>('get_profile')
-      .then(setProfile)
-      .catch((e) => console.error('get_profile failed', e))
-    const unlisten = listen<PlayerProfile>('profile-changed', (e) => setProfile(e.payload))
-    return () => {
-      unlisten.then((f) => f())
-    }
-  }, [])
-
-  return profile
+  return (
+    useLive(readProfile, {
+      'profile-changed': (_: PlayerProfile, next: PlayerProfile) => next,
+    }) ?? empty
+  )
 }
 
 export { formatNumber } from './format'

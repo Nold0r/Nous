@@ -1,5 +1,6 @@
 //! Data tests on real logins, without the game: replays the login recordings
-//! (recorder.rs) through the inventory code and checks the result.
+//! (recorder.rs) through `GameState::handle` (the same path as the sniffer)
+//! and checks the result, including that the account file reads back.
 //!
 //!   npm run test:data            (from app/)
 //!
@@ -11,7 +12,6 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use base64::Engine;
-use protobuf::Message;
 use reliquary::network::command::proto;
 
 use crate::inventory::{Inventory, SnapshotReport};
@@ -34,59 +34,58 @@ fn recordings_dir() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("com.nous.companion").join(crate::recorder::DIR)))
 }
 
+/// Feeds a recording through the real path, `GameState::handle`, over a
+/// throwaway store, then writes the account and reads it back.
 fn replay_file(path: &std::path::Path) -> Session {
-    let mut s = Session {
-        file: path.file_name().unwrap().to_string_lossy().into_owned(),
-        world: Default::default(),
-        snapshots: Default::default(),
-        gacha: Default::default(),
-        battles: Default::default(),
-        uid: 0,
-        inventory: Inventory::default(),
-        had_bag: false,
-        had_avatars: false,
-    };
+    let file = path.file_name().unwrap().to_string_lossy().into_owned();
+    let dir = std::env::temp_dir().join(format!("nous-replay-{}-{file}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    let store = crate::account::Store::new(Some(dir.clone()));
+    let mut game = crate::game::GameState::new(store.clone());
+    let (mut had_bag, mut had_avatars) = (false, false);
+
     let text = std::fs::read_to_string(path).unwrap();
-    for (n, line) in text.lines().enumerate() {
+    for line in text.lines() {
         let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
-        let (Some(name), Some(b64)) = (v["name"].as_str(), v["b64"].as_str()) else { continue };
+        let (Some(id), Some(b64)) = (v["id"].as_u64(), v["b64"].as_str()) else { continue };
         let data = base64::engine::general_purpose::STANDARD.decode(b64).unwrap();
-        let now = n as i64;
-        if let Some(id) = v["id"].as_u64() {
-            let command = reliquary::network::command::GameCommand {
-                command_id: id as u16,
-                header_len: 0,
-                data_len: data.len() as u32,
-                proto_header: vec![],
-                proto_data: data.clone(),
-            };
-            s.world.handle(&command);
-            s.battles.handle(&command, now);
-            s.gacha.handle(&command, now);
-            crate::snapshots::handle(&mut s.snapshots, &command, now);
-        }
-        match name {
-            "PlayerGetTokenScRsp" => {
-                s.uid = proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp::parse_from_bytes(&data).unwrap().uid;
-            }
-            "GetBagScRsp" => {
-                let bag = proto::GetBagScRsp::GetBagScRsp::parse_from_bytes(&data).expect("GetBagScRsp parses");
-                s.inventory.apply_bag(&bag, now);
-                s.had_bag = true;
-            }
-            "GetAvatarDataScRsp" => {
-                let data = proto::GetAvatarDataScRsp::GetAvatarDataScRsp::parse_from_bytes(&data).expect("GetAvatarDataScRsp parses");
-                s.inventory.apply_avatars(&data);
-                s.had_avatars = true;
-            }
-            "PlayerSyncScNotify" => {
-                let sync = proto::PlayerSyncScNotify::PlayerSyncScNotify::parse_from_bytes(&data).expect("PlayerSyncScNotify parses");
-                s.inventory.apply_sync(&sync, now);
-            }
+        let command = reliquary::network::command::GameCommand {
+            command_id: id as u16,
+            header_len: 0,
+            data_len: data.len() as u32,
+            proto_header: vec![],
+            proto_data: data,
+        };
+        match command.get_command_name() {
+            Some("GetBagScRsp") => had_bag = true,
+            Some("GetAvatarDataScRsp") => had_avatars = true,
             _ => {}
         }
+        game.handle(&command);
     }
-    s
+
+    // what was recorded must survive a write and a fresh start
+    game.flush();
+    let reloaded = crate::game::GameState::new(store);
+    assert_eq!(
+        reloaded.account.inventory.relics.len(),
+        game.account.inventory.relics.len(),
+        "{file}: the account file reads back"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+
+    let a = game.account;
+    Session {
+        file,
+        uid: a.uid.unwrap_or(0),
+        inventory: a.inventory,
+        world: a.world,
+        snapshots: a.snapshots,
+        gacha: a.gacha,
+        battles: a.battles,
+        had_bag,
+        had_avatars,
+    }
 }
 
 /// Sanity of one login: lists present and consistent with each other.

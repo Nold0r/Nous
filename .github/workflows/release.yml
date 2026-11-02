@@ -84,6 +84,17 @@ jobs:
         working-directory: app
         run: npm ci
 
+      # nothing is published unless the checks pass
+      - name: Lint and type check
+        working-directory: app
+        run: |
+          npm run lint
+          npx tsc -b
+
+      - name: Rust tests
+        working-directory: app/src-tauri
+        run: cargo test --lib
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

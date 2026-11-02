@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 /// Older battles are dropped beyond this many.
 const KEEP: usize = 200;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Battle {
     pub battle_id: u32,
     /// StageConfig id (which fight).
@@ -42,8 +43,9 @@ pub struct Battle {
     pub actions: Vec<BattleAction>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct BattleAction {
     pub turn: u32,
     pub actor: u32,
@@ -53,8 +55,9 @@ pub struct BattleAction {
     pub counter: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct BattleAvatar {
     pub avatar_id: u32,
     pub level: u32,
@@ -87,8 +90,9 @@ pub struct BattleAvatar {
     pub light_cone: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct BattleMonster {
     pub monster_id: u32,
     pub wave: u32,
@@ -98,7 +102,7 @@ pub struct BattleMonster {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct Battles {
     /// Newest last.
     pub list: Vec<Battle>,
