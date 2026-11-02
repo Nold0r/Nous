@@ -1,4 +1,6 @@
+mod account;
 mod game;
+mod inventory;
 mod launch;
 mod profile;
 mod sniffer;
@@ -33,6 +35,8 @@ pub fn run() {
     })
     .invoke_handler(tauri::generate_handler![
       profile::get_profile,
+      account::get_inventory,
+      account::get_relics,
       sniffer::get_sniffer_status,
       sniffer::restart_as_admin,
       launch::get_game_status,

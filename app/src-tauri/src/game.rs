@@ -1,9 +1,6 @@
-//! Game state rebuilt from the decrypted game commands: the player profile
-//! (who logged in and their resources). The profile is saved to the app data
-//! folder so it survives restarts.
+//! Game state rebuilt from the decrypted game commands: the current account
+//! (profile and inventory). Stored in the one account format, see account.rs.
 
-use std::fs;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use reliquary::network::command::GameCommand;
@@ -11,10 +8,10 @@ use reliquary::network::command::command_id as cmd;
 use reliquary::network::command::proto;
 use tauri::{AppHandle, Manager};
 
-use crate::profile::{PlayerProfile, ProfileSource};
+use crate::account::{Account, Store};
+use crate::inventory::InventoryChanges;
+use crate::profile::{PlayerProfile, now};
 use crate::sniffer::SnifferStatus;
-
-const PROFILE_FILE: &str = "profile.json";
 
 /// App-wide state managed by Tauri.
 pub struct Shared {
@@ -22,89 +19,111 @@ pub struct Shared {
     pub status: Mutex<SnifferStatus>,
 }
 
+/// What a command changed, so the sniffer knows which events to emit.
+#[derive(Debug, Default)]
+pub struct Changes {
+    pub profile: bool,
+    /// The whole inventory was replaced (login, other account).
+    pub inventory_reset: bool,
+    pub inventory: InventoryChanges,
+}
+
 pub struct GameState {
-    data_dir: Option<PathBuf>,
-    pub profile: PlayerProfile,
+    store: Store,
+    pub account: Account,
 }
 
 impl GameState {
     pub fn load(app: &AppHandle) -> Self {
-        let data_dir = app.path().app_data_dir().ok();
-        let profile = data_dir
-            .as_ref()
-            .and_then(|d| fs::read_to_string(d.join(PROFILE_FILE)).ok())
-            .and_then(|s| serde_json::from_str::<PlayerProfile>(&s).ok())
-            .map(|mut p| {
-                p.source = ProfileSource::Cached;
-                p
-            })
-            .unwrap_or_else(PlayerProfile::empty);
-        Self { data_dir, profile }
+        let store = Store::new(app.path().app_data_dir().ok());
+        let account = store.load_current();
+        Self { store, account }
     }
 
-    /// Applies one decrypted game command; true if the profile changed.
-    pub fn handle(&mut self, command: &GameCommand) -> bool {
-        let changed = match command.command_id {
+    pub fn profile(&self) -> &PlayerProfile {
+        &self.account.profile
+    }
+
+    /// Applies one decrypted game command.
+    pub fn handle(&mut self, command: &GameCommand) -> Changes {
+        let mut ch = Changes::default();
+        let now = now();
+        match command.command_id {
             cmd::PlayerGetTokenScRsp => {
-                let Ok(rsp) = command.parse_proto::<proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp>() else {
-                    return false;
-                };
-                if self.profile.uid != Some(rsp.uid) {
-                    // another account: forget the old one's numbers
-                    self.profile = PlayerProfile::empty();
+                if let Ok(rsp) = command.parse_proto::<proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp>() {
+                    if self.account.uid != Some(rsp.uid) {
+                        self.account = self.store.load_or_new(rsp.uid);
+                        ch.inventory_reset = true;
+                    }
+                    self.account.profile.touch();
+                    ch.profile = true;
                 }
-                self.profile.uid = Some(rsp.uid);
-                self.profile.touch();
-                true
             }
             cmd::PlayerLoginScRsp => {
-                let Ok(rsp) = command.parse_proto::<proto::PlayerLoginScRsp::PlayerLoginScRsp>() else {
-                    return false;
-                };
-                if let Some(info) = rsp.basic_info.as_ref() {
-                    self.apply_basic_info(info);
+                if let Ok(rsp) = command.parse_proto::<proto::PlayerLoginScRsp::PlayerLoginScRsp>() {
+                    if let Some(info) = rsp.basic_info.as_ref() {
+                        self.apply_basic_info(info);
+                    }
+                    ch.profile = true;
                 }
-                true
             }
             cmd::PlayerSyncScNotify => {
-                let Ok(sync) = command.parse_proto::<proto::PlayerSyncScNotify::PlayerSyncScNotify>() else {
-                    return false;
-                };
-                let Some(info) = sync.basic_info.as_ref() else { return false };
-                self.apply_basic_info(info);
-                true
+                if let Ok(sync) = command.parse_proto::<proto::PlayerSyncScNotify::PlayerSyncScNotify>() {
+                    if let Some(info) = sync.basic_info.as_ref() {
+                        self.apply_basic_info(info);
+                        ch.profile = true;
+                    }
+                    ch.inventory = self.account.inventory.apply_sync(&sync, now);
+                    if let Some(uid) = self.account.uid {
+                        self.store.log_changes(uid, &ch.inventory, now);
+                    }
+                }
             }
             cmd::StaminaInfoScNotify => {
-                let Ok(n) = command.parse_proto::<proto::StaminaInfoScNotify::StaminaInfoScNotify>() else {
-                    return false;
-                };
-                self.profile.trailblaze_power = Some(n.stamina);
-                self.profile.reserved_trailblaze_power = Some(n.reserve_stamina);
-                self.profile.touch();
-                true
+                if let Ok(n) = command.parse_proto::<proto::StaminaInfoScNotify::StaminaInfoScNotify>() {
+                    let p = &mut self.account.profile;
+                    p.trailblaze_power = Some(n.stamina);
+                    p.reserved_trailblaze_power = Some(n.reserve_stamina);
+                    p.touch();
+                    ch.profile = true;
+                }
             }
             cmd::GetPlayerBoardDataScRsp => {
-                let Ok(rsp) = command.parse_proto::<proto::GetPlayerBoardDataScRsp::GetPlayerBoardDataScRsp>() else {
-                    return false;
-                };
-                if rsp.current_head_icon_id == 0 {
-                    return false;
+                if let Ok(rsp) = command.parse_proto::<proto::GetPlayerBoardDataScRsp::GetPlayerBoardDataScRsp>() {
+                    if rsp.current_head_icon_id != 0 {
+                        self.account.profile.avatar_id = Some(rsp.current_head_icon_id);
+                        self.account.profile.touch();
+                        ch.profile = true;
+                    }
                 }
-                self.profile.avatar_id = Some(rsp.current_head_icon_id);
-                self.profile.touch();
-                true
             }
-            _ => false,
-        };
-
-        if changed {
-            self.save_profile();
+            cmd::GetBagScRsp => {
+                if let Ok(bag) = command.parse_proto::<proto::GetBagScRsp::GetBagScRsp>() {
+                    let report = self.account.inventory.apply_bag(&bag, now);
+                    log::info!("bag: {} relics, ids vs stored: {report:?}", self.account.inventory.relics.len());
+                    if let Some(uid) = self.account.uid {
+                        self.store.log_snapshot(uid, &report, now);
+                    }
+                    ch.inventory_reset = true;
+                }
+            }
+            cmd::GetAvatarDataScRsp => {
+                if let Ok(data) = command.parse_proto::<proto::GetAvatarDataScRsp::GetAvatarDataScRsp>() {
+                    self.account.inventory.apply_avatars(&data);
+                    ch.inventory.characters = true;
+                }
+            }
+            _ => {}
         }
-        changed
+
+        if ch.profile || ch.inventory_reset || !ch.inventory.is_empty() {
+            self.store.save(&self.account);
+        }
+        ch
     }
 
     fn apply_basic_info(&mut self, info: &proto::PlayerBasicInfo::PlayerBasicInfo) {
-        let p = &mut self.profile;
+        let p = &mut self.account.profile;
         if !info.nickname.is_empty() {
             p.nickname = Some(info.nickname.clone());
         }
@@ -115,16 +134,5 @@ impl GameState {
         p.stellar_jade = Some(info.stellar_jade_count as u64);
         p.credits = Some(info.credit_count as u64);
         p.touch();
-    }
-
-    fn save_profile(&self) {
-        let Some(dir) = &self.data_dir else { return };
-        if fs::create_dir_all(dir).is_ok() {
-            if let Ok(json) = serde_json::to_string_pretty(&self.profile) {
-                if let Err(e) = fs::write(dir.join(PROFILE_FILE), json) {
-                    log::warn!("cannot save {PROFILE_FILE}: {e}");
-                }
-            }
-        }
     }
 }

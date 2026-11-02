@@ -73,5 +73,5 @@ pub fn now() -> i64 {
 
 #[tauri::command]
 pub fn get_profile(shared: State<'_, Shared>) -> PlayerProfile {
-    shared.game.lock().unwrap().profile.clone()
+    shared.game.lock().unwrap().profile().clone()
 }

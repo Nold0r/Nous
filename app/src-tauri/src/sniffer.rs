@@ -12,8 +12,18 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::game::Shared;
+use crate::inventory::InventoryChanges;
 
 const PORTS: [u16; 2] = [23301, 23302];
+
+/// `inventory-changed` event: the UI refetches on `reset`, applies deltas otherwise.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum InventoryEvent {
+    /// Everything was replaced (login, another account).
+    Reset,
+    Changed(InventoryChanges),
+}
 
 /// Shown to the user; emitted as the `sniffer-status` event.
 #[derive(Debug, Clone, Serialize)]
@@ -90,12 +100,18 @@ async fn run(app: &AppHandle) -> Result<(), String> {
                         set_status(app, SnifferStatus::Connected);
                     }
                     let shared = app.state::<Shared>();
-                    let changed_profile = {
+                    let (changes, profile) = {
                         let mut game = shared.game.lock().unwrap();
-                        game.handle(&command).then(|| game.profile.clone())
+                        let changes = game.handle(&command);
+                        (changes, game.profile().clone())
                     };
-                    if let Some(profile) = changed_profile {
+                    if changes.profile {
                         app.emit("profile-changed", &profile).ok();
+                    }
+                    if changes.inventory_reset {
+                        app.emit("inventory-changed", InventoryEvent::Reset).ok();
+                    } else if !changes.inventory.is_empty() {
+                        app.emit("inventory-changed", InventoryEvent::Changed(changes.inventory)).ok();
                     }
                 }
                 _ => {}
