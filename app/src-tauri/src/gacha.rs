@@ -27,8 +27,9 @@ const PAGE_DELAY: Duration = Duration::from_millis(400);
 /// Recent live pulls kept until the official history covers them.
 const KEEP_LIVE: usize = 500;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Banner {
     pub gacha_id: u32,
     /// Unix seconds; 0 for permanent banners.
@@ -41,8 +42,9 @@ pub struct Banner {
 }
 
 /// One pull from the official history.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Pull {
     /// Record id (string of digits): unique, grows with time.
     pub id: String,
@@ -59,8 +61,9 @@ pub struct Pull {
 }
 
 /// A pull seen in the traffic (no record id or time from the server).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct LivePull {
     pub gacha_id: u32,
     pub item_id: u32,
@@ -70,7 +73,7 @@ pub struct LivePull {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct Gacha {
     pub banners: Vec<Banner>,
     /// Official history, record id -> pull.
@@ -264,10 +267,11 @@ pub async fn import_gacha_history(app: AppHandle) -> Result<usize, String> {
             return Err("аккаунт сменился во время загрузки".into());
         }
         let added = game.account.gacha.merge(pulls, crate::profile::now());
-        game.save();
-        added
+        let revision = game.mark_changed();
+        (added, revision)
     };
-    app.emit("gacha-changed", ()).ok();
+    let (added, revision) = added;
+    app.emit("gacha-changed", crate::game::Versioned { revision, data: serde_json::Value::Null }).ok();
     Ok(added)
 }
 

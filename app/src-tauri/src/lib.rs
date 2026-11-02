@@ -14,11 +14,32 @@ mod veritas;
 mod world;
 
 use std::sync::Mutex;
+use std::time::Duration;
 
-use tauri::Manager;
+use tauri::{AppHandle, Manager, RunEvent};
+
+/// How often the saver thread writes a changed account.
+const SAVE_INTERVAL: Duration = Duration::from_millis(1500);
+
+/// Writes the account off the packet path: `GameState::handle` only marks it
+/// changed; here a copy is taken under the lock and written without it.
+fn spawn_saver(app: AppHandle) {
+  std::thread::spawn(move || loop {
+    std::thread::sleep(SAVE_INTERVAL);
+    let shared = app.state::<game::Shared>();
+    let unsaved = {
+      let mut game = shared.game.lock().unwrap();
+      game.take_unsaved().map(|account| (game.store(), account))
+    };
+    if let Some((store, account)) = unsaved {
+      store.save(&account);
+    }
+  });
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  sniffer::wait_for_previous();
   tauri::Builder::default()
     // a second launch (e.g. from the Start menu while Nous sits in the tray) brings the window up
     .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| launch::show_main(app)))
@@ -39,6 +60,7 @@ pub fn run() {
         game: Mutex::new(game::GameState::load(app.handle())),
         status: Mutex::new(sniffer::SnifferStatus::Starting),
       });
+      spawn_saver(app.handle().clone());
       sniffer::start(app.handle().clone());
       launch::setup(app.handle())?;
       // optional, off by default: see veritas.rs
@@ -66,6 +88,14 @@ pub fn run() {
       launch::get_autostart,
       launch::set_autostart,
     ])
-    .run(tauri::generate_context!())
-    .expect("error while building tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      // whatever the saver thread hasn't written yet
+      if let RunEvent::Exit = event {
+        if let Some(shared) = app.try_state::<game::Shared>() {
+          shared.game.lock().unwrap().flush();
+        }
+      }
+    });
 }

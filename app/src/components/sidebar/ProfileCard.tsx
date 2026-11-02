@@ -21,6 +21,7 @@ function LoginNotice({ status }: { status: SnifferStatus | null }) {
         <span className="profile-popover__notice-mark">◆</span>
         <span>
           <b>Нужны права администратора</b>, чтобы Nous увидел вход в игру.
+          {/* false = "No" in the UAC prompt: nothing to report */}
           <Button size="sm" onClick={() => restartAsAdmin().catch(console.error)}>
             Перезапустить от администратора
           </Button>

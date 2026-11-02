@@ -1,11 +1,17 @@
 //! Game state rebuilt from the decrypted game commands: the current account
 //! (profile and inventory). Stored in the one account format, see account.rs.
+//!
+//! Every change bumps `revision`; reads (`Versioned`) and events carry it, so
+//! the UI can tell which of a snapshot and an event is newer. Writing to disk
+//! happens off the packet path: `handle` only marks the account dirty, a saver
+//! thread writes it (see lib.rs), and a switch of account flushes first.
 
 use std::sync::Mutex;
 
 use reliquary::network::command::GameCommand;
 use reliquary::network::command::command_id as cmd;
 use reliquary::network::command::proto;
+use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::account::{Account, Store};
@@ -21,9 +27,20 @@ pub struct Shared {
     pub status: Mutex<SnifferStatus>,
 }
 
+/// A read or an event of the account state, stamped with the state revision.
+#[derive(Debug, Clone, Serialize)]
+pub struct Versioned<T> {
+    pub revision: u64,
+    pub data: T,
+}
+
 /// What a command changed, so the sniffer knows which events to emit.
 #[derive(Debug, Default)]
 pub struct Changes {
+    /// Revision of the state after this command.
+    pub revision: u64,
+    /// Another account logged in: everything was replaced.
+    pub account_switched: bool,
     pub profile: bool,
     /// The whole inventory was replaced (login, other account).
     pub inventory_reset: bool,
@@ -39,17 +56,52 @@ pub struct Changes {
 pub struct GameState {
     store: Store,
     pub account: Account,
+    revision: u64,
+    /// Changed since the last write.
+    dirty: bool,
 }
 
 impl GameState {
     pub fn load(app: &AppHandle) -> Self {
-        let store = Store::new(app.path().app_data_dir().ok());
-        let account = store.load_current();
-        Self { store, account }
+        Self::new(Store::new(app.path().app_data_dir().ok()))
     }
 
-    pub fn save(&self) {
-        self.store.save(&self.account);
+    /// State over a store; the last account seen is loaded from it.
+    pub fn new(store: Store) -> Self {
+        let account = store.load_current();
+        Self { store, account, revision: 0, dirty: false }
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// Stamps a read with the current revision.
+    pub fn versioned<T>(&self, data: T) -> Versioned<T> {
+        Versioned { revision: self.revision, data }
+    }
+
+    /// Records a change made outside `handle` (e.g. an import); returns the new revision.
+    pub fn mark_changed(&mut self) -> u64 {
+        self.dirty = true;
+        self.revision += 1;
+        self.revision
+    }
+
+    /// The account to write, if it changed since the last call (saver thread).
+    pub fn take_unsaved(&mut self) -> Option<Account> {
+        std::mem::take(&mut self.dirty).then(|| self.account.clone())
+    }
+
+    pub fn store(&self) -> Store {
+        self.store.clone()
+    }
+
+    /// Writes now if there are unsaved changes (account switch, exit).
+    pub fn flush(&mut self) {
+        if std::mem::take(&mut self.dirty) {
+            self.store.save(&self.account);
+        }
     }
 
     pub fn profile(&self) -> &PlayerProfile {
@@ -64,7 +116,10 @@ impl GameState {
             cmd::PlayerGetTokenScRsp => {
                 if let Ok(rsp) = command.parse_proto::<proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp>() {
                     if self.account.uid != Some(rsp.uid) {
+                        // the previous account's last changes go to its own file first
+                        self.flush();
                         self.account = self.store.load_or_new(rsp.uid);
+                        ch.account_switched = true;
                         ch.inventory_reset = true;
                     }
                     self.account.profile.touch();
@@ -136,17 +191,20 @@ impl GameState {
             ch.snapshot = command.get_command_name().map(str::to_string);
         }
 
-        // movement alone isn't worth a write: the position is saved with the next change
-        if ch.profile
+        let changed = ch.profile
             || ch.inventory_reset
             || !ch.inventory.is_empty()
             || ch.world == WorldChange::Changed
             || ch.battle.is_some()
             || ch.gacha
-            || ch.snapshot.is_some()
-        {
-            self.store.save(&self.account);
+            || ch.snapshot.is_some();
+        if changed {
+            self.mark_changed();
+        } else if ch.world == WorldChange::Moved {
+            // movement alone isn't worth a write: the position is saved with the next change
+            self.revision += 1;
         }
+        ch.revision = self.revision;
         ch
     }
 
@@ -162,5 +220,86 @@ impl GameState {
         p.stellar_jade = Some(info.stellar_jade_count as u64);
         p.credits = Some(info.credit_count as u64);
         p.touch();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn command<M: protobuf::Message>(id: u16, msg: &M) -> GameCommand {
+        let data = msg.write_to_bytes().unwrap();
+        GameCommand { command_id: id, header_len: 0, data_len: data.len() as u32, proto_header: vec![], proto_data: data }
+    }
+
+    fn token(uid: u32) -> GameCommand {
+        let mut t = proto::PlayerGetTokenScRsp::PlayerGetTokenScRsp::new();
+        t.uid = uid;
+        command(cmd::PlayerGetTokenScRsp, &t)
+    }
+
+    fn bag_with_relic(relic_uid: u32) -> GameCommand {
+        let mut r = proto::Relic::Relic::new();
+        r.unique_id = relic_uid;
+        r.tid = 61011;
+        r.main_affix_id = 1;
+        let mut b = proto::GetBagScRsp::GetBagScRsp::new();
+        b.relic_list = vec![r];
+        command(cmd::GetBagScRsp, &b)
+    }
+
+    fn battle() -> GameCommand {
+        let mut req = proto::PVEBattleResultCsReq::PVEBattleResultCsReq::new();
+        req.stage_id = 1;
+        command(cmd::PVEBattleResultCsReq, &req)
+    }
+
+    fn temp_store(name: &str) -> (Store, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("nous-game-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        (Store::new(Some(dir.clone())), dir)
+    }
+
+    #[test]
+    fn switching_account_replaces_everything_and_keeps_the_old_one() {
+        let (store, dir) = temp_store("switch");
+        let mut game = GameState::new(store.clone());
+
+        let ch = game.handle(&token(1));
+        assert!(ch.account_switched && ch.profile);
+        game.handle(&bag_with_relic(10));
+        let ch = game.handle(&battle());
+        assert!(ch.battle.is_some());
+        let rev_a = ch.revision;
+
+        let ch = game.handle(&token(2));
+        assert!(ch.account_switched && ch.inventory_reset, "consumers must drop account 1");
+        assert!(ch.revision > rev_a, "revisions only grow");
+        assert_eq!(game.account.uid, Some(2));
+        assert!(game.account.inventory.relics.is_empty());
+        assert!(game.account.battles.list.is_empty(), "battles of account 1 don't leak into 2");
+
+        // account 1 was written before the switch, with its relic and battle
+        let mut back = GameState::new(store.clone());
+        back.handle(&token(1));
+        assert!(back.account.inventory.relics.contains_key(&10));
+        assert_eq!(back.account.battles.list.len(), 1);
+
+        // same uid again: not a switch
+        assert!(!back.handle(&token(1)).account_switched);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn handling_marks_unsaved_instead_of_writing() {
+        let (store, dir) = temp_store("dirty");
+        let mut game = GameState::new(store);
+        game.handle(&token(3));
+        let before = game.revision();
+        game.handle(&bag_with_relic(1));
+        assert!(game.revision() > before);
+        assert!(game.take_unsaved().is_some(), "changed: one copy to write");
+        assert!(game.take_unsaved().is_none(), "nothing new since");
+        std::fs::remove_dir_all(dir).ok();
     }
 }

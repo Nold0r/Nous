@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
+import { useLive, type Versioned } from './live'
 
 // Mirrors src-tauri/src/inventory.rs. Values are raw game ids and rolls;
 // names and stat values come from the game tables when shown.
@@ -93,42 +92,28 @@ export type InventoryEvent =
       characters: boolean
     }
 
+const readInventory = () => invoke<Versioned<Inventory>>('get_inventory')
+
 export function getInventory(): Promise<Inventory> {
-  return invoke('get_inventory')
+  return readInventory().then((v) => v.data)
 }
 
 export function getRelics(): Promise<Relic[]> {
-  return invoke('get_relics')
+  return invoke<Versioned<Relic[]>>('get_relics').then((v) => v.data)
 }
 
 /**
  * Inventory of the current account, kept live: relic changes are applied in
- * place, anything else refetches.
+ * place, anything else reads again (see lib/live.ts for ordering).
  */
 export function useInventory(): Inventory | null {
-  const [inventory, setInventory] = useState<Inventory | null>(null)
-
-  useEffect(() => {
-    if (!isTauri()) return
-    const refetch = () => getInventory().then(setInventory).catch(console.error)
-    refetch()
-    const unlisten = listen<InventoryEvent>('inventory-changed', ({ payload: e }) => {
-      if (e.kind === 'reset' || e.lightCones || e.materials || e.characters) {
-        refetch()
-        return
-      }
-      setInventory((inv) => {
-        if (!inv) return inv
-        const relics = { ...inv.relics }
-        for (const r of e.relics) relics[r.uid] = r
-        for (const uid of e.deletedRelics) delete relics[uid]
-        return { ...inv, relics }
-      })
-    })
-    return () => {
-      unlisten.then((f) => f())
-    }
-  }, [])
-
-  return inventory
+  return useLive(readInventory, {
+    'inventory-changed': (inv: Inventory, e: InventoryEvent) => {
+      if (e.kind === 'reset' || e.lightCones || e.materials || e.characters) return 'refetch'
+      const relics = { ...inv.relics }
+      for (const r of e.relics) relics[r.uid] = r
+      for (const uid of e.deletedRelics) delete relics[uid]
+      return { ...inv, relics }
+    },
+  })
 }

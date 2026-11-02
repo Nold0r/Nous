@@ -10,8 +10,9 @@ use reliquary::network::command::command_id as cmd;
 use reliquary::network::command::proto;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Snapshot {
     /// Unix seconds Nous saw it.
     pub at: i64,

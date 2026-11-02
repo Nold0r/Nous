@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { useCallback } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { useLive, type Versioned } from './live'
 
 // Game data beyond the inventory (see lib/inventory.ts): world, battles,
 // warps, raw snapshots. Mirrors world.rs, battles.rs, gacha.rs, snapshots.rs.
@@ -30,22 +30,14 @@ export interface World {
   props: Record<string, Record<string, number>>
 }
 
+const readWorld = () => invoke<Versioned<World>>('get_world')
+
 /** Location and world progress; the player position updates live. */
 export function useWorld(): World | null {
-  const [world, setWorld] = useState<World | null>(null)
-  useEffect(() => {
-    if (!isTauri()) return
-    invoke<World>('get_world').then(setWorld).catch(console.error)
-    const offWorld = listen<World>('world-changed', (e) => setWorld(e.payload))
-    const offMove = listen<Position | null>('player-moved', (e) =>
-      setWorld((w) => (w ? { ...w, player: e.payload } : w)),
-    )
-    return () => {
-      offWorld.then((f) => f())
-      offMove.then((f) => f())
-    }
-  }, [])
-  return world
+  return useLive(readWorld, {
+    'world-changed': (_: World, next: World) => next,
+    'player-moved': (w: World, player: Position | null) => ({ ...w, player }),
+  })
 }
 
 // ---------- battles ----------
@@ -116,18 +108,15 @@ export interface BattleAction {
   counter: number
 }
 
+const readBattles = () => invoke<Versioned<Battle[]>>('get_battles')
+
 /** Battle reports, newest last; a new one arrives as soon as a fight ends. */
 export function useBattles(): Battle[] {
-  const [battles, setBattles] = useState<Battle[]>([])
-  useEffect(() => {
-    if (!isTauri()) return
-    invoke<Battle[]>('get_battles').then(setBattles).catch(console.error)
-    const unlisten = listen<Battle>('battle-finished', (e) => setBattles((b) => [...b, e.payload]))
-    return () => {
-      unlisten.then((f) => f())
-    }
-  }, [])
-  return battles
+  return (
+    useLive(readBattles, {
+      'battle-finished': (list: Battle[], battle: Battle) => [...list, battle],
+    }) ?? []
+  )
 }
 
 // ---------- warps ----------
@@ -170,18 +159,10 @@ export interface Gacha {
   live: LivePull[]
 }
 
+const readGacha = () => invoke<Versioned<Gacha>>('get_gacha')
+
 export function useGacha(): Gacha | null {
-  const [gacha, setGacha] = useState<Gacha | null>(null)
-  useEffect(() => {
-    if (!isTauri()) return
-    const refetch = () => invoke<Gacha>('get_gacha').then(setGacha).catch(console.error)
-    refetch()
-    const unlisten = listen('gacha-changed', refetch)
-    return () => {
-      unlisten.then((f) => f())
-    }
-  }, [])
-  return gacha
+  return useLive(readGacha, { 'gacha-changed': () => 'refetch' })
 }
 
 /**
@@ -209,15 +190,8 @@ export function getSnapshotKinds(): Promise<[string, string][]> {
 
 /** Latest raw answer of the game, e.g. useSnapshot('GetDailyActiveInfoScRsp'). */
 export function useSnapshot(name: string): Snapshot | null {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
-  useEffect(() => {
-    if (!isTauri()) return
-    const refetch = () => invoke<Snapshot | null>('get_snapshot', { name }).then(setSnapshot).catch(console.error)
-    refetch()
-    const unlisten = listen<string>('snapshot-changed', (e) => e.payload === name && refetch())
-    return () => {
-      unlisten.then((f) => f())
-    }
-  }, [name])
-  return snapshot
+  const read = useCallback(() => invoke<Versioned<Snapshot | null>>('get_snapshot', { name }), [name])
+  return useLive(read, {
+    'snapshot-changed': (current: Snapshot | null, changed: string) => (changed === name ? 'refetch' : current),
+  })
 }

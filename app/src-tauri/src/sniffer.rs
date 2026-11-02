@@ -11,9 +11,9 @@ use reliquary::network::{ConnectionPacket, GamePacket, GameSniffer};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::game::{Changes, Shared};
+use crate::game::{Changes, Shared, Versioned};
 use crate::profile::PlayerProfile;
-use crate::world::{World, WorldChange};
+use crate::world::{Position, World, WorldChange};
 use crate::inventory::InventoryChanges;
 use crate::recorder::Recorder;
 
@@ -105,13 +105,15 @@ async fn run(app: &AppHandle) -> Result<(), String> {
                     }
                     recorder.on_command(&command);
                     let shared = app.state::<Shared>();
-                    let (ch, profile, world) = {
+                    // everything an event carries is taken under the same lock as the
+                    // change, so it matches the revision
+                    let (ch, profile, world, player, uid) = {
                         let mut game = shared.game.lock().unwrap();
                         let ch = game.handle(&command);
                         let world = (ch.world == WorldChange::Changed).then(|| game.account.world.clone());
-                        (ch, game.profile().clone(), world)
+                        (ch, game.profile().clone(), world, game.account.world.player, game.account.uid)
                     };
-                    emit_changes(app, ch, profile, world);
+                    emit_changes(app, ch, profile, world, player, uid);
                 }
                 _ => {}
             }
@@ -120,30 +122,42 @@ async fn run(app: &AppHandle) -> Result<(), String> {
     Err("capture stream ended".into())
 }
 
-/// Tells the UI what changed. Event names and payloads: docs "API данных игры".
-fn emit_changes(app: &AppHandle, ch: Changes, profile: PlayerProfile, world: Option<World>) {
+/// Tells the UI what changed. Every payload is `{ revision, data }` (see
+/// game.rs `Versioned`); event names: docs "API данных игры".
+fn emit_changes(
+    app: &AppHandle,
+    ch: Changes,
+    profile: PlayerProfile,
+    world: Option<World>,
+    player: Option<Position>,
+    uid: Option<u32>,
+) {
+    let v = |data| Versioned { revision: ch.revision, data };
+    if ch.account_switched {
+        // consumers drop everything from the previous account and read again
+        app.emit("account-changed", v(serde_json::json!(uid))).ok();
+    }
     if ch.profile {
-        app.emit("profile-changed", &profile).ok();
+        app.emit("profile-changed", Versioned { revision: ch.revision, data: &profile }).ok();
     }
     if ch.inventory_reset {
-        app.emit("inventory-changed", InventoryEvent::Reset).ok();
+        app.emit("inventory-changed", Versioned { revision: ch.revision, data: InventoryEvent::Reset }).ok();
     } else if !ch.inventory.is_empty() {
-        app.emit("inventory-changed", InventoryEvent::Changed(ch.inventory)).ok();
+        app.emit("inventory-changed", Versioned { revision: ch.revision, data: InventoryEvent::Changed(ch.inventory) }).ok();
     }
     if let Some(world) = world {
-        app.emit("world-changed", &world).ok();
+        app.emit("world-changed", Versioned { revision: ch.revision, data: &world }).ok();
     } else if ch.world == WorldChange::Moved {
-        let player = app.state::<Shared>().game.lock().unwrap().account.world.player;
-        app.emit("player-moved", &player).ok();
+        app.emit("player-moved", Versioned { revision: ch.revision, data: player }).ok();
     }
     if let Some(battle) = ch.battle {
-        app.emit("battle-finished", &battle).ok();
+        app.emit("battle-finished", Versioned { revision: ch.revision, data: battle }).ok();
     }
     if ch.gacha {
-        app.emit("gacha-changed", ()).ok();
+        app.emit("gacha-changed", v(serde_json::Value::Null)).ok();
     }
     if let Some(name) = ch.snapshot {
-        app.emit("snapshot-changed", &name).ok();
+        app.emit("snapshot-changed", Versioned { revision: ch.revision, data: name }).ok();
     }
 }
 
@@ -172,20 +186,46 @@ pub fn get_sniffer_status(shared: State<'_, Shared>) -> SnifferStatus {
     shared.status.lock().unwrap().clone()
 }
 
-/// Relaunches Nous elevated (UAC prompt) and closes this instance.
+/// Relaunches Nous elevated. Waits for the UAC answer: on "Yes" this instance
+/// quits (the new one waits for that, see `wait_for_previous`), on "No" it
+/// keeps running and resolves to false.
 #[tauri::command]
-pub fn restart_as_admin(app: AppHandle) -> Result<(), String> {
+pub async fn restart_as_admin(app: AppHandle) -> Result<bool, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-            &format!("Start-Process -FilePath '{}' -Verb RunAs", exe.display()),
-        ])
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    app.exit(0);
-    Ok(())
+    let command = format!(
+        "Start-Process -FilePath {} -ArgumentList '{}','{}' -Verb RunAs",
+        crate::launch::ps_quote(&exe.display().to_string()),
+        WAIT_PID_ARG,
+        std::process::id()
+    );
+    let started = tauri::async_runtime::spawn_blocking(move || crate::launch::shell_start(&command))
+        .await
+        .map_err(|e| e.to_string())??;
+    if started {
+        app.exit(0);
+    }
+    Ok(started)
+}
+
+/// Argument of an elevated restart: the pid of the instance being replaced.
+pub const WAIT_PID_ARG: &str = "--wait-pid";
+
+/// Called first thing at startup: after an elevated restart, waits (up to 15 s)
+/// for the old instance to quit, so the single-instance guard doesn't send
+/// this new one away.
+pub fn wait_for_previous() {
+    let args: Vec<String> = std::env::args().collect();
+    let Some(pid) = args.iter().position(|a| a == WAIT_PID_ARG).and_then(|i| args.get(i + 1)).and_then(|p| p.parse::<u32>().ok())
+    else {
+        return;
+    };
+    let pid = sysinfo::Pid::from_u32(pid);
+    let mut sys = sysinfo::System::new();
+    for _ in 0..150 {
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+        if sys.process(pid).is_none() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
 }

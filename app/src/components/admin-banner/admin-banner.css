@@ -1,0 +1,49 @@
+.admin-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  /* lines up with the page padding (.page: 28px 36px) */
+  margin: 20px 36px -8px;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--crimson);
+  border-radius: var(--radius-lg);
+  background: rgba(150, 40, 66, 0.92);
+  box-shadow: 0 0 0 1px rgba(181, 62, 88, 0.35), 0 10px 30px rgba(181, 62, 88, 0.35);
+  animation: admin-banner-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes admin-banner-pulse {
+  50% {
+    box-shadow: 0 0 0 1px rgba(181, 62, 88, 0.6), 0 10px 40px rgba(181, 62, 88, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-banner {
+    animation: none;
+  }
+}
+
+.admin-banner__icon {
+  flex-shrink: 0;
+  color: var(--text);
+}
+
+.admin-banner__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.admin-banner__text b {
+  font-size: var(--fs-md);
+  font-weight: inherit;
+  color: #fff;
+}

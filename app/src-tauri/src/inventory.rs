@@ -14,16 +14,18 @@ use serde::{Deserialize, Serialize};
 /// One substat (or pending reroll substat): `cnt` rolls of `affix_id`, `step`
 /// extra value steps. Value = cnt * BaseValue + step * StepValue
 /// (RelicSubAffixConfig).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Affix {
     pub affix_id: u32,
     pub cnt: u32,
     pub step: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Relic {
     /// `unique_id` from the game: the relic's identity in this account.
     pub uid: u32,
@@ -74,8 +76,9 @@ impl Relic {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct LightCone {
     pub uid: u32,
     /// EquipmentConfig id.
@@ -103,8 +106,9 @@ impl LightCone {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Material {
     /// ItemConfig id.
     pub tid: u32,
@@ -114,8 +118,9 @@ pub struct Material {
 }
 
 /// Level progress shared by all paths of a character (`Avatar`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct Avatar {
     pub base_avatar_id: u32,
     pub level: u32,
@@ -127,8 +132,9 @@ pub struct Avatar {
 
 /// Per-path build (`AvatarPathData`): eidolons, traces, gear. For ordinary
 /// characters `avatar_id` equals the base id.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+// missing fields (older files) take defaults: adding a field never breaks loading
+#[serde(rename_all = "camelCase", default)]
 pub struct AvatarPath {
     pub avatar_id: u32,
     pub eidolon: u32,
@@ -155,7 +161,7 @@ impl AvatarPath {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct Inventory {
     pub relics: BTreeMap<u32, Relic>,
     pub light_cones: BTreeMap<u32, LightCone>,

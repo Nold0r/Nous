@@ -26,7 +26,10 @@ export function useSnifferStatus(): SnifferStatus | null {
   return status
 }
 
-/** Relaunch Nous elevated (UAC prompt); the current window closes. */
-export function restartAsAdmin(): Promise<void> {
+/**
+ * Relaunch Nous elevated (UAC prompt). On "Yes" this window closes; on "No"
+ * it resolves to false and Nous keeps running.
+ */
+export function restartAsAdmin(): Promise<boolean> {
   return invoke('restart_as_admin')
 }

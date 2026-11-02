@@ -27,7 +27,7 @@ pub struct Position {
 
 /// Stored part of the world state (in the account file).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct World {
     pub plane_id: Option<u32>,
     pub floor_id: Option<u32>,
