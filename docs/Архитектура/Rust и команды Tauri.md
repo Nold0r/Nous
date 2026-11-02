@@ -4,71 +4,12 @@ tags: [nous, архитектура, rust]
 
 # Rust и команды Tauri
 
-Всё, что нельзя сделать в браузере (перехват трафика, файлы игры, процессы, долгие задачи), живёт на стороне Rust в `app/src-tauri/src/`. Фронт вызывает это через **команды Tauri**.
+Предметный Rust API вынесен в [[SDK]]: `nous-core` и `nous-hsr`. `app/src-tauri/src/ipc.rs` сохраняет прежние имена команд и возвращаемые данные, но читает их через `Sdk::client().query`. `lib.rs` создаёт SDK и пересылает его события через `app.emit`.
 
-## Соглашение: одна система — один модуль
+Все чтения аккаунта остаются `Versioned { revision, data }`. Список команд и событий — [[API данных игры]]. `get_sniffer_status` возвращает невёрсионированный статус. Новая команда оболочки `set_capture_enabled(enabled)` включает или останавливает общий HSR-сервис по потребности модулей. При выходе останавливается поток захвата, сохраняются изменения, завершается мост событий.
 
-```
-src-tauri/src/
-├─ lib.rs          регистрация модулей и команд
-├─ profile.rs      профиль игрока (get_profile)
-└─ <система>.rs    например sniffer.rs, datamine.rs, hoyolab.rs
-```
+Запуск игры и автозапуск остаются в `launch.rs`, существующий opt-in Veritas — в `veritas.rs`. Перезапуск с повышением и ожидание предыдущего процесса — в `sniffer.rs`; самого захвата в этом файле больше нет. Release-манифест администратора в `build.rs` не менялся, debug запускается без повышения.
 
-Если система разрастается, модуль превращается в папку `<система>/mod.rs` с подмодулями.
+Добавляйте предметную обработку в ядро и декодирование в HSR-адаптер. В Tauri оставляйте только адаптацию IPC и возможностей оболочки. Не передавайте `AppHandle` внутрь SDK.
 
-## Добавить команду
-
-1. Функция с атрибутом `#[tauri::command]` в модуле системы:
-   ```rust
-   // src-tauri/src/warps.rs
-   use serde::Serialize;
-
-   #[derive(Serialize)]
-   #[serde(rename_all = "camelCase")]
-   pub struct Warp { pub item_id: u32, pub time: i64 }
-
-   #[tauri::command]
-   pub fn get_warps() -> Result<Vec<Warp>, String> {
-       Ok(vec![])
-   }
-   ```
-2. Подключить модуль и команду в `lib.rs`:
-   ```rust
-   mod warps;
-   // …
-   .invoke_handler(tauri::generate_handler![
-       profile::get_profile,
-       warps::get_warps,
-   ])
-   ```
-3. Вызвать с фронта. Принято держать вызовы в `api.ts` своей фичи:
-   ```ts
-   // src/features/warps/api.ts
-   import { invoke, isTauri } from '@tauri-apps/api/core'
-   import type { Warp } from './types'
-
-   export async function getWarps(): Promise<Warp[]> {
-     if (!isTauri()) return []          // npm run dev в браузере, без Rust
-     return invoke<Warp[]>('get_warps')
-   }
-   ```
-
-> [!warning] Регистрация команд не автоматическая
-> В отличие от экранов, команды Tauri собираются на этапе компиляции. Каждую нужно явно вписать в `generate_handler!`, иначе фронт получит ошибку «command not found».
-
-## Правила
-
-- **Имена:** команда `snake_case`, глагол + объект (`get_profile`, `start_capture`). На фронте вызывается той же строкой.
-- **Поля структур** отдаём в camelCase: `#[serde(rename_all = "camelCase")]`. Тогда TS-тип совпадает один в один.
-- **TS-тип** зеркалит Rust-структуру и лежит рядом с вызовом, с комментарием `// Mirrors X in src-tauri/src/…`.
-- **Ошибки** возвращаем как `Result<T, String>`. Фронт показывает их через [[Компоненты#EmptyState|EmptyState]] или [[Компоненты#Badge|Badge]] `danger`.
-- **Нет данных ≠ ошибка.** Если аккаунт не привязан, возвращаем пустые значения, а фронт показывает нули. Так сделан профиль, см. [[Данные профиля]].
-- **Долгие процессы** (сниффер) запускаются в фоне. Данные отдаются через события Tauri (`app.emit`), фронт подписывается через `listen`, а не опрашивает.
-- **Большие бинарные данные** отдаём через `tauri::ipc::Response`: придут как `ArrayBuffer` без JSON.
-
-## Связанные заметки
-
-- [[Обзор архитектуры]]
-- [[Данные профиля]]
-- [[Источники данных]]
+`module_config.rs` хранит настройки платформы отдельно от SDK: `get_module_configuration` / `set_module_configuration` читают и атомарно записывают `modules.json`. Фронт ждёт загрузку перед запуском модулей, а подтверждение записи — перед изменением выбора.

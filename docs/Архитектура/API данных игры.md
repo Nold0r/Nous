@@ -4,7 +4,7 @@ tags: [nous, архитектура, rust, данные]
 
 # API данных игры
 
-Всё, что Nous знает об аккаунте, доступно фронту через команды и события Tauri. Данные лежат в файле аккаунта ([[Данные аккаунта]]) и обновляются вживую, пока работает [[Сниффер]].
+Всё, что Nous знает об аккаунте, доступно через независимый Rust [[SDK]], а фронту — через прежние команды и события Tauri. Данные лежат в файле аккаунта ([[Данные аккаунта]]) и обновляются вживую, пока работает [[Сниффер]].
 
 ## Безопасность: почему это не трогает античит
 
@@ -38,7 +38,7 @@ tags: [nous, архитектура, rust, данные]
 | Прыжки | `get_gacha`, `import_gacha_history` | `gacha-changed` | `useGacha`, `importGachaHistory` | баннеры при входе, крутки вживую, история из официального API |
 | Снимки (всё остальное) | `get_snapshots`, `get_snapshot(name)`, `get_snapshot_kinds` | `snapshot-changed` | `useSnapshot(name)` | последние ответы игры, см. ниже |
 
-Код: `src-tauri/src/` — `world.rs`, `battles.rs`, `gacha.rs`, `snapshots.rs`, `inventory.rs`, `account.rs`; фронт — `lib/game-data.ts`, `lib/inventory.ts`.
+Код моделей: `crates/nous-core/src/`; protobuf-адаптер: `crates/nous-hsr/src/`; IPC: `app/src-tauri/src/ipc.rs` — `world.rs`, `battles.rs`, `gacha.rs`, `snapshots.rs`, `inventory.rs`, `account.rs`; фронт — `lib/game-data.ts`, `lib/inventory.ts`.
 
 ### Бои
 
