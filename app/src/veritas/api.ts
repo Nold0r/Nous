@@ -8,13 +8,13 @@ const browserState: OverlayState = {
   settings: defaultSettings,
   snapshot: { revision: 0, connected: false, active: false, battle: null, history: [], diagnostics: [] },
   presentation: { targetFound: false, targetVisible: false, exclusiveFullscreen: false, visible: false, message: null },
-  hidden: false, replay: false,
+  hidden: false, replay: false, arranging: false,
 }
 
 export const getBattle = (id: number) => invoke<Battle | null>('get_veritas_battle', { id })
 export const exportBattle = (id: number, format: 'json' | 'csv' | 'both') =>
   invoke<{ directory: string; files: string[] }>('export_veritas_battle', { id, format })
-export const overlayAction = (action: 'toggle' | 'show' | 'hide' | 'settings' | 'reset') =>
+export const overlayAction = (action: 'toggle' | 'show' | 'hide' | 'settings' | 'reset' | 'arrange' | 'arrange-done' | 'reset-layout') =>
   invoke<OverlayState>('veritas_overlay_action', { action })
 export const readPluginConfig = () => invoke<PluginConfig>('read_veritas_plugin_config')
 export const writePluginConfig = (options: PluginOptions) => invoke<PluginConfig>('write_veritas_plugin_config', { options })

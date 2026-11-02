@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Minus, Plus, RotateCcw, Users } from 'lucide-react'
-import { avatarIcons } from '../lib/icons'
 import { Button } from '../ui'
+import { useBattleIcons } from './icons'
 import { categoryLabel, characterValue, columnLabels, damageCategories, dpav, effective, finite, formatCompact, formatNumber, formatShare, projectedAv, propertyLabel, seriesColors, sortedAvatars, themeVariables, viewLabels } from './presentation'
 import type { Battle, Combatant, OverlaySettings, Snapshot, ViewKey } from './types'
 
 type Patch = (changes: Partial<OverlaySettings>) => void
 
 function Avatar({ avatar }: { avatar: Combatant }) {
-  const image = avatarIcons[String(avatar.id)]
+  const image = useBattleIcons().character(avatar)
   return <span className="vt-avatar" title={avatar.name}>
     {image ? <img src={image} alt="" width="36" height="36" /> : <Users size={20} aria-hidden />}
     <span className="vt-avatar__name">{avatar.name || `Персонаж ${avatar.id}`}{avatar.dead && <small>Выведен из боя</small>}</span>
@@ -102,12 +102,13 @@ function Breakdown({ battle, settings, patch }: { battle: Battle; settings: Over
 }
 
 function Enemies({ battle }: { battle: Battle }) {
+  const icons = useBattleIcons()
   if (!battle.enemies.length) return <p className="vt-empty">Данные противников ещё не получены.</p>
   return <div className="vt-enemies">{battle.enemies.map((enemy) => {
     const hp = enemy.properties.CurrentHP
     const max = enemy.properties.MaxHP
     const absoluteAv = enemy.dead ? null : projectedAv(battle.actionValue, enemy.properties.ActionDelay)
-    return <details key={enemy.uid} className="vt-details"><summary><span>{enemy.name || `Противник ${enemy.id}`}{enemy.dead ? ' · Повержен' : ''}</span><span>{hp === undefined ? 'HP неизвестны' : `${formatNumber(hp)}${max ? ` / ${formatNumber(max)} · ${formatShare(hp, max)}` : ''}`}</span></summary>
+    return <details key={enemy.uid} className="vt-details"><summary><span className="vt-avatar">{icons.enemy(enemy) ? <img src={icons.enemy(enemy)} alt="" width="36" height="36" /> : null}<span className="vt-avatar__name">{enemy.name || `Противник ${enemy.id}`}{enemy.dead ? ' · Повержен' : ''}</span></span><span>{hp === undefined ? 'HP неизвестны' : `${formatNumber(hp)}${max ? ` / ${formatNumber(max)} · ${formatShare(hp, max)}` : ''}`}</span></summary>
       {max > 0 && hp !== undefined && <div className="vt-meter"><span style={{ width: `${Math.max(0, Math.min(100, hp / max * 100))}%`, background: 'var(--danger)' }} /></div>}
       <dl className="vt-property-list">{Object.entries(enemy.properties).map(([name, value]) => <div key={name}><dt>{propertyLabel(name)}</dt><dd>{formatNumber(value)}</dd></div>)}{absoluteAv !== null && <div><dt title="Текущее AV плюс задержка действия; не меньше текущего AV">Абсолютное AV действия</dt><dd>{formatNumber(absoluteAv)}</dd></div>}</dl>
     </details>
@@ -150,21 +151,35 @@ function DamageGraph({ battle, settings, patch }: { battle: Battle; settings: Ov
   </>
 }
 
+/** One view's content; shared by the widgets over the game and the preview. */
+function ViewContent({ name, battle, snapshot, settings, patch }: { name: ViewKey; battle: Battle | null; snapshot: Snapshot; settings: OverlaySettings; patch: Patch }) {
+  if (name === 'logs') return <>{snapshot.diagnostics.length ? <ol className="vt-log">{snapshot.diagnostics.map((line, i) => <li key={`${i}-${line}`}>{line}</li>)}</ol> : <p className="vt-empty">Сообщений пока нет.</p>}</>
+  if (!battle) return <p className="vt-empty">Появится в бою.</p>
+  switch (name) {
+    case 'legend': return <CharacterTable battle={battle} settings={settings} />
+    case 'characters': return <CharacterMeters battle={battle} settings={settings} patch={patch} />
+    case 'breakdown': return <Breakdown battle={battle} settings={settings} patch={patch} />
+    case 'enemies': return <Enemies battle={battle} />
+    case 'metrics': return <Metrics battle={battle} />
+    case 'graph': return <DamageGraph key={battle.id} battle={battle} settings={settings} patch={patch} />
+  }
+}
+
+/** A single widget over the game. */
+export function Widget({ name, battle, snapshot, settings, patch }: { name: ViewKey; battle: Battle | null; snapshot: Snapshot; settings: OverlaySettings; patch: Patch }) {
+  return <div className="vt-battle" style={themeVariables(settings) as CSSProperties}>
+    <Section name={name}><ViewContent name={name} battle={battle} snapshot={snapshot} settings={settings} patch={patch} /></Section>
+  </div>
+}
+
 export function BattleView({ battle, snapshot, settings, patch }: { battle: Battle | null; snapshot: Snapshot; settings: OverlaySettings; patch: Patch }) {
-  return <div className={`vt-battle ${settings.theme === 'light' ? 'vt-battle--light' : ''}`} style={themeVariables(settings) as CSSProperties}>
+  return <div className="vt-battle" style={themeVariables(settings) as CSSProperties}>
     {battle?.partial && <p className="vt-notice" role="status">Неполные данные: подключение произошло после начала боя. Пропущенные удары не восстанавливаются.</p>}
     {battle?.interrupted && <p className="vt-notice" role="status">Запись прервана. Показан последний полученный результат.</p>}
     {!battle && <div className="vt-empty-state"><Users size={30} aria-hidden /><h3>{snapshot.connected ? 'Ожидание боя' : 'Нет соединения с Veritas'}</h3><p>{snapshot.connected ? 'Персонажи и урон появятся после начала боя.' : 'Запустите игру с ранее включённым плагином. Пока соединения нет, сохранённые бои доступны в истории.'}</p></div>}
     {battle && !Object.values(settings.views).some(Boolean) && <p className="vt-empty">Все представления скрыты. Включите нужные в настройках оверлея.</p>}
-    {battle && <>
-      {settings.views.legend && <Section name="legend"><CharacterTable battle={battle} settings={settings} /></Section>}
-      {settings.views.characters && <Section name="characters"><CharacterMeters battle={battle} settings={settings} patch={patch} /></Section>}
-      {settings.views.breakdown && <Section name="breakdown"><Breakdown battle={battle} settings={settings} patch={patch} /></Section>}
-      {settings.views.enemies && <Section name="enemies"><Enemies battle={battle} /></Section>}
-      {settings.views.metrics && <Section name="metrics"><Metrics battle={battle} /></Section>}
-      {settings.views.graph && <Section name="graph"><DamageGraph key={battle.id} battle={battle} settings={settings} patch={patch} /></Section>}
-    </>}
-    {settings.views.logs && <Section name="logs"><p className="vt-caption">События и ошибки соединения Nous. Внутренний журнал egui недоступен.</p>{snapshot.diagnostics.length ? <ol className="vt-log">{snapshot.diagnostics.map((line, i) => <li key={`${i}-${line}`}>{line}</li>)}</ol> : <p className="vt-empty">Сообщений пока нет.</p>}</Section>}
+    {battle && (Object.keys(viewLabels) as ViewKey[]).filter((name) => name !== 'logs' && settings.views[name]).map((name) => <Section key={name} name={name}><ViewContent name={name} battle={battle} snapshot={snapshot} settings={settings} patch={patch} /></Section>)}
+    {settings.views.logs && <Section name="logs"><ViewContent name="logs" battle={battle} snapshot={snapshot} settings={settings} patch={patch} /></Section>}
     {settings.streamerMode && <footer className="vt-streamer">{settings.streamerMessage || 'Nous'}</footer>}
   </div>
 }

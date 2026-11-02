@@ -1,6 +1,7 @@
 /* Scoped extension of Nous tokens. Overlay and preview share the same renderer. */
 .vt-settings,
 .vt-overlay,
+.vt-widget,
 .vt-battle {
   --vt-surface: var(--bg);
   --vt-opacity: .86;
@@ -180,3 +181,23 @@ html.veritas-overlay-root #root { overflow: hidden; }
   .vt-slider, .vt-input, .vt-chips { width: 100%; max-width: none; justify-content: flex-start; }
 }
 .vt-settings > .ui-tabs { align-self: flex-start; }
+
+/* ---------- one widget per popup (composition host sizes the popup to it) ---------- */
+html.veritas-overlay-root body { overflow: hidden; }
+.vt-widget {
+  display: inline-block;
+  width: max-content;
+  min-width: 220px;
+  max-width: 520px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--vt-surface) calc(var(--vt-opacity) * 100%), transparent);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.vt-widget .vt-section h3 { font-size: var(--fs-md); margin-bottom: var(--space-2); color: var(--text-muted); }
+.vt-widget .vt-caption { display: none; }
+.vt-widget--arranging { border: 1px dashed var(--gold); cursor: move; }
+.vt-widget__hint { margin-bottom: var(--space-2); color: var(--gold); font-size: var(--fs-sm); }
+.vt-enemies summary .vt-avatar img { border-radius: var(--radius); }

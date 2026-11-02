@@ -130,6 +130,26 @@ fn target(app: &AppHandle) -> Option<HWND> {
     }
     (!search.window.is_null()).then_some(search.window)
 }
+/// The game's client area on screen, in physical pixels, and its DPI.
+fn client_area(hwnd: HWND) -> Option<(Rect, u32)> {
+    let mut native: RECT = unsafe { std::mem::zeroed() };
+    let mut origin = POINT { x: 0, y: 0 };
+    if unsafe { GetClientRect(hwnd, &mut native) } == 0
+        || unsafe { ClientToScreen(hwnd, &mut origin) } == 0
+    {
+        return None;
+    }
+    let bounds = Rect {
+        x: origin.x,
+        y: origin.y,
+        width: (native.right - native.left).max(1) as u32,
+        height: (native.bottom - native.top).max(1) as u32,
+    };
+    Some((bounds, unsafe { GetDpiForWindow(hwnd) }))
+}
+pub fn target_rect(app: &AppHandle) -> Option<Rect> {
+    target(app).and_then(client_area).map(|(rect, _)| rect)
+}
 pub fn refresh(app: &AppHandle) {
     let host = app.state::<Host>();
     let enabled = host.replay || app.state::<super::VeritasState>().enabled();
@@ -143,7 +163,7 @@ pub fn refresh(app: &AppHandle) {
         host.update_presentation(app, Presentation::default());
         return;
     }
-    // composition surface first; a Tauri window only if it can't be created
+    // composition widgets first; one Tauri window only if they can't be created
     let surface = overlay_host::status(app);
     let fallback = if surface == Status::Failed {
         match overlay(app) {
@@ -156,55 +176,35 @@ pub fn refresh(app: &AppHandle) {
     let target = target(app);
     let settings = host.settings();
     let mut presentation = Presentation::default();
-    let mut rectangle = None;
-    let mut dpi = 96;
+    let mut area = None;
     if let Some(hwnd) = target {
         presentation.target_found = unsafe { IsWindow(hwnd) } != 0;
-        let foreground = host.replay || unsafe { GetForegroundWindow() } == hwnd;
+        // shown while the game is on screen, focused or not
         presentation.target_visible = presentation.target_found
-            && foreground
             && unsafe { IsIconic(hwnd) } == 0
             && unsafe { IsWindowVisible(hwnd) } != 0;
-        let mut native: RECT = unsafe { std::mem::zeroed() };
-        let mut origin = POINT { x: 0, y: 0 };
-        if unsafe { GetClientRect(hwnd, &mut native) } != 0
-            && unsafe { ClientToScreen(hwnd, &mut origin) } != 0
-        {
-            let bounds = Rect {
-                x: origin.x,
-                y: origin.y,
-                width: (native.right - native.left).max(1) as u32,
-                height: (native.bottom - native.top).max(1) as u32,
-            };
-            dpi = unsafe { GetDpiForWindow(hwnd) };
-            rectangle = Some(place(
-                bounds,
-                dpi,
-                settings.width,
-                settings.height,
-                &settings.anchor,
-                settings.offset_x,
-                settings.offset_y,
-            ));
-        }
+        area = client_area(hwnd);
         let mut notification = 0;
         presentation.exclusive_fullscreen = if host.replay {
             host.exclusive.load(std::sync::atomic::Ordering::Relaxed)
         } else {
-            presentation.target_visible
+            (unsafe { GetForegroundWindow() } == hwnd)
+                && presentation.target_visible
                 && unsafe { SHQueryUserNotificationState(&mut notification) } >= 0
                 && notification == QUNS_RUNNING_D3D_FULL_SCREEN
         };
     }
     let snapshot = host.snapshot();
-    presentation.visible = nous_veritas::visible(
-        settings.enabled,
-        snapshot.connected,
-        snapshot.active,
-        presentation.target_visible,
-        host.hidden.load(std::sync::atomic::Ordering::Relaxed),
-        host.replay && presentation.exclusive_fullscreen,
-    );
+    let arranging = host.arranging.load(std::sync::atomic::Ordering::Relaxed);
+    presentation.visible = (arranging && presentation.target_visible)
+        || nous_veritas::visible(
+            settings.enabled,
+            snapshot.connected,
+            snapshot.active,
+            presentation.target_visible,
+            host.hidden.load(std::sync::atomic::Ordering::Relaxed),
+            host.replay && presentation.exclusive_fullscreen,
+        );
     presentation.message = if presentation.exclusive_fullscreen {
         Some("Windows сообщает полноэкранный Direct3D-режим. Если окно Nous не видно, включите в игре оконный или безрамочный режим.".into())
     } else if !presentation.target_found {
@@ -220,8 +220,8 @@ pub fn refresh(app: &AppHandle) {
         None
     };
     if let Some(overlay) = fallback {
-        if let Some(rectangle) = rectangle {
-            apply_geometry(&overlay, rectangle, &settings);
+        if let Some((bounds, dpi)) = area {
+            apply_geometry(&overlay, place(bounds, dpi, 520.0, 620.0, "top-right", 24.0, 24.0), &settings);
         }
         if presentation.visible {
             if !overlay.is_visible().unwrap_or(false) {
@@ -231,19 +231,35 @@ pub fn refresh(app: &AppHandle) {
             let _ = overlay.hide();
         }
     } else {
-        let rect = rectangle.unwrap_or(Rect { x: 0, y: 0, width: 0, height: 0 });
-        overlay_host::apply(
-            app,
-            Placement {
-                visible: presentation.visible && rectangle.is_some(),
-                x: rect.x,
-                y: rect.y,
-                width: rect.width,
-                height: rect.height,
-                dpi,
-                click_through: settings.click_through,
-            },
-        );
+        let sizes = host.sizes.lock().unwrap().clone();
+        for (id, _) in super::settings::WIDGETS {
+            let on = settings.views.get(id).copied().unwrap_or(false);
+            let placement = match area {
+                Some((bounds, dpi)) if on => {
+                    let size = sizes.get(id).copied().unwrap_or((340.0, 160.0));
+                    let rect = super::geometry::widget(
+                        bounds,
+                        dpi,
+                        settings.scale,
+                        settings.widget_position(id),
+                        size,
+                    );
+                    Placement {
+                        visible: presentation.visible,
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                        zoom_percent: (f64::from(dpi.max(96)) / 96.0 * settings.scale * 100.0)
+                            .round() as u32,
+                        click_through: settings.click_through && !arranging,
+                        draggable: arranging,
+                    }
+                }
+                _ => Placement::default(),
+            };
+            overlay_host::apply(app, id, placement);
+        }
     }
     host.update_presentation(app, presentation);
 }

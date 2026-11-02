@@ -58,19 +58,12 @@ export interface Snapshot {
 
 export type ViewKey = 'legend' | 'characters' | 'breakdown' | 'enemies' | 'metrics' | 'graph' | 'logs'
 export type ColumnKey = 'damage' | 'dpav' | 'share' | 'effective' | 'overkill' | 'turns'
-export type ThemeName = 'nous' | 'light' | 'indigo-jade' | 'grass-bronze' | 'warm' | 'cool' | 'seventies' | 'office-gray' | 'vermillion'
 
 export interface OverlaySettings {
   enabled: boolean
   clickThrough: boolean
   scale: number
   opacity: number
-  width: number
-  height: number
-  anchor: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
-  offsetX: number
-  offsetY: number
-  theme: ThemeName
   fontSizes: Record<string, number>
   legendSize: 'small' | 'body' | 'large'
   pieOpacity: number
@@ -88,6 +81,8 @@ export interface OverlaySettings {
   autoExport: boolean
   dateFolders: boolean
   exportDirectory: string | null
+  /** Widget id -> top-left as a fraction of the game's client area. */
+  widgetPositions: Partial<Record<ViewKey, [number, number]>>
 }
 
 export interface OverlayState {
@@ -96,6 +91,8 @@ export interface OverlayState {
   presentation: { targetFound: boolean; targetVisible: boolean; exclusiveFullscreen: boolean; visible: boolean; message: string | null }
   replay: boolean
   hidden: boolean
+  /** Widgets are draggable over the game. */
+  arranging: boolean
 }
 
 export interface PluginOptions {
@@ -119,11 +116,10 @@ export interface PluginConfig {
 }
 
 export const defaultSettings: OverlaySettings = {
-  enabled: true, clickThrough: true, scale: 1, opacity: .86, width: 520, height: 620,
-  anchor: 'top-right', offsetX: 24, offsetY: 24, theme: 'nous',
+  enabled: true, clickThrough: true, scale: 1, opacity: .86,
   fontSizes: { body: 14, heading: 20, small: 12, legend: 14 }, legendSize: 'body', pieOpacity: .8,
   views: { legend: true, characters: true, breakdown: false, enemies: false, metrics: true, graph: false, logs: false },
   columns: ['damage', 'dpav', 'share'], metric: 'damage', breakdownScope: 'team', breakdownChart: 'pie',
   characterId: null, showLegend: true, showBreakdownTable: true, graphUnit: 'turn', streamerMode: false,
-  streamerMessage: 'Nous', autoExport: false, dateFolders: true, exportDirectory: null,
+  streamerMessage: 'Nous', autoExport: false, dateFolders: true, exportDirectory: null, widgetPositions: {},
 }

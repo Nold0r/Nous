@@ -31,6 +31,8 @@ pub struct OverlayState {
     pub presentation: Presentation,
     pub replay: bool,
     pub hidden: bool,
+    /// Widgets accept the mouse and can be dragged.
+    pub arranging: bool,
 }
 struct Inner {
     engine: Engine,
@@ -42,6 +44,9 @@ pub struct Host {
     pub root: PathBuf,
     pub replay: bool,
     pub hidden: AtomicBool,
+    pub arranging: AtomicBool,
+    /// Widget id -> content size in CSS pixels, reported by its page.
+    pub sizes: Mutex<std::collections::HashMap<String, (f64, f64)>>,
     pub target_available: AtomicBool,
     pub exclusive: AtomicBool,
     pub stop: AtomicBool,
@@ -62,6 +67,7 @@ impl Host {
             presentation: inner.presentation.clone(),
             replay: self.replay,
             hidden: self.hidden.load(Ordering::Relaxed),
+            arranging: self.arranging.load(Ordering::Relaxed),
         }
     }
     pub fn update_presentation(&self, app: &AppHandle, presentation: Presentation) {
@@ -116,6 +122,8 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         root,
         replay,
         hidden: AtomicBool::new(false),
+        arranging: AtomicBool::new(false),
+        sizes: Mutex::new(Default::default()),
         target_available: AtomicBool::new(true),
         exclusive: AtomicBool::new(false),
         stop: AtomicBool::new(false),
@@ -243,6 +251,13 @@ pub fn action(app: &AppHandle, action: &str) -> Result<OverlayState, String> {
         }
         "hide" => host.hidden.store(true, Ordering::Relaxed),
         "show" => host.hidden.store(false, Ordering::Relaxed),
+        "arrange" => host.arranging.store(true, Ordering::Relaxed),
+        "arrange-done" => host.arranging.store(false, Ordering::Relaxed),
+        "reset-layout" => {
+            let mut settings = host.settings();
+            settings.widget_positions.clear();
+            return set_veritas_overlay_settings(app.clone(), settings);
+        }
         "settings" => {
             crate::launch::show_main(app);
             if let Some(window) = app.get_webview_window("main") {
@@ -266,6 +281,38 @@ pub fn action(app: &AppHandle, action: &str) -> Result<OverlayState, String> {
     super::window::refresh(app);
     publish(app);
     Ok(host.state())
+}
+/// A widget page measured its content.
+pub fn set_widget_size(app: &AppHandle, id: &str, width: f64, height: f64) {
+    if !super::settings::WIDGETS.iter().any(|(w, _)| *w == id)
+        || !(width.is_finite() && height.is_finite())
+    {
+        return;
+    }
+    let size = (width.clamp(40.0, 2000.0), height.clamp(20.0, 2000.0));
+    let changed = app
+        .state::<Host>()
+        .sizes
+        .lock()
+        .unwrap()
+        .insert(id.to_string(), size)
+        != Some(size);
+    if changed {
+        super::window::refresh(app);
+    }
+}
+/// The player dropped a widget at screen position `x`, `y` (physical).
+pub fn move_widget(app: &AppHandle, id: &str, x: i32, y: i32) {
+    let Some(target) = super::window::target_rect(app) else {
+        return;
+    };
+    let mut settings = app.state::<Host>().settings();
+    settings
+        .widget_positions
+        .insert(id.to_string(), super::geometry::fraction(target, x, y));
+    if let Err(e) = set_veritas_overlay_settings(app.clone(), settings) {
+        diagnostic(app, e);
+    }
 }
 #[tauri::command]
 pub fn veritas_overlay_action(app: AppHandle, action: String) -> Result<OverlayState, String> {

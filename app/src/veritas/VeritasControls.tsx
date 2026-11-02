@@ -6,8 +6,8 @@ import { Button, Select, Switch, Tabs } from '../ui'
 import { useVeritasStatus } from '../lib/veritas'
 import { BattleView } from './BattleView'
 import { checkUpdate, exportBattle, getBattle, installUpdate, overlayAction, readPluginConfig, useOverlay, writePluginConfig } from './api'
-import { columnLabels, formatNumber, themeLabels, viewLabels } from './presentation'
-import type { Battle, ColumnKey, OverlaySettings, PluginConfig, PluginOptions, Snapshot, ThemeName, ViewKey } from './types'
+import { columnLabels, formatNumber, viewLabels } from './presentation'
+import type { Battle, ColumnKey, OverlayState, OverlaySettings, PluginConfig, PluginOptions, Snapshot, ViewKey } from './types'
 import './veritas.css'
 
 type Patch = (changes: Partial<OverlaySettings>) => void
@@ -42,18 +42,20 @@ function TextInput({ value, placeholder, onChange }: { value: string; placeholde
   return <input ref={input} className="vt-input" type="text" value={draft} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onChange(draft) }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
-const anchors = [
-  { value: 'top-right', label: 'Справа сверху' },
-  { value: 'top-left', label: 'Слева сверху' },
-  { value: 'bottom-right', label: 'Справа снизу' },
-  { value: 'bottom-left', label: 'Слева снизу' },
-] as const
-
-function WindowTab({ settings, patch }: { settings: OverlaySettings; patch: Patch }) {
+function WindowTab({ state, patch }: { state: OverlayState; patch: Patch }) {
+  const { settings, arranging, presentation } = state
+  const act = (action: Parameters<typeof overlayAction>[0]) => void overlayAction(action).catch(console.error)
   return <>
-    <Switch label="Показывать в бою автоматически" hint="Окно появляется при начале боя и скрывается после него." checked={settings.enabled} onChange={(enabled) => patch({ enabled })} />
-    <Switch label="Пропускать клики в игру" hint="Окно не перехватывает мышь и фокус." checked={settings.clickThrough} onChange={(clickThrough) => patch({ clickThrough })} />
-    <Row label="Положение"><Select title="Положение" value={settings.anchor} options={anchors} onChange={(anchor) => patch({ anchor })} /></Row>
+    <Switch label="Показывать в бою автоматически" hint="Виджеты появляются при начале боя и скрываются после него." checked={settings.enabled} onChange={(enabled) => patch({ enabled })} />
+    <Switch label="Пропускать клики в игру" hint="Виджеты не перехватывают мышь и фокус." checked={settings.clickThrough} onChange={(clickThrough) => patch({ clickThrough })} />
+    <Row label="Расположение" hint={arranging ? 'Перетащите виджеты поверх игры мышью, затем нажмите «Готово».' : presentation.targetFound ? 'Положение каждого виджета запоминается.' : 'Запустите игру, чтобы расставить виджеты.'}>
+      <span className="vt-actions">
+        {arranging
+          ? <Button size="sm" variant="primary" onClick={() => act('arrange-done')}>Готово</Button>
+          : <Button size="sm" disabled={!presentation.targetFound} onClick={() => act('arrange')}>Расставить виджеты</Button>}
+        <Button size="sm" variant="ghost" onClick={() => act('reset-layout')}>По умолчанию</Button>
+      </span>
+    </Row>
     <Row label="Масштаб"><Slider value={Math.round(settings.scale * 100)} min={50} max={250} step={5} onChange={(v) => patch({ scale: v / 100 })} /></Row>
     <Row label="Непрозрачность"><Slider value={Math.round(settings.opacity * 100)} min={10} max={100} onChange={(v) => patch({ opacity: v / 100 })} /></Row>
   </>
@@ -74,7 +76,6 @@ function ViewTab({ settings, patch }: { settings: OverlaySettings; patch: Patch 
       </span>
     </Row>
     <Row label="Сортировка"><Select title="Сортировка" value={settings.metric} options={[{ value: 'damage', label: 'Общий урон' }, { value: 'dpav', label: 'Урон / AV' }] as const} onChange={(metric) => patch({ metric })} /></Row>
-    <Row label="Акцентный цвет"><Select title="Акцентный цвет" value={settings.theme} options={(Object.entries(themeLabels) as [ThemeName, string][]).map(([value, label]) => ({ value, label }))} onChange={(theme) => patch({ theme })} /></Row>
   </>
 }
 
@@ -159,8 +160,8 @@ function LastBattle({ snapshot, settings, patch }: { snapshot: Snapshot; setting
 }
 
 const tabs = [
-  { id: 'window', label: 'Окно урона' },
-  { id: 'view', label: 'Вид' },
+  { id: 'window', label: 'Показ' },
+  { id: 'view', label: 'Виджеты' },
   { id: 'export', label: 'Экспорт' },
 ] as const
 type Tab = (typeof tabs)[number]['id']
@@ -185,7 +186,7 @@ export function VeritasOverlaySettings({ pluginEnabled }: { pluginEnabled: boole
     {error && <p className="vt-error" role="alert">{error}</p>}
     <Tabs items={tabs} value={tab} onChange={setTab} />
     <div className="vt-tab">
-      {tab === 'window' && <WindowTab settings={settings} patch={patch} />}
+      {tab === 'window' && <WindowTab state={state} patch={patch} />}
       {tab === 'view' && <ViewTab settings={settings} patch={patch} />}
       {tab === 'export' && <ExportTab settings={settings} patch={patch} />}
     </div>
@@ -196,7 +197,7 @@ export function VeritasOverlaySettings({ pluginEnabled }: { pluginEnabled: boole
     <details className="vt-more">
       <summary>Дополнительно (настройки плагина)</summary>
       <PluginSettings />
-      <Button size="sm" variant="ghost" disabled={!isTauri()} onClick={() => void overlayAction('reset').catch(console.error)}>Сбросить настройки окна урона</Button>
+      <Button size="sm" variant="ghost" disabled={!isTauri()} onClick={() => void overlayAction('reset').catch(console.error)}>Сбросить настройки виджетов</Button>
     </details>
   </div>
 }

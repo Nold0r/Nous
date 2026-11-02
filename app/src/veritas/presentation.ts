@@ -1,8 +1,7 @@
-import type { Battle, ColumnKey, Combatant, OverlaySettings, ThemeName } from './types'
+import type { Battle, ColumnKey, Combatant, OverlaySettings } from './types'
 
 export const viewLabels = { legend: 'Таблица персонажей', characters: 'Урон персонажей', breakdown: 'Типы урона', enemies: 'Противники', metrics: 'Показатели боя', graph: 'График урона', logs: 'Журнал соединения' }
 export const columnLabels: Record<ColumnKey, string> = { damage: 'Урон', dpav: 'Урон / AV', share: 'Доля', effective: 'Эффективный', overkill: 'Избыточный', turns: 'Ходы с уроном' }
-export const themeLabels: Record<ThemeName, string> = { nous: 'Nous', light: 'Светлая', 'indigo-jade': 'Индиго / нефрит', 'grass-bronze': 'Трава / бронза', warm: 'Тёплая', cool: 'Холодная', seventies: 'Семидесятые', 'office-gray': 'Офисная серая', vermillion: 'Киноварь' }
 export const categoryNames: Record<string, string> = { Basic: 'Базовая атака', Skill: 'Навык', Ultimate: 'Сверхспособность', QTE: 'QTE', DoT: 'Периодический', Additional: 'Дополнительный', Technique: 'Техника', 'Follow-Up': 'Бонус-атака', Break: 'Пробитие', Servant: 'Дух памяти', True: 'Истинный', Elation: 'Радость', Assist: 'Поддержка' }
 export const propertyNames: Record<string, string> = { CurrentHP: 'Текущие HP', MaxHP: 'Макс. HP', Attack: 'Сила атаки', Defence: 'Защита', Speed: 'Скорость', ActionDelay: 'Задержка действия', CriticalChance: 'Крит. шанс', CriticalDamage: 'Крит. урон', CurrentSP: 'Энергия', MaxSP: 'Макс. энергия' }
 export const seriesColors = ['var(--gold)', 'var(--info)', 'var(--success)', 'var(--rarity-4)', 'var(--danger)', 'var(--warning)', 'var(--crimson)']
@@ -56,7 +55,6 @@ export function sortedAvatars(battle: Battle, metric: OverlaySettings['metric'])
 
 /** Runtime styles remain scoped to the overlay/preview and inherit Nous typography. */
 export function themeVariables(settings: OverlaySettings): Record<string, string | number> {
-  const themes: Record<string, string> = { 'indigo-jade': '#8fd4bc', 'grass-bronze': '#c7b387', warm: '#f0bd82', cool: '#9fbfff', seventies: '#e3b6e4', 'office-gray': '#bdc7c5', vermillion: '#f39b80' }
   const vars: Record<string, string | number> = {
     '--vt-opacity': settings.opacity,
     '--vt-body-size': `${settings.fontSizes.body ?? 14}px`,
@@ -64,6 +62,5 @@ export function themeVariables(settings: OverlaySettings): Record<string, string
     '--vt-small-size': `${settings.fontSizes.small ?? 12}px`,
     '--vt-legend-size': `${settings.legendSize === 'small' ? settings.fontSizes.small ?? 12 : settings.legendSize === 'large' ? settings.fontSizes.heading ?? 20 : settings.fontSizes.legend ?? 14}px`,
   }
-  if (themes[settings.theme]) vars['--gold'] = themes[settings.theme]
   return vars
 }

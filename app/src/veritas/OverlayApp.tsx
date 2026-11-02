@@ -1,23 +1,49 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
-import { EyeOff, Settings2 } from 'lucide-react'
-import { Button } from '../ui'
-import { BattleView } from './BattleView'
-import { overlayAction, useOverlay } from './api'
-import { themeVariables } from './presentation'
+import { BattleView, Widget } from './BattleView'
+import { useOverlay } from './api'
+import { themeVariables, viewLabels } from './presentation'
+import type { ViewKey } from './types'
 import './veritas.css'
 
-/** Isolated route: no launcher shell, account loading, or focus request. */
+declare global {
+  interface Window {
+    /** Set by the composition host: reports the widget's content size. */
+    nousOverlay?: { size: (width: number, height: number) => void }
+  }
+}
+
+/**
+ * Isolated route, no launcher shell. `#/veritas-overlay/<widget>` is one widget
+ * in its own popup (sized to its content, scaled by the host); without a widget
+ * it is the single-window fallback showing every view.
+ */
 export function OverlayApp() {
   const { state, patch, error } = useOverlay()
-  const [actionError, setActionError] = useState<string | null>(null)
+  const widget = window.location.hash.split('/')[2] as ViewKey | undefined
+  const root = useRef<HTMLElement>(null)
+  const loaded = state != null
+
+  // the host sizes the popup to the content; report every change
+  useLayoutEffect(() => {
+    const element = root.current
+    const report = window.nousOverlay?.size
+    if (!element || !report) return
+    const observer = new ResizeObserver(() => report(element.offsetWidth, element.offsetHeight))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [loaded])
+
   if (!state) return null
   const { snapshot, settings } = state
-  return <main className={`vt-overlay${settings.theme === 'light' ? ' vt-battle--light' : ''}`} style={{ ...themeVariables(settings), '--vt-scale': settings.scale, zoom: settings.scale } as CSSProperties} aria-label="Статистика боя Nous">
-    <header className="vt-overlay__header"><div><h1>Nous <span>· Бой</span></h1><p>{state.replay ? 'Тестовое воспроизведение' : snapshot.active ? 'Бой идёт' : snapshot.connected ? 'Последний результат' : 'Соединение потеряно'}</p></div>
-      {!settings.clickThrough && <div className="vt-actions"><Button size="sm" variant="ghost" icon={Settings2} title="Открыть настройки Nous" aria-label="Открыть настройки Nous" onClick={() => void overlayAction('settings').catch((e) => setActionError(String(e)))} /><Button size="sm" variant="ghost" icon={EyeOff} title="Скрыть оверлей" aria-label="Скрыть оверлей" onClick={() => void overlayAction('hide').catch((e) => setActionError(String(e)))} /></div>}
-    </header>
-    {(error || actionError) && <p className="vt-error" role="alert">{error || actionError}</p>}
+  if (widget && widget in viewLabels) {
+    return <main ref={root} className={`vt-widget${state.arranging ? ' vt-widget--arranging' : ''}`} style={themeVariables(settings) as CSSProperties} aria-label={viewLabels[widget]}>
+      {state.arranging && <p className="vt-widget__hint">Перетащите</p>}
+      <Widget name={widget} battle={snapshot.battle} snapshot={snapshot} settings={settings} patch={patch} />
+    </main>
+  }
+  return <main className="vt-overlay" style={{ ...themeVariables(settings), '--vt-scale': settings.scale, zoom: settings.scale } as CSSProperties} aria-label="Статистика боя Nous">
+    {error && <p className="vt-error" role="alert">{error}</p>}
     <BattleView battle={snapshot.battle} snapshot={snapshot} settings={settings} patch={patch} />
   </main>
 }
