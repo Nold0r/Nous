@@ -182,6 +182,8 @@ pub fn on_packet(app: &AppHandle, name: &str, data: serde_json::Value) {
     }
     if name == "OnBattleBegin" {
         host.hidden.store(false, Ordering::Relaxed);
+        // a battle ends any forgotten arranging session
+        host.arranging.store(false, Ordering::Relaxed);
     }
     if name == "OnBattleEnd" {
         if let Err(e) = persist_history(app) {

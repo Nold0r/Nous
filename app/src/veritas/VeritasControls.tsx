@@ -173,6 +173,14 @@ type Tab = (typeof tabs)[number]['id']
 export function VeritasOverlaySettings({ pluginEnabled }: { pluginEnabled: boolean }) {
   const { state, patch, error } = useOverlay()
   const [tab, setTab] = useState<Tab>('window')
+  // arranging only lasts while these settings are on screen
+  useEffect(() => {
+    if (!isTauri()) return
+    const done = () => void overlayAction('arrange-done').catch(() => {})
+    const onHide = () => { if (document.hidden) done() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => { document.removeEventListener('visibilitychange', onHide); done() }
+  }, [])
   if (!state) return error ? <p className="vt-error" role="alert">{error}</p> : null
   if (!pluginEnabled && !state.replay && isTauri()) return null
   const { settings, presentation, snapshot } = state

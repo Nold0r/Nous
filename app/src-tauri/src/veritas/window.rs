@@ -195,6 +195,10 @@ pub fn refresh(app: &AppHandle) {
         };
     }
     let snapshot = host.snapshot();
+    // nothing to arrange over once the game is gone
+    if !presentation.target_found {
+        host.arranging.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
     let arranging = host.arranging.load(std::sync::atomic::Ordering::Relaxed);
     presentation.visible = (arranging && presentation.target_visible)
         || nous_veritas::visible(
