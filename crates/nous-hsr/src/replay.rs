@@ -209,11 +209,14 @@ fn to_proto(affixes: &[nous_core::inventory::Affix]) -> Vec<proto::RelicAffix::R
         .collect()
 }
 
+/// The player's own login recordings: needs local data, so it is opt-in
+/// (`npm run test:data`) and fails loudly instead of passing on nothing.
+/// Always-on coverage of the same path uses synthetic commands (game_tests.rs).
 #[test]
+#[ignore = "needs local login recordings: npm run test:data"]
 fn replay_login_recordings() {
     let Some(dir) = recordings_dir().filter(|d| d.is_dir()) else {
-        println!("no login recordings: log in to the game once with Nous running");
-        return;
+        panic!("no login recordings: log in to the game once with Nous running");
     };
     let mut files: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
@@ -222,10 +225,7 @@ fn replay_login_recordings() {
         .filter(|p| p.extension().is_some_and(|e| e == "jsonl"))
         .collect();
     files.sort();
-    if files.is_empty() {
-        println!("no login recordings in {}", dir.display());
-        return;
-    }
+    assert!(!files.is_empty(), "no login recordings in {}", dir.display());
 
     let mut failures = Vec::new();
     let mut last_by_uid: BTreeMap<u32, Session> = BTreeMap::new();
