@@ -1,0 +1,428 @@
+<title>Холст архитектуры Nous</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: canvas fills the left, a side rail holds the legend and the step log; stacks on phones. */
+:root {
+  --bg: #f4f1f2; --fg: #221a1f; --muted: #6d6168; --line: #c9bdc3; --panel: #ffffff; --grid: #e4dce0;
+  --accent: #9a6a12; --call: #4a5f8c; --event: #2f7d6b; --store: #7a5a9a; --danger: #b0304f; --soft: #ece5e8;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #110b10; --fg: #ece5e8; --muted: #a5969d; --line: #4b3d45; --panel: #1c141a; --grid: #21181f;
+  --accent: #d8b875; --call: #8fa8de; --event: #74c7b1; --store: #c3a2e6; --danger: #e0738b; --soft: #251b22; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #110b10; --fg: #ece5e8; --muted: #a5969d; --line: #4b3d45; --panel: #1c141a; --grid: #21181f;
+  --accent: #d8b875; --call: #8fa8de; --event: #74c7b1; --store: #c3a2e6; --danger: #e0738b; --soft: #251b22; color-scheme: dark }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; box-sizing: border-box; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 330px; grid-template-rows: auto minmax(0, 1fr); gap: 12px 16px; height: 100%; min-height: 560px; }
+header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { margin: 0; font-size: 22px; font-weight: 600; }
+.sub { color: var(--muted); }
+.stage { position: relative; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); min-height: 420px; touch-action: none; }
+.stage svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+.stage svg.panning { cursor: grabbing; }
+.tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.tools button { font: 500 13px var(--sans); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.tools button:hover { border-color: var(--muted); }
+.tools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+aside { display: grid; gap: 14px; align-content: start; overflow: auto; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+.card h2 { margin: 0; font-size: 12px; font-weight: 500; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.legend { display: grid; gap: 6px; }
+.legend .row { display: grid; grid-template-columns: 54px 1fr; align-items: center; gap: 10px; }
+.legend svg { width: 54px; height: 30px; overflow: visible; }
+.legend b { font-weight: 500; }
+.legend span { color: var(--muted); font-size: 12.5px; display: block; line-height: 1.3; }
+ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+ol.steps li { border-left: 3px solid var(--line); padding: 2px 0 2px 10px; }
+ol.steps li.current { border-color: var(--accent); }
+ol.steps .n { font: 500 12px var(--mono); color: var(--accent); }
+ol.steps p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.hint { color: var(--muted); font-size: 12.5px; }
+/* canvas marks */
+.n-shape { fill: var(--panel); stroke: var(--line); stroke-width: 1.4; }
+.n-risk .n-shape { stroke: var(--danger); stroke-width: 2; }
+.n-new .n-shape { stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 6 4; }
+.n-title { fill: var(--fg); font: 600 13px var(--sans); }
+.n-sub { fill: var(--muted); font: 11.5px var(--sans); }
+.n-code { fill: var(--muted); font: 11px var(--mono); }
+.n-badge { fill: var(--accent); font: 600 10.5px var(--mono); letter-spacing: .06em; }
+.group rect { fill: var(--soft); stroke: var(--line); stroke-dasharray: 7 5; stroke-width: 1.2; }
+.group text { fill: var(--muted); font: 500 11px var(--mono); letter-spacing: .08em; }
+.e-line { fill: none; stroke-width: 1.5; }
+.e-data { stroke: var(--accent); stroke-width: 3; }
+.e-call { stroke: var(--call); }
+.e-event { stroke: var(--event); stroke-dasharray: 7 5; }
+.e-store { stroke: var(--store); stroke-dasharray: 2 4; stroke-width: 2; stroke-linecap: round; }
+.e-risk { stroke: var(--danger); stroke-width: 2; }
+.e-idea { stroke: var(--muted); stroke-dasharray: 3 3; }
+.e-label { font: 500 11px var(--sans); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.l-data { fill: var(--accent); } .l-call { fill: var(--call); } .l-event { fill: var(--event); } .l-store { fill: var(--store); } .l-risk { fill: var(--danger); } .l-idea { fill: var(--muted); }
+.h-data { fill: var(--accent); } .h-call { fill: var(--call); } .h-event { fill: var(--event); } .h-store { fill: var(--store); } .h-risk { fill: var(--danger); } .h-idea { fill: var(--muted); }
+.dim { opacity: .18; }
+.node { cursor: move; }
+.node:focus-visible .n-shape { stroke: var(--accent); stroke-width: 3; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 60vh auto; height: auto; }
+}
+@media (prefers-reduced-motion: no-preference) { .node, .edge { transition: opacity .15s; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Холст архитектуры Nous</h1>
+    <span class="sub" id="stepTitle"></span>
+  </header>
+
+  <div class="stage" id="stage">
+    <svg id="canvas" role="img" aria-label="Схема архитектуры Nous">
+      <defs id="defs"></defs>
+      <g id="world"><g id="gridG"></g><g id="groupsG"></g><g id="edgesG"></g><g id="nodesG"></g></g>
+    </svg>
+    <div class="tools">
+      <button type="button" id="zoomIn" aria-label="Приблизить">+</button>
+      <button type="button" id="zoomOut" aria-label="Отдалить">−</button>
+      <button type="button" id="fit">Вписать</button>
+    </div>
+  </div>
+
+  <aside>
+    <section class="card">
+      <h2>Как я понял</h2>
+      <ol class="steps" id="steps"></ol>
+    </section>
+    <section class="card">
+      <h2>Элементы</h2>
+      <div class="legend" id="legendNodes"></div>
+    </section>
+    <section class="card">
+      <h2>Связи</h2>
+      <div class="legend" id="legendEdges"></div>
+    </section>
+    <p class="hint">Колесо или кнопки — масштаб, перетаскивание фона — сдвиг, узлы можно двигать. Наведите на узел, чтобы увидеть его связи.</p>
+  </aside>
+</div>
+
+<script>
+// ---------------- the model: everything drawn comes from here ----------------
+const STEPS = [
+  { n: 1, title: 'Nous SDK — библиотека данных HSR',
+    text: 'Начинаем с чистого листа. Nous SDK — библиотека, через которую идут все данные о Honkai: Star Rail. Всё остальное получает данные игры только через неё.' },
+  { n: 2, title: 'Откуда SDK берёт данные и что отдаёт',
+    text: 'Клиент игры обменивается с сервером запросами и ответами. SDK этот обмен только слушает: получает копию трафика, ничего не отправляет и в игру не вмешивается. Из подслушанных ответов он собирает данные и отдаёт их набором понятных методов — много отдельных API под разные данные игры.' },
+  { n: 3, title: 'Второй источник: веб-API по UID или сессии',
+    text: 'Кроме прослушки SDK сам ходит во внешние веб-API. По одному UID публично доступна витрина игрока (Enka.Network). С ключом сессии — больше: authkey из кэша браузера игры открывает официальную историю круток, cookie HoYoLAB — боевую хронику и заметки. UID SDK берёт из увиденного входа в игру; результаты попадают в те же понятные методы.' },
+  { n: 4, title: 'Приложение Nous: в поставке только аккаунт',
+    text: 'Сама программа — оболочка поверх SDK. Из коробки в ней только аккаунт: вход и профиль игрока, получаемые через методы SDK. Всё остальное, даже Veritas, в поставку не входит и подключается отдельно как модули.' },
+  { n: 5, title: 'Модули цепляются к SDK сами',
+    text: 'Оболочка только встраивает экраны. И аккаунт, и любой модуль берут данные игры напрямую из методов Nous SDK, а не через оболочку. Кроме того, модуль может принести свои SDK, никак не связанные с Nous (например, Veritas со своим протоколом) — это его собственные зависимости.' },
+];
+
+const GROUPS = [
+  { label: 'NOUS SDK', x: 290, y: 170, w: 920, h: 400 },
+  { label: 'ПРИЛОЖЕНИЕ NOUS · ПОСТАВКА', x: 1290, y: 170, w: 280, h: 400 },
+];
+
+// type: process | library | storage | external | channel | decision | screen
+// flags: risk (injection/danger), isNew (added or changed in the current step)
+const NODES = [
+  { id: 'client', type: 'process', title: 'Клиент HSR', code: 'StarRail.exe', x: 0, y: 0, w: 220 },
+  { id: 'net', type: 'channel', title: 'Сетевой обмен', sub: 'запросы и ответы', x: 320, y: 0, w: 220 },
+  { id: 'server', type: 'external', title: 'Сервер игры', sub: 'HoYoverse', x: 640, y: 0, w: 220 },
+
+  { id: 'listen', type: 'library', title: 'Прослушка', sub: 'копия трафика', code: 'только чтение', x: 320, y: 230, w: 220 },
+  { id: 'decode', type: 'library', title: 'Разбор ответов', sub: 'расшифровка, protobuf', x: 640, y: 230, w: 220 },
+  { id: 'api', type: 'library', title: 'Понятные методы', sub: 'много API по видам данных', code: 'профиль · реликвии · бои …', x: 960, y: 230, w: 230 },
+
+  { id: 'web', type: 'library', title: 'Запросы к веб-API', sub: 'по UID или сессии', x: 640, y: 440, w: 220 },
+  { id: 'cache', type: 'storage', title: 'Кэш браузера игры', code: 'webCaches · authkey', x: 0, y: 440, w: 220 },
+  { id: 'enka', type: 'external', title: 'Enka.Network', sub: 'витрина игрока', code: 'только UID, публично', x: 320, y: 660, w: 220 },
+  { id: 'hoyolab', type: 'external', title: 'HoYoLAB', sub: 'хроника, заметки', code: 'cookie сессии', x: 640, y: 660, w: 220 },
+  { id: 'gacha', type: 'external', title: 'История круток', sub: 'официальный API', code: 'authkey', x: 960, y: 660, w: 230 },
+
+  { id: 'shell', type: 'process', title: 'Nous', sub: 'оболочка приложения', x: 1320, y: 230, w: 220 },
+  { id: 'account', type: 'screen', title: 'Аккаунт', sub: 'вход, профиль игрока', code: 'есть из коробки', x: 1320, y: 440, w: 220 },
+  { id: 'modules', type: 'library', title: 'Модули', sub: 'подключаются отдельно', code: 'например, Veritas', x: 1660, y: 440, w: 220, isNew: true },
+  { id: 'ownsdk', type: 'library', title: 'Свои SDK модуля', sub: 'не связаны с Nous', code: 'например, Veritas SDK', x: 1660, y: 660, w: 220, isNew: true },
+];
+
+// kind: data | call | event | store | risk | idea
+const EDGES = [
+  { from: 'client', to: 'net', kind: 'data', label: 'запросы', offset: -10 },
+  { from: 'net', to: 'client', kind: 'data', label: 'ответы', offset: -10 },
+  { from: 'net', to: 'server', kind: 'data', label: 'запросы', offset: -10 },
+  { from: 'server', to: 'net', kind: 'data', label: 'ответы', offset: -10 },
+  { from: 'net', to: 'listen', kind: 'data', label: 'копия, без вмешательства' },
+  { from: 'listen', to: 'decode', kind: 'data', label: 'пакеты' },
+  { from: 'decode', to: 'api', kind: 'data', label: 'данные игры' },
+  { from: 'decode', to: 'web', kind: 'call', label: 'UID из входа' },
+  { from: 'cache', to: 'web', kind: 'store', label: 'authkey' },
+  { from: 'web', to: 'enka', kind: 'call', label: 'по UID' },
+  { from: 'web', to: 'hoyolab', kind: 'call', label: 'cookie' },
+  { from: 'web', to: 'gacha', kind: 'call', label: 'authkey' },
+  { from: 'web', to: 'api', kind: 'data', label: 'данные' },
+  { from: 'api', to: 'account', kind: 'call', label: 'методы SDK' },
+  { from: 'api', to: 'modules', kind: 'call', label: 'методы SDK' },
+  { from: 'shell', to: 'account', kind: 'call', label: 'встраивает' },
+  { from: 'shell', to: 'modules', kind: 'idea', label: 'встраивает, не в поставке' },
+  { from: 'modules', to: 'ownsdk', kind: 'call', label: 'свои зависимости' },
+];
+
+// ---------------- legend definitions ----------------
+const NODE_TYPES = [
+  ['process', 'Программа / процесс', 'то, что запускается и работает само'],
+  ['library', 'Модуль / библиотека', 'код, который подключают другие'],
+  ['storage', 'Хранилище', 'файл или база на диске'],
+  ['external', 'Внешняя система', 'чужой сервис, ОС, сеть'],
+  ['channel', 'Канал', 'сокет, очередь, шина событий'],
+  ['decision', 'Решение', 'условие, правило выбора'],
+  ['screen', 'Экран / окно', 'то, что видит пользователь'],
+];
+const NODE_FLAGS = [
+  ['risk', 'Внедрение / риск', 'красный контур'],
+  ['isNew', 'Новое или изменено', 'на текущем шаге'],
+];
+const EDGE_KINDS = [
+  ['data', 'Поток данных', 'основная дорога данных'],
+  ['call', 'Вызов / команда', 'кто кого вызывает'],
+  ['event', 'Событие / подписка', 'рассылка изменений'],
+  ['store', 'Чтение / запись', 'работа с хранилищем'],
+  ['risk', 'Внедрение', 'то, что трогает игру'],
+  ['idea', 'Предложение', 'обсуждается, ещё не решено'],
+];
+
+// ---------------- drawing ----------------
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const W = 200, H = 90;
+const size = (n) => ({ w: n.w ?? W, h: n.h ?? H });
+
+function shape(type, w, h, g) {
+  const c = { class: 'n-shape' };
+  switch (type) {
+    case 'library': {
+      // folder tab on top-left
+      el('path', { ...c, d: `M0 10 H${w * 0.38} l8 -10 H${w - 8} q8 0 8 8 V${h - 6} q0 6 -6 6 H6 q-6 0 -6 -6 Z` }, g); break;
+    }
+    case 'storage': {
+      const r = 10;
+      el('path', { ...c, d: `M0 ${r} A${w / 2} ${r} 0 0 1 ${w} ${r} V${h - r} A${w / 2} ${r} 0 0 1 0 ${h - r} Z` }, g);
+      el('path', { class: 'n-shape', fill: 'none', d: `M0 ${r} A${w / 2} ${r} 0 0 0 ${w} ${r}`, style: 'fill:none' }, g); break;
+    }
+    case 'external': {
+      const k = 18;
+      el('polygon', { ...c, points: `${k},0 ${w - k},0 ${w},${h / 2} ${w - k},${h} ${k},${h} 0,${h / 2}` }, g); break;
+    }
+    case 'channel': el('rect', { ...c, width: w, height: h, rx: h / 2 }, g); break;
+    case 'decision': el('polygon', { ...c, points: `${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}` }, g); break;
+    case 'screen': {
+      el('rect', { ...c, width: w, height: h, rx: 6 }, g);
+      el('line', { class: 'n-shape', x1: 0, y1: 16, x2: w, y2: 16 }, g);
+      for (let i = 0; i < 3; i++) el('circle', { cx: 10 + i * 9, cy: 8, r: 2.4, class: 'n-shape', style: 'fill:var(--line);stroke:none' }, g);
+      break;
+    }
+    default: el('rect', { ...c, width: w, height: h, rx: 10 }, g);
+  }
+}
+
+function nodeText(n, w, h, g) {
+  const lines = [['n-title', n.title], n.sub && ['n-sub', n.sub], n.code && ['n-code', n.code]].filter(Boolean);
+  const top = n.type === 'screen' ? 16 : 0;
+  const step = 17;
+  let y = top + (h - top) / 2 - ((lines.length - 1) * step) / 2 + 4;
+  for (const [cls, text] of lines) { const t = el('text', { class: cls, x: w / 2, y, 'text-anchor': 'middle' }, g); t.textContent = text; y += step; }
+  if (n.isNew) { const b = el('text', { class: 'n-badge', x: w - 8, y: h + 14, 'text-anchor': 'end' }, g); b.textContent = 'НОВОЕ'; }
+}
+
+function markers() {
+  const defs = document.getElementById('defs');
+  for (const [kind] of EDGE_KINDS) {
+    const m = el('marker', { id: `m-${kind}`, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: kind === 'data' ? 5 : 7, markerHeight: kind === 'data' ? 5 : 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0 0 L10 5 L0 10 z', class: `h-${kind}` }, m);
+  }
+}
+
+// point where the segment from the centre towards (dx,dy) leaves the node's box
+function exitPoint(n, dx, dy) {
+  const { w, h } = size(n);
+  const cx = n.x + w / 2, cy = n.y + h / 2;
+  if (dx === 0 && dy === 0) return [cx, cy];
+  const sx = (w / 2 + 4) / Math.abs(dx || 1e-9), sy = (h / 2 + 4) / Math.abs(dy || 1e-9);
+  const s = Math.min(sx, sy);
+  return [cx + dx * s, cy + dy * s];
+}
+
+const byId = (id) => NODES.find((n) => n.id === id);
+let nodeEls = new Map(), edgeEls = [];
+
+function drawGrid() {
+  const g = document.getElementById('gridG'); g.textContent = '';
+  for (let x = -400; x <= 2400; x += 50) el('line', { class: 'gridline', x1: x, y1: -400, x2: x, y2: 1400 }, g);
+  for (let y = -400; y <= 1400; y += 50) el('line', { class: 'gridline', x1: -400, y1: y, x2: 2400, y2: y }, g);
+}
+
+function drawGroups() {
+  const g = document.getElementById('groupsG'); g.textContent = '';
+  for (const gr of GROUPS) {
+    const gg = el('g', { class: 'group' }, g);
+    el('rect', { x: gr.x, y: gr.y, width: gr.w, height: gr.h, rx: 14 }, gg);
+    const t = el('text', { x: gr.x + 14, y: gr.y + 20 }, gg); t.textContent = gr.label;
+  }
+}
+
+function drawEdges() {
+  const g = document.getElementById('edgesG'); g.textContent = ''; edgeEls = [];
+  for (const e of EDGES) {
+    const a = byId(e.from), b = byId(e.to); if (!a || !b) continue;
+    const sa = size(a), sb = size(b);
+    let ax = a.x + sa.w / 2, ay = a.y + sa.h / 2, bx = b.x + sb.w / 2, by = b.y + sb.h / 2;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+    const ox = (-dy / len) * (e.offset || 0), oy = (dx / len) * (e.offset || 0);
+    const [x1, y1] = exitPoint(a, dx, dy), [x2, y2] = exitPoint(b, -dx, -dy);
+    const eg = el('g', { class: 'edge', 'data-from': e.from, 'data-to': e.to }, g);
+    el('line', { class: `e-line e-${e.kind}`, x1: x1 + ox, y1: y1 + oy, x2: x2 + ox, y2: y2 + oy, 'marker-end': `url(#m-${e.kind})` }, eg);
+    if (e.label) {
+      const mx = (x1 + x2) / 2 + ox * 1.6, my = (y1 + y2) / 2 + oy * 1.6 - 6;
+      const t = el('text', { class: `e-label l-${e.kind}`, x: mx, y: my, 'text-anchor': 'middle' }, eg); t.textContent = e.label;
+    }
+    edgeEls.push(eg);
+  }
+}
+
+function drawNodes() {
+  const g = document.getElementById('nodesG'); g.textContent = ''; nodeEls = new Map();
+  for (const n of NODES) {
+    const { w, h } = size(n);
+    const ng = el('g', { class: `node${n.risk ? ' n-risk' : ''}${n.isNew ? ' n-new' : ''}`, transform: `translate(${n.x} ${n.y})`, tabindex: 0, 'data-id': n.id }, g);
+    const title = el('title', {}, ng); title.textContent = [n.title, n.sub, n.code].filter(Boolean).join(' · ');
+    shape(n.type, w, h, ng);
+    nodeText(n, w, h, ng);
+    nodeEls.set(n.id, ng);
+    ng.addEventListener('pointerenter', () => focusNode(n.id));
+    ng.addEventListener('pointerleave', () => focusNode(null));
+    ng.addEventListener('focus', () => focusNode(n.id));
+    ng.addEventListener('blur', () => focusNode(null));
+    ng.addEventListener('pointerdown', (ev) => startDrag(ev, n));
+  }
+}
+
+function focusNode(id) {
+  const linked = new Set(id ? [id] : []);
+  for (const eg of edgeEls) {
+    const on = !id || eg.dataset.from === id || eg.dataset.to === id;
+    eg.classList.toggle('dim', !on);
+    if (id && on) { linked.add(eg.dataset.from); linked.add(eg.dataset.to); }
+  }
+  for (const [nid, ng] of nodeEls) ng.classList.toggle('dim', !!id && !linked.has(nid));
+}
+
+function drawAll() { drawGroups(); drawEdges(); drawNodes(); }
+
+// ---------------- pan / zoom / drag ----------------
+const svg = document.getElementById('canvas');
+let view = { x: 0, y: 0, w: 1800, h: 760 };
+const applyView = () => svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+function toWorld(cx, cy) {
+  const r = svg.getBoundingClientRect();
+  const s = Math.max(view.w / r.width, view.h / r.height);
+  const ox = (r.width * s - view.w) / 2, oy = (r.height * s - view.h) / 2;
+  return [view.x - ox + (cx - r.left) * s, view.y - oy + (cy - r.top) * s];
+}
+function fit() {
+  const xs = NODES.flatMap((n) => [n.x, n.x + size(n).w]).concat(GROUPS.flatMap((g) => [g.x, g.x + g.w]));
+  const ys = NODES.flatMap((n) => [n.y, n.y + size(n).h]).concat(GROUPS.flatMap((g) => [g.y, g.y + g.h]));
+  const pad = 30;
+  // never zoom in closer than a readable working area, even for one node
+  const w = Math.max(900, Math.max(...xs) - Math.min(...xs) + pad * 2), h = Math.max(520, Math.max(...ys) - Math.min(...ys) + pad * 2);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  view = { x: cx - w / 2, y: cy - h / 2, w, h };
+  applyView();
+}
+function zoom(factor, cx, cy) {
+  const r = svg.getBoundingClientRect();
+  const [wx, wy] = toWorld(cx ?? r.left + r.width / 2, cy ?? r.top + r.height / 2);
+  const nw = Math.min(6000, Math.max(300, view.w * factor)), k = nw / view.w;
+  view = { x: wx - (wx - view.x) * k, y: wy - (wy - view.y) * k, w: nw, h: view.h * k };
+  applyView();
+}
+svg.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY); }, { passive: false });
+document.getElementById('zoomIn').onclick = () => zoom(1 / 1.25);
+document.getElementById('zoomOut').onclick = () => zoom(1.25);
+document.getElementById('fit').onclick = fit;
+
+let drag = null;
+function startDrag(ev, n) {
+  ev.stopPropagation();
+  const [wx, wy] = toWorld(ev.clientX, ev.clientY);
+  drag = { node: n, dx: wx - n.x, dy: wy - n.y, id: ev.pointerId };
+  svg.setPointerCapture(ev.pointerId);
+}
+svg.addEventListener('pointerdown', (ev) => {
+  if (drag) return;
+  drag = { pan: true, sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y, id: ev.pointerId };
+  svg.classList.add('panning');
+  svg.setPointerCapture(ev.pointerId);
+});
+svg.addEventListener('pointermove', (ev) => {
+  if (!drag || ev.pointerId !== drag.id) return;
+  if (drag.pan) {
+    const r = svg.getBoundingClientRect(), s = Math.max(view.w / r.width, view.h / r.height);
+    view.x = drag.vx - (ev.clientX - drag.sx) * s; view.y = drag.vy - (ev.clientY - drag.sy) * s; applyView();
+  } else {
+    const [wx, wy] = toWorld(ev.clientX, ev.clientY);
+    drag.node.x = Math.round((wx - drag.dx) / 10) * 10; drag.node.y = Math.round((wy - drag.dy) / 10) * 10;
+    nodeEls.get(drag.node.id).setAttribute('transform', `translate(${drag.node.x} ${drag.node.y})`);
+    drawEdges(); focusNode(drag.node.id);
+  }
+});
+const endDrag = (ev) => { if (drag && ev.pointerId === drag.id) { drag = null; svg.classList.remove('panning'); } };
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+
+// ---------------- side panel ----------------
+function legend() {
+  const ln = document.getElementById('legendNodes');
+  for (const [type, name, hint] of NODE_TYPES) {
+    const row = document.createElement('div'); row.className = 'row';
+    const s = el('svg', { viewBox: '-2 -2 58 34' }); const g = el('g', {}, s); shape(type, 54, 30, g);
+    row.append(s); row.insertAdjacentHTML('beforeend', `<div><b>${name}</b><span>${hint}</span></div>`); ln.append(row);
+  }
+  for (const [flag, name, hint] of NODE_FLAGS) {
+    const row = document.createElement('div'); row.className = 'row';
+    const s = el('svg', { viewBox: '-2 -2 58 34' }); const g = el('g', { class: flag === 'risk' ? 'n-risk' : 'n-new' }, s); shape('process', 54, 30, g);
+    row.append(s); row.insertAdjacentHTML('beforeend', `<div><b>${name}</b><span>${hint}</span></div>`); ln.append(row);
+  }
+  const le = document.getElementById('legendEdges');
+  for (const [kind, name, hint] of EDGE_KINDS) {
+    const row = document.createElement('div'); row.className = 'row';
+    const s = el('svg', { viewBox: '0 0 54 30' });
+    const d = el('defs', {}, s); const m = el('marker', { id: `lm-${kind}`, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: kind === 'data' ? 5 : 7, markerHeight: kind === 'data' ? 5 : 7, orient: 'auto' }, d);
+    el('path', { d: 'M0 0 L10 5 L0 10 z', class: `h-${kind}` }, m);
+    el('line', { class: `e-line e-${kind}`, x1: 2, y1: 15, x2: 50, y2: 15, 'marker-end': `url(#lm-${kind})` }, s);
+    row.append(s); row.insertAdjacentHTML('beforeend', `<div><b>${name}</b><span>${hint}</span></div>`); le.append(row);
+  }
+}
+function steps() {
+  const ol = document.getElementById('steps');
+  STEPS.forEach((s, i) => {
+    const li = document.createElement('li'); if (i === STEPS.length - 1) li.className = 'current';
+    li.innerHTML = `<span class="n">Шаг ${s.n}</span> <b></b><p></p>`;
+    li.querySelector('b').textContent = s.title; li.querySelector('p').textContent = s.text; ol.append(li);
+  });
+  const last = STEPS[STEPS.length - 1];
+  document.getElementById('stepTitle').textContent = `Шаг ${last.n}: ${last.title}`;
+}
+
+markers(); drawGrid(); drawAll(); legend(); steps(); fit();
+window.addEventListener('resize', applyView);
+</script>
