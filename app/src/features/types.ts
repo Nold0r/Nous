@@ -55,18 +55,18 @@ export interface ModuleContext {
   navigate: (screenId: string) => void
 }
 export type StopModule = () => void
-/** tab: a screen in the sidebar; plugin: a section in Settings (like Veritas). */
-export type ModuleKind = 'tab' | 'plugin'
+/** tab: a screen in the sidebar; settings: a section in Settings (like Veritas). */
+export type ModuleKind = 'tab' | 'settings'
 /**
  * A module, built from `modules/<id>/module.toml` and the exports of its
- * `ui.tsx` (see registry.ts). A tab has one screen; a plugin has a Settings
+ * `ui.tsx` (see registry.ts). A tab has one screen; a settings module has a Settings
  * section instead. Either may run background work and draw over the game.
  */
 export interface ModuleDef {
   id: string
   title: string
   kind: ModuleKind
-  /** Plugin's section on the Settings page. */
+  /** Section on the Settings page (kind = settings). */
   section?: ComponentType
   /** Page for `#/overlay/<id>/...` windows over the game. */
   overlay?: ComponentType

@@ -16,7 +16,7 @@ test('all shipped manifests are valid', () => {
     assert.equal(module.id, id)
     ids.push(`${id}:${module.kind}`)
   }
-  assert.ok(ids.includes('veritas:plugin'), 'Veritas is a plugin module')
+  assert.ok(ids.includes('veritas:settings'), 'Veritas is a settings module')
   assert.ok(ids.includes('relics:tab'))
 })
 
@@ -34,11 +34,11 @@ category = "main"
 hsr = true
 `
 
-test('a plugin gets a Settings section, a tab a screen', () => {
-  const plugin = loadModule('m/p/module.toml', '[module]\nid = "p"\ntitle = "P"\nkind = "plugin"', { default: Screen })
-  assert.equal(plugin.section, Screen)
-  assert.equal(plugin.screens, undefined)
-  assert.deepEqual(plugin.requires, [])
+test('a settings module gets a Settings section, a tab a screen', () => {
+  const section = loadModule('m/p/module.toml', '[module]\nid = "p"\ntitle = "P"\nkind = "settings"', { default: Screen })
+  assert.equal(section.section, Screen)
+  assert.equal(section.screens, undefined)
+  assert.deepEqual(section.requires, [])
   const tab = loadModule('m/t/module.toml', tabToml, { default: Screen })
   assert.equal(tab.screens[0].component, Screen)
   assert.deepEqual(tab.requires, ['hsr'])
@@ -49,12 +49,12 @@ test('readable errors for broken manifests', () => {
     assert.throws(() => loadModule('m/x/module.toml', toml, ui), /modules\/x\/module\.toml: /)
   const head = '[module]\nid = "x"\ntitle = "X"\n'
   bad('id = "x"\ntitle = "X"\nkind = "tab"')                  // no [module]
-  bad('[module]\nid = "y"\ntitle = "X"\nkind = "plugin"')     // id differs from folder
+  bad('[module]\nid = "y"\ntitle = "X"\nkind = "settings"')     // id differs from folder
   bad(head + 'kind = "widget"')                                // unknown kind
   bad(head + 'kind = "tab"')                                   // tab without [tab]
   bad(head + 'kind = "tab"\n[tab]\nicon = "a"\ncategory = "nowhere"')
   bad(head + 'kind = "tab"\n[tab]\ncategory = "main"')         // no icon
-  bad(head + 'kind = "plugin"\n[tab]\ncategory = "main"')      // plugin with [tab]
-  bad(head + 'kind = "plugin"', {})                            // no ui
+  bad(head + 'kind = "settings"\n[tab]\ncategory = "main"')      // settings with [tab]
+  bad(head + 'kind = "settings"', {})                            // no ui
   bad('[module] id = ')                                        // not TOML
 })

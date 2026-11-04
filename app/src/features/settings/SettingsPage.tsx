@@ -5,7 +5,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { openPatchNotes } from '../../lib/patch-notes'
 import { Button, Page, Panel, StatList, StatRow, Switch } from '../../ui'
 import './settings.css'
-import { enabledPlugins, modules } from '../registry'
+import { enabledSections, modules } from '../registry'
 import { useModules } from '../module-context'
 
 export function SettingsPage() {
@@ -46,16 +46,16 @@ export function SettingsPage() {
       </Panel>
       {modules.length > 0 && (
         <Panel title="Модули">
-          <p className="modules-description">Всё, кроме аккаунта, — модули: вкладки в меню и плагины с разделом здесь, в Настройках. Изменения применяются сразу и сохраняются.</p>
+          <p className="modules-description">Всё, кроме аккаунта, — модули: вкладки в меню и разделы здесь, в Настройках. Изменения применяются сразу и сохраняются.</p>
           {moduleError && <p role="alert">{moduleError}</p>}
           {modules.map((module) => (
             <Switch key={module.id} disabled={saving} checked={enabled.has(module.id)} onChange={(value) => setEnabled(module.id, value)}
-              label={module.title} hint={module.kind === 'plugin' ? 'Плагин: раздел в Настройках' : 'Вкладка в меню'} />
+              label={module.title} hint={module.kind === 'settings' ? 'Раздел в Настройках' : 'Вкладка в меню'} />
           ))}
-          {enabled.size === 0 && <p className="modules-empty" role="status">Все модули отключены. Чтобы вернуть вкладку или плагин, включите его здесь.</p>}
+          {enabled.size === 0 && <p className="modules-empty" role="status">Все модули отключены. Чтобы вернуть вкладку или раздел, включите его здесь.</p>}
         </Panel>
       )}
-      {enabledPlugins(enabled).map(({ id, section: Section }) => Section && <Section key={id} />)}
+      {enabledSections(enabled).map(({ id, section: Section }) => Section && <Section key={id} />)}
       <Panel
         title="О программе"
         aside={

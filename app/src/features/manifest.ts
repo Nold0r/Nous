@@ -13,7 +13,7 @@ interface Manifest {
 }
 /** What modules/<id>/ui.tsx may export. */
 export interface UiExports {
-  /** The screen (tab) or the Settings section (plugin). */
+  /** The screen (tab) or the Settings section (settings). */
   default?: ComponentType
   icon?: IconSource
   start?: ModuleDef['start']
@@ -33,14 +33,14 @@ export function loadModule(path: string, raw: string, ui: UiExports): ModuleDef 
   const m = manifest.module ?? fail('[module] section is required')
   if (m.id !== folder || !ID.test(m.id)) fail('[module] id must match the folder name (kebab-case)')
   if (typeof m.title !== 'string' || !m.title) fail('[module] title is required')
-  if (m.kind !== 'tab' && m.kind !== 'plugin') fail('[module] kind must be "tab" or "plugin"')
-  if (!ui.default) fail('ui.tsx must export default the screen (tab) or Settings section (plugin)')
+  if (m.kind !== 'tab' && m.kind !== 'settings') fail('[module] kind must be "tab" or "settings"')
+  if (!ui.default) fail('ui.tsx must export default the screen (tab) or Settings section (settings)')
   const requires: ServiceId[] = manifest.needs?.hsr ? ['hsr'] : []
   const module: ModuleDef = {
     id: m.id, title: m.title, kind: m.kind, requires, devOnly: m.dev_only,
     start: ui.start, overlay: ui.overlay, settings: ui.settings,
   }
-  if (m.kind === 'plugin') {
+  if (m.kind === 'settings') {
     if (manifest.tab) fail('[tab] is only for kind = "tab"')
     return { ...module, section: ui.default }
   }

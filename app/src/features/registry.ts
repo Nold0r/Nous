@@ -8,7 +8,7 @@ export const isDevLaunch =
   (import.meta.env.DEV || import.meta.env.TAURI_ENV_DEBUG === 'true') && import.meta.env.VITE_USER_MODE !== 'true'
 
 // Modules live in app/modules/<id>/: module.toml says how the app shows the
-// module, ui.tsx holds its screen (tab) or Settings section (plugin). The shell
+// module, ui.tsx holds its screen (tab) or Settings section (settings). The shell
 // lists none of them by name. Docs: docs/Архитектура/Модули.md
 const manifests = import.meta.glob<string>('../../modules/*/module.toml', { eager: true, query: '?raw', import: 'default' })
 const uis = import.meta.glob<UiExports>('../../modules/*/ui.tsx', { eager: true })
@@ -30,9 +30,9 @@ export function enabledScreens(enabled: ReadonlySet<string>): ScreenDef[] {
     .filter((s) => !s.devOnly || isDevLaunch)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 }
-/** Enabled plugins, for their sections on the Settings page. */
-export function enabledPlugins(enabled: ReadonlySet<string>): ModuleDef[] {
-  return modules.filter((m) => m.kind === 'plugin' && m.section && enabled.has(m.id))
+/** Enabled settings-kind modules, for their sections on the Settings page. */
+export function enabledSections(enabled: ReadonlySet<string>): ModuleDef[] {
+  return modules.filter((m) => m.kind === 'settings' && m.section && enabled.has(m.id))
 }
 /** `#/overlay/<id>/...`: a module's page in a window over the game. */
 export function overlayModule(hash: string): ModuleDef | undefined {

@@ -5,4 +5,4 @@
 [module]
 id = "veritas"
 title = "Урон в реальном времени (Veritas)"
-kind = "plugin"          # свой раздел в Настройках + виджеты поверх игры (overlay в ui.tsx)
+kind = "settings"        # свой раздел в Настройках + виджеты поверх игры (overlay в ui.tsx)

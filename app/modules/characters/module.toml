@@ -4,7 +4,7 @@
 [module]
 id = "characters"        # = имя папки
 title = "Персонажи"
-kind = "tab"             # tab — вкладка в меню, plugin — раздел в Настройках
+kind = "tab"             # tab — вкладка в меню, settings — раздел в Настройках
 
 [tab]                    # только для вкладки
 icon = "characters"      # иконка из assets/icons/sign
