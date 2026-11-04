@@ -1,7 +1,13 @@
 # Карта текущей локации (пока заглушка).
+
+[module]
 id = "map"
 title = "Карта"
 kind = "tab"
+
+[tab]
 icon = "map"
 category = "exploration"
-requires = ["hsr"]
+
+[needs]
+hsr = true

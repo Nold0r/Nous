@@ -1,6 +1,6 @@
 //! Release manifest, and the app's modules: every app/modules/<id>/ with a
 //! module.rs becomes `crate::<id>` (its entry file), its setup/shutdown run
-//! with the app and the commands listed in module.toml are registered. The
+//! with the app and its commands (found in its files) are registered. The
 //! shell itself names no module.
 use std::{fmt::Write, path::Path};
 
@@ -20,14 +20,59 @@ fn main() {
 
 #[derive(serde::Deserialize)]
 struct Manifest {
-    id: String,
-    #[serde(default)]
-    rust: Rust,
+    module: Module,
 }
-#[derive(serde::Deserialize, Default)]
-struct Rust {
-    #[serde(default)]
-    commands: Vec<String>,
+#[derive(serde::Deserialize)]
+struct Module {
+    id: String,
+}
+
+/// Commands are the module's Rust functions the UI calls by name
+/// (`invoke('get_veritas_status')`); Tauri needs all of them listed at build
+/// time. They are found here instead of being written down: every
+/// `#[tauri::command] pub fn` in module.rs and in the files it includes with
+/// `#[path = "x.rs"] pub mod x;`.
+fn commands(id: &str, entry: &Path) -> Vec<String> {
+    let dir = entry.parent().unwrap();
+    let source = std::fs::read_to_string(entry).unwrap();
+    let mut out: Vec<String> = find_commands(&source).into_iter().map(|f| f.to_string()).collect();
+    let lines: Vec<&str> = source.lines().map(str::trim).collect();
+    for pair in lines.windows(2) {
+        let Some(file) = pair[0].strip_prefix("#[path = \"").and_then(|r| r.strip_suffix("\"]")) else {
+            continue;
+        };
+        let (public, name) = match pair[1].strip_prefix("pub mod ") {
+            Some(rest) => (true, rest),
+            None => (false, pair[1].strip_prefix("mod ").unwrap_or_default()),
+        };
+        let name = name.trim_end_matches(';');
+        let path = dir.join(file);
+        println!("cargo:rerun-if-changed={}", path.display());
+        let part = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let found = find_commands(&part);
+        if !found.is_empty() && !public {
+            panic!("modules/{id}: {file} has commands, so declare it `pub mod {name};` in module.rs");
+        }
+        out.extend(found.into_iter().map(|f| format!("{name}::{f}")));
+    }
+    out
+}
+/// Names of `#[tauri::command]` functions in one file.
+fn find_commands(source: &str) -> Vec<&str> {
+    let mut found = Vec::new();
+    let mut tagged = false;
+    for line in source.lines().map(str::trim) {
+        if line == "#[tauri::command]" {
+            tagged = true;
+        } else if tagged && !line.starts_with("#[") {
+            let rest = line.strip_prefix("pub async fn ").or_else(|| line.strip_prefix("pub fn "));
+            if let Some(name) = rest.and_then(|r| r.split(['(', '<']).next()) {
+                found.push(name.trim());
+            }
+            tagged = false;
+        }
+    }
+    found
 }
 
 fn modules() {
@@ -42,10 +87,11 @@ fn modules() {
         let manifest: Manifest =
             toml::from_str(&text).unwrap_or_else(|e| panic!("{}: {e}", toml.display()));
         let entry = dir.join("module.rs");
+        println!("cargo:rerun-if-changed={}", entry.display());
         if entry.is_file() {
-            found.push((manifest.id.replace('-', "_"), entry, manifest.rust.commands));
-        } else if !manifest.rust.commands.is_empty() {
-            panic!("{}: [rust] commands without module.rs", toml.display());
+            let name = manifest.module.id.replace('-', "_");
+            let commands = commands(&manifest.module.id, &entry);
+            found.push((name, entry, commands));
         }
     }
     found.sort_by(|a, b| a.0.cmp(&b.0));

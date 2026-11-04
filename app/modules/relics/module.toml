@@ -1,7 +1,12 @@
+[module]
 id = "relics"
 title = "Реликвии"
 kind = "tab"
+
+[tab]
 icon = "inventory"
 category = "inventory"
 order = 1
-requires = ["hsr"]
+
+[needs]
+hsr = true

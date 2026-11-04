@@ -1,8 +1,12 @@
 # Живой каталог дизайн-системы: все токены и компоненты. Только в dev-сборке.
+
+[module]
 id = "design-system"
 title = "Дизайн-система"
-kind = "tab"             # иконка задана в ui.tsx (из lucide)
-category = "system"
-order = -1
+kind = "tab"
 badge = "dev"
 dev_only = true
+
+[tab]                    # иконка-компонент экспортируется из ui.tsx (lucide)
+category = "system"
+order = -1

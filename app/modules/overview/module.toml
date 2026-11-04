@@ -1,7 +1,12 @@
+[module]
 id = "overview"
 title = "Обзор"
 kind = "tab"
+
+[tab]
 icon = "overview"
 category = "main"
 default = true           # открывается при запуске
-requires = ["hsr"]
+
+[needs]
+hsr = true

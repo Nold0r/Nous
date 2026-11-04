@@ -20,20 +20,41 @@ test('all shipped manifests are valid', () => {
   assert.ok(ids.includes('relics:tab'))
 })
 
+const tabToml = `
+[module]
+id = "t"
+title = "T"
+kind = "tab"
+
+[tab]
+icon = "map"
+category = "main"
+
+[needs]
+hsr = true
+`
+
 test('a plugin gets a Settings section, a tab a screen', () => {
-  const plugin = loadModule('m/p/module.toml', 'id = "p"\ntitle = "P"\nkind = "plugin"', { default: Screen })
+  const plugin = loadModule('m/p/module.toml', '[module]\nid = "p"\ntitle = "P"\nkind = "plugin"', { default: Screen })
   assert.equal(plugin.section, Screen)
   assert.equal(plugin.screens, undefined)
-  const tab = loadModule('m/t/module.toml', 'id = "t"\ntitle = "T"\nkind = "tab"\nicon = "map"\ncategory = "main"', { default: Screen })
+  assert.deepEqual(plugin.requires, [])
+  const tab = loadModule('m/t/module.toml', tabToml, { default: Screen })
   assert.equal(tab.screens[0].component, Screen)
+  assert.deepEqual(tab.requires, ['hsr'])
 })
 
 test('readable errors for broken manifests', () => {
-  const bad = (toml, ui = { default: Screen }) => assert.throws(() => loadModule('m/x/module.toml', toml, ui), /modules\/x\/module\.toml: /)
-  bad('id = "y"\ntitle = "X"\nkind = "tab"')                        // id ≠ folder
-  bad('id = "x"\ntitle = "X"\nkind = "widget"')                     // unknown kind
-  bad('id = "x"\ntitle = "X"\nkind = "tab"\nicon = "a"\ncategory = "nowhere"')
-  bad('id = "x"\ntitle = "X"\nkind = "tab"\ncategory = "main"')      // no icon
-  bad('id = "x"\ntitle = "X"\nkind = "plugin"', {})                 // no ui
-  bad('id = "x" title')                                             // not TOML
+  const bad = (toml, ui = { default: Screen }) =>
+    assert.throws(() => loadModule('m/x/module.toml', toml, ui), /modules\/x\/module\.toml: /)
+  const head = '[module]\nid = "x"\ntitle = "X"\n'
+  bad('id = "x"\ntitle = "X"\nkind = "tab"')                  // no [module]
+  bad('[module]\nid = "y"\ntitle = "X"\nkind = "plugin"')     // id differs from folder
+  bad(head + 'kind = "widget"')                                // unknown kind
+  bad(head + 'kind = "tab"')                                   // tab without [tab]
+  bad(head + 'kind = "tab"\n[tab]\nicon = "a"\ncategory = "nowhere"')
+  bad(head + 'kind = "tab"\n[tab]\ncategory = "main"')         // no icon
+  bad(head + 'kind = "plugin"\n[tab]\ncategory = "main"')      // plugin with [tab]
+  bad(head + 'kind = "plugin"', {})                            // no ui
+  bad('[module] id = ')                                        // not TOML
 })
