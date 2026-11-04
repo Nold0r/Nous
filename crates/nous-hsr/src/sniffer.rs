@@ -58,6 +58,12 @@ pub(crate) async fn run(
         for gp in game_packets {
             match gp {
                 GamePacket::Connection(ConnectionPacket::Disconnected) => {
+                    // the next session may come through another adapter (VPN on/off)
+                    component = None;
+                    let _ = client.handle(&nous_core::Command {
+                        world: Some(nous_core::world::WorldCommand::ClearSceneEntities),
+                        ..Default::default()
+                    });
                     set_status(&client, &status, SnifferStatus::WaitingForLogin)
                 }
                 GamePacket::Commands {
@@ -68,7 +74,10 @@ pub(crate) async fn run(
                         set_status(&client, &status, SnifferStatus::Connected);
                     }
                     recorder.on_command(&command);
-                    client.handle(&crate::decode(&command))?;
+                    // Errors are already published as `sdk-error`; one failed
+                    // command (e.g. a locked file on account switch) must not end
+                    // the capture: the core retries and drops nothing silently.
+                    let _ = client.handle(&crate::decode(&command));
                 }
                 _ => {}
             }

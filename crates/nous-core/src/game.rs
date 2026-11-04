@@ -70,6 +70,11 @@ pub struct GameState {
     // A saver takes this under the state lock, then releases the state before
     // writing. Account switches wait for that write, preventing stale saves.
     pub(crate) writer: Arc<Mutex<()>>,
+    /// A login whose account switch failed (the old account couldn't be saved
+    /// or the new one read). Until it succeeds, that player's commands are
+    /// dropped rather than applied to the previous account; every command
+    /// retries the switch.
+    pending_login: Option<u32>,
 }
 impl GameState {
     pub fn new(store: impl AccountStore + 'static) -> Result<Self, String> {
@@ -84,6 +89,7 @@ impl GameState {
             dirty: false,
             logs: Vec::new(),
             writer: Arc::new(Mutex::new(())),
+            pending_login: None,
         })
     }
     pub fn revision(&self) -> u64 {
@@ -153,13 +159,27 @@ impl GameState {
     pub fn handle(&mut self, command: &Command) -> Result<Changes, String> {
         let mut ch = Changes::default();
         let now = crate::profile::now();
-        if let Some(uid) = command.login {
+        if command.login.is_some() {
+            self.pending_login = None;
+        }
+        if let Some(uid) = command.login.or(self.pending_login) {
             if self.account.uid != Some(uid) {
-                self.flush()?;
-                self.account = self.store.load_or_new(uid)?;
-                ch.account_switched = true;
-                ch.inventory_reset = true;
+                let switched = self.flush().and_then(|()| self.store.load_or_new(uid));
+                match switched {
+                    Ok(account) => {
+                        self.account = account;
+                        self.pending_login = None;
+                        ch.account_switched = true;
+                        ch.inventory_reset = true;
+                    }
+                    Err(e) => {
+                        self.pending_login = Some(uid);
+                        return Err(format!("смена аккаунта на {uid} не удалась, данные этого входа пока не применяются: {e}"));
+                    }
+                }
             }
+        }
+        if command.login.is_some() {
             self.account.profile.touch();
             ch.profile = true;
         }
@@ -275,5 +295,88 @@ impl PendingSave {
             self.store.append_log(*uid, line)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    /// Saves fail while `broken` is set, like a locked file or a full disk.
+    #[derive(Default)]
+    struct FlakyStore {
+        broken: AtomicBool,
+        saved: Mutex<Vec<Account>>,
+    }
+    impl AccountStore for FlakyStore {
+        fn load_current(&self) -> Result<Account, String> {
+            Ok(Account::empty())
+        }
+        fn load_or_new(&self, uid: u32) -> Result<Account, String> {
+            Ok(self
+                .saved
+                .lock()
+                .unwrap()
+                .iter()
+                .rev()
+                .find(|a| a.uid == Some(uid))
+                .cloned()
+                .unwrap_or_else(|| Account::new(uid)))
+        }
+        fn save(&self, account: &Account) -> Result<(), String> {
+            if self.broken.load(Ordering::Relaxed) {
+                return Err("disk unavailable".into());
+            }
+            self.saved.lock().unwrap().push(account.clone());
+            Ok(())
+        }
+    }
+    fn login(uid: u32) -> Command {
+        Command { login: Some(uid), ..Command::default() }
+    }
+    fn rename(name: &str) -> Command {
+        Command {
+            profile: Some(ProfilePatch { nickname: Some(name.into()), ..ProfilePatch::default() }),
+            ..Command::default()
+        }
+    }
+
+    #[test]
+    fn failed_switch_never_mixes_accounts_and_recovers() {
+        let store = Arc::new(FlakyStore::default());
+        let mut game = GameState::with_store(store.clone()).unwrap();
+        game.handle(&login(1)).unwrap();
+        game.handle(&rename("first")).unwrap();
+
+        // account 1 has unsaved changes and the disk is gone: 2 can't log in
+        store.broken.store(true, Ordering::Relaxed);
+        assert!(game.handle(&login(2)).is_err());
+        // player 2's data must not land in account 1
+        assert!(game.handle(&rename("second")).is_err());
+        assert_eq!(game.account.uid, Some(1));
+        assert_eq!(game.account.profile.nickname.as_deref(), Some("first"));
+
+        // the disk is back: the next command completes the switch
+        store.broken.store(false, Ordering::Relaxed);
+        let ch = game.handle(&rename("second")).unwrap();
+        assert!(ch.account_switched);
+        assert_eq!(game.account.uid, Some(2));
+        assert_eq!(game.account.profile.nickname.as_deref(), Some("second"));
+        let first = store.load_or_new(1).unwrap();
+        assert_eq!(first.profile.nickname.as_deref(), Some("first"));
+    }
+
+    #[test]
+    fn logging_back_into_the_current_account_cancels_a_failed_switch() {
+        let store = Arc::new(FlakyStore::default());
+        let mut game = GameState::with_store(store.clone()).unwrap();
+        game.handle(&login(1)).unwrap();
+        game.handle(&rename("first")).unwrap();
+        store.broken.store(true, Ordering::Relaxed);
+        assert!(game.handle(&login(2)).is_err());
+        game.handle(&login(1)).unwrap();
+        game.handle(&rename("again")).unwrap();
+        assert_eq!(game.account.profile.nickname.as_deref(), Some("again"));
     }
 }
