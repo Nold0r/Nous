@@ -60,10 +60,6 @@ pub(crate) async fn run(
                 GamePacket::Connection(ConnectionPacket::Disconnected) => {
                     // the next session may come through another adapter (VPN on/off)
                     component = None;
-                    let _ = client.handle(&nous_core::Command {
-                        world: Some(nous_core::world::WorldCommand::ClearSceneEntities),
-                        ..Default::default()
-                    });
                     set_status(&client, &status, SnifferStatus::WaitingForLogin)
                 }
                 GamePacket::Commands {
