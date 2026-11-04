@@ -1,4 +1,4 @@
-import { EmptyState, Page } from '../../ui'
+import { EmptyState, Page } from '@app/ui'
 
 export function OverviewPage() {
   return (
@@ -9,3 +9,5 @@ export function OverviewPage() {
     </Page>
   )
 }
+
+export default OverviewPage

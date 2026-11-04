@@ -7,12 +7,12 @@ const { chromium } = await import('playwright')
 const browser = await chromium.launch({ headless: true })
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1000 } })
-  await page.goto(`${process.env.NOUS_UI_URL ?? 'http://127.0.0.1:5174/'}#/veritas-overlay`)
+  await page.goto(`${process.env.NOUS_UI_URL ?? 'http://127.0.0.1:5174/'}#/overlay/veritas`)
   await page.evaluate(async () => {
     const { default: React } = await import('/node_modules/.vite/deps/react.js')
     const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js')
-    const { VeritasOverlaySettings } = await import('/src/veritas/VeritasControls.tsx')
-    const { defaultSettings } = await import('/src/veritas/types.ts')
+    const { VeritasOverlaySettings } = await import('/modules/veritas/VeritasControls.tsx')
+    const { defaultSettings } = await import('/modules/veritas/types.ts')
     const callbacks = new Map()
     const events = new Map()
     let callbackId = 0

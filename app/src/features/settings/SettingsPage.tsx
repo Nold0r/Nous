@@ -4,9 +4,8 @@ import { getAutostart, setAutostart } from '../../lib/game'
 import { getVersion } from '@tauri-apps/api/app'
 import { openPatchNotes } from '../../lib/patch-notes'
 import { Button, Page, Panel, StatList, StatRow, Switch } from '../../ui'
-import { VeritasSettings } from './VeritasSettings'
 import './settings.css'
-import { isDevLaunch, modules } from '../registry'
+import { enabledPlugins, modules } from '../registry'
 import { useModules } from '../module-context'
 
 export function SettingsPage() {
@@ -45,18 +44,18 @@ export function SettingsPage() {
           }
         />
       </Panel>
-      {isDevLaunch && (
+      {modules.length > 0 && (
         <Panel title="Модули">
-          <p className="modules-description">Выберите нужные вкладки. Изменения применяются сразу и сохраняются для следующих запусков.</p>
+          <p className="modules-description">Всё, кроме аккаунта, — модули: вкладки в меню и плагины с разделом здесь, в Настройках. Изменения применяются сразу и сохраняются.</p>
           {moduleError && <p role="alert">{moduleError}</p>}
           {modules.map((module) => (
             <Switch key={module.id} disabled={saving} checked={enabled.has(module.id)} onChange={(value) => setEnabled(module.id, value)}
-              label={module.title} />
+              label={module.title} hint={module.kind === 'plugin' ? 'Плагин: раздел в Настройках' : 'Вкладка в меню'} />
           ))}
-          {enabled.size === 0 && <p className="modules-empty" role="status">Все модули отключены. Чтобы вернуть вкладку, включите её здесь.</p>}
+          {enabled.size === 0 && <p className="modules-empty" role="status">Все модули отключены. Чтобы вернуть вкладку или плагин, включите его здесь.</p>}
         </Panel>
       )}
-      <VeritasSettings />
+      {enabledPlugins(enabled).map(({ id, section: Section }) => Section && <Section key={id} />)}
       <Panel
         title="О программе"
         aside={

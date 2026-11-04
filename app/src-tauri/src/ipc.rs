@@ -26,7 +26,7 @@ pub fn set_capture_enabled(
     sdk: State<'_, Sdk>,
     enabled: bool,
 ) -> Result<(), String> {
-    if crate::veritas::is_replay(&app) {
+    if crate::launch::is_replay(&app) {
         return sdk.stop_capture();
     }
     if enabled {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Minus, Plus, RotateCcw, Users } from 'lucide-react'
-import { Button } from '../ui'
+import { Button } from '@app/ui'
 import { useBattleIcons } from './icons'
 import { categoryLabel, characterValue, columnLabels, damageCategories, dpav, effective, finite, formatCompact, formatNumber, formatShare, projectedAv, propertyLabel, seriesColors, sortedAvatars, themeVariables, viewLabels } from './presentation'
 import type { Battle, Combatant, OverlaySettings, Snapshot, ViewKey } from './types'

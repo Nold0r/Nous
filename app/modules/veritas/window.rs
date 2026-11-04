@@ -35,7 +35,7 @@ fn build_overlay(app: &AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let mut builder = WebviewWindowBuilder::new(
         app,
         "veritas-overlay",
-        WebviewUrl::App("index.html#/veritas-overlay".into()),
+        WebviewUrl::App("index.html#/overlay/veritas".into()),
     )
     .title("Nous — урон в бою")
     .transparent(true)
@@ -66,7 +66,7 @@ pub fn setup(app: &AppHandle, replay: bool) -> tauri::Result<()> {
         let mut target = WebviewWindowBuilder::new(
             app,
             "veritas-replay-target",
-            WebviewUrl::App("index.html#/veritas-replay-target".into()),
+            WebviewUrl::App("index.html#/overlay/veritas/replay-target".into()),
         )
         .title("Nous — тестовая сцена, игра не запущена")
         .inner_size(1280.0, 800.0)

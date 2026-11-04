@@ -1,0 +1,9 @@
+# Модуль Nous. Этот файл говорит программе, как показать модуль;
+# функционал — в ui.tsx (экран) и module.rs (Rust, если нужен).
+id = "characters"
+title = "Персонажи"
+kind = "tab"             # tab — вкладка в меню, plugin — раздел в Настройках
+icon = "characters"      # иконка из assets/icons/sign
+category = "inventory"   # раздел меню, см. src/features/categories.ts
+order = 0
+requires = ["hsr"]       # данные игры из Nous SDK (включает захват)

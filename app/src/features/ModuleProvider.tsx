@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { invoke, isTauri } from '@tauri-apps/api/core'
-import { enabledScreens, isDevLaunch, modules } from './registry'
+import { enabledScreens, modules } from './registry'
 import { ModuleRuntime } from './module-runtime'
 import type { ModuleSettings } from './types'
 import { ModulesContext } from './module-context'
@@ -45,8 +45,7 @@ function useModuleState() {
     })
     return () => { cancelled = true }
   }, [])
-  // Release builds always use their built-in defaults, even with old dev preferences.
-  const enabled = useMemo(() => new Set(modules.filter((m) => !isDevLaunch || !configuration.disabled.includes(m.id)).map((m) => m.id)), [configuration])
+  const enabled = useMemo(() => new Set(modules.filter((m) => !configuration.disabled.includes(m.id)).map((m) => m.id)), [configuration])
   const [runtime] = useState(() => new ModuleRuntime(
     async (services) => { if (isTauri()) await invoke('set_capture_enabled', { enabled: services.includes('hsr') }) },
     (module) => ({ storage: storage(module.id), navigate: (id) => { window.location.hash = `/${id}` },
@@ -70,7 +69,7 @@ function useModuleState() {
   return {
     ready, saving, enabled, screens: enabledScreens(enabled), error,
     setEnabled: (id: string, value: boolean) => {
-      if (!isDevLaunch || !modules.some((m) => m.id === id)) return
+      if (!modules.some((m) => m.id === id)) return
       void save({ ...configuration, disabled: [...configuration.disabled.filter((item) => item !== id), ...(!value ? [id] : [])] })
     },
     setSettings: (id: string, settings: ModuleSettings) => {

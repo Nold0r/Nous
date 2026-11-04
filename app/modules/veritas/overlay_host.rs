@@ -1,6 +1,6 @@
 //! Damage widgets: one popup per widget, each with WebView2 in composition mode.
 //!
-//! Every widget page is the same Vite bundle (`#/veritas-overlay/<id>`),
+//! Every widget page is the same Vite bundle (`#/overlay/veritas/<id>`),
 //! rendered by a WebView2 composition controller into a DirectComposition
 //! visual, so the popup has real per-pixel transparency, never takes focus and
 //! lets clicks through to the game. All widgets share the main window's WebView2
@@ -94,7 +94,7 @@ thread_local! {
 }
 
 const CLASS: PCWSTR = w!("NousVeritasOverlay");
-const ROUTE: &str = "/index.html#/veritas-overlay/";
+const ROUTE: &str = "/index.html#/overlay/veritas/";
 /// Origin the release build serves its bundle from (as Tauri does on Windows).
 const ASSET_ORIGIN: &str = "http://tauri.localhost";
 

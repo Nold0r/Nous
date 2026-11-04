@@ -2,7 +2,8 @@ mod ipc;
 mod launch;
 mod module_config;
 mod sniffer;
-mod veritas;
+// app/modules/*: entry files, `modules::{setup, shutdown}`, handler_with_modules!
+include!(concat!(env!("OUT_DIR"), "/modules.rs"));
 use tauri::{Emitter, Manager, RunEvent};
 struct Bridge {
     stop: std::sync::mpsc::Sender<()>,
@@ -55,11 +56,11 @@ pub fn run() {
             });
             app.manage(sdk);
             launch::setup(app.handle())?;
-            // optional, off by default: see veritas.rs
-            veritas::setup(app.handle())?;
+            // every module's Rust side (app/modules/*/module.rs)
+            modules::setup(app.handle())?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(handler_with_modules![
             module_config::get_module_configuration,
             module_config::set_module_configuration,
             ipc::get_profile,
@@ -72,19 +73,6 @@ pub fn run() {
             ipc::get_snapshot,
             ipc::import_gacha_history,
             ipc::get_snapshot_kinds,
-            veritas::host::get_veritas_overlay,
-            veritas::host::get_veritas_battle,
-            veritas::host::set_veritas_overlay_settings,
-            veritas::host::veritas_overlay_action,
-            veritas::host::export_veritas_battle,
-            veritas::host::read_veritas_plugin_config,
-            veritas::host::write_veritas_plugin_config,
-            veritas::host::set_veritas_replay_state,
-            veritas::host::inspect_veritas_replay_window,
-            veritas::check_veritas_update,
-            veritas::get_veritas_status,
-            veritas::enable_veritas,
-            veritas::disable_veritas,
             ipc::get_sniffer_status,
             ipc::set_capture_enabled,
             sniffer::restart_as_admin,
@@ -98,7 +86,7 @@ pub fn run() {
         .run(|app, event| {
             // whatever the saver thread hasn't written yet
             if let RunEvent::Exit = event {
-                veritas::host::shutdown(app);
+                modules::shutdown(app);
                 if let Some(sdk) = app.try_state::<nous_hsr::Sdk>() {
                     if let Err(e) = sdk.stop_capture() {
                         log::error!("SDK shutdown: {e}");

@@ -11,7 +11,7 @@ tags: [nous, архитектура, rust, данные, риск]
 
 ## Как это устроено в Nous
 
-Код: `src-tauri/src/veritas.rs`, фронт: `lib/veritas.ts`, `features/settings/VeritasSettings.tsx`.
+Модуль `app/modules/veritas/` (плагин, см. [[Модули]]): Rust-вход `module.rs` и его части рядом, интерфейс `ui.tsx` → раздел в Настройках (`VeritasSettings.tsx`) и виджеты (`OverlayApp.tsx`, адрес `#/overlay/veritas/<виджет>`), статус — `status.ts`.
 
 | Шаг | Что делает Nous |
 |---|---|
@@ -27,7 +27,7 @@ tags: [nous, архитектура, rust, данные, риск]
 
 ## Окно урона Nous
 
-Урон в бою показывает **окно Nous** (`src-tauri/src/veritas/{host,window,settings,plugin_config}.rs`, фронт `src/veritas/`), а не встроенный интерфейс Veritas. Данные — тот же поток Socket.IO, агрегирует их крейт `crates/nous-veritas`.
+Урон в бою показывает **окно Nous** (`app/modules/veritas/{host,window,overlay_host,settings,plugin_config}.rs`, фронт там же), а не встроенный интерфейс Veritas. Данные — тот же поток Socket.IO, агрегирует их крейт `crates/nous-veritas`.
 
 - Окно создаётся только когда Veritas включён: прозрачное, без рамки, поверх игры, без кнопки в панели задач, не забирает фокус, по умолчанию пропускает клики.
 - Появляется на `OnBattleBegin`, прячется на `OnBattleEnd`, при закрытии игры, обрыве соединения и когда игра не на переднем плане. Если Windows сообщает эксклюзивный полноэкранный Direct3D, в настройках появляется подсказка включить оконный/безрамочный режим.

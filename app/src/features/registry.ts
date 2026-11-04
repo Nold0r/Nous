@@ -1,4 +1,5 @@
 import { categories } from './categories'
+import { loadModule, type UiExports } from './manifest'
 import settings from './settings'
 import type { CategoryDef, ModuleDef, ScreenDef } from './types'
 
@@ -6,26 +7,20 @@ import type { CategoryDef, ModuleDef, ScreenDef } from './types'
 export const isDevLaunch =
   (import.meta.env.DEV || import.meta.env.TAURI_ENV_DEBUG === 'true') && import.meta.env.VITE_USER_MODE !== 'true'
 
-// Settings belongs to the shell and cannot be disabled.
-const entries = import.meta.glob<{ default: ModuleDef }>('./*/index.ts', { eager: true })
-export const modules: ModuleDef[] = Object.entries(entries)
-  .filter(([path]) => path !== './settings/index.ts')
-  .map(([, entry]) => entry.default)
-  .filter((module) => !module.devOnly || isDevLaunch)
+// Modules live in app/modules/<id>/: module.toml says how the app shows the
+// module, ui.tsx holds its screen (tab) or Settings section (plugin). The shell
+// lists none of them by name. Docs: docs/Архитектура/Модули.md
+const manifests = import.meta.glob<string>('../../modules/*/module.toml', { eager: true, query: '?raw', import: 'default' })
+const uis = import.meta.glob<UiExports>('../../modules/*/ui.tsx', { eager: true })
+const load = (path: string, raw: string) => loadModule(path, raw, uis[path.replace(/module\.toml$/, 'ui.tsx')] ?? {})
 
-const seen = new Set<string>([settings.id])
-const moduleIds = new Set<string>()
-for (const module of modules) {
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(module.id) || moduleIds.has(module.id)) {
-    throw new Error(`Invalid or duplicate module id: ${module.id}`)
-  }
-  moduleIds.add(module.id)
-  for (const screen of module.screens ?? []) {
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(screen.id) || seen.has(screen.id)) {
-      throw new Error(`Invalid or duplicate screen id: ${screen.id}`)
-    }
-    seen.add(screen.id)
-  }
+export const modules: ModuleDef[] = Object.entries(manifests)
+  .map(([path, raw]) => load(path, raw))
+  .filter((module) => !module.devOnly || isDevLaunch)
+  .sort((a, b) => a.id.localeCompare(b.id))
+
+if (new Set(modules.map((m) => m.id)).size !== modules.length || modules.some((m) => m.id === settings.id)) {
+  throw new Error('Duplicate module id')
 }
 if (modules.flatMap((m) => m.screens ?? []).filter((s) => s.isDefault).length > 1) {
   throw new Error('Only one screen may be the default')
@@ -34,6 +29,15 @@ export function enabledScreens(enabled: ReadonlySet<string>): ScreenDef[] {
   return [...modules.filter((m) => enabled.has(m.id)).flatMap((m) => m.screens ?? []), settings]
     .filter((s) => !s.devOnly || isDevLaunch)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+/** Enabled plugins, for their sections on the Settings page. */
+export function enabledPlugins(enabled: ReadonlySet<string>): ModuleDef[] {
+  return modules.filter((m) => m.kind === 'plugin' && m.section && enabled.has(m.id))
+}
+/** `#/overlay/<id>/...`: a module's page in a window over the game. */
+export function overlayModule(hash: string): ModuleDef | undefined {
+  const id = /^#\/overlay\/([a-z0-9-]+)/.exec(hash)?.[1]
+  return modules.find((m) => m.id === id && m.overlay)
 }
 export interface FeatureGroup { category: CategoryDef; features: ScreenDef[] }
 export function groupFeatures(features: ScreenDef[], pinBottom: boolean): FeatureGroup[] {

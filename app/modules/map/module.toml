@@ -1,0 +1,7 @@
+# Карта текущей локации (пока заглушка).
+id = "map"
+title = "Карта"
+kind = "tab"
+icon = "map"
+category = "exploration"
+requires = ["hsr"]

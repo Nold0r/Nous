@@ -1,9 +1,12 @@
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // modules/<id>/ import the shell's building blocks as @app/ui, @app/lib/...
+  resolve: { alias: { '@app': fileURLToPath(new URL('./src', import.meta.url)) } },
   // Tauri expects a fixed port and watches src-tauri itself
   clearScreen: false,
   // expose TAURI_ENV_* (e.g. TAURI_ENV_DEBUG, set by `tauri dev` and `tauri build --debug`)

@@ -1,0 +1,7 @@
+id = "overview"
+title = "Обзор"
+kind = "tab"
+icon = "overview"
+category = "main"
+default = true           # открывается при запуске
+requires = ["hsr"]

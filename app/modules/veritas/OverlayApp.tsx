@@ -13,14 +13,23 @@ declare global {
   }
 }
 
+/** Stand-in for the game window in the isolated debug replay. */
+function ReplayTarget() {
+  return <main style={{ padding: 40, height: '100%', background: '#171219' }}><h1>Тестовая сцена Nous</h1><p>Сервер Veritas изображает бой. Игра не запущена, плагин не установлен.</p></main>
+}
+
 /**
- * Isolated route, no launcher shell. `#/veritas-overlay/<widget>` is one widget
- * in its own popup (sized to its content, scaled by the host); without a widget
- * it is the single-window fallback showing every view.
+ * The module's overlay page. `#/overlay/veritas/<widget>` is one widget in its
+ * own popup (sized to its content, scaled by the host); without a widget it
+ * is the single-window fallback showing every view.
  */
 export function OverlayApp() {
+  return window.location.hash.split('/')[3] === 'replay-target' ? <ReplayTarget /> : <Widgets />
+}
+
+function Widgets() {
   const { state, patch, error } = useOverlay()
-  const widget = window.location.hash.split('/')[2] as ViewKey | undefined
+  const widget = window.location.hash.split('/')[3] as ViewKey | undefined
   const root = useRef<HTMLElement>(null)
   const loaded = state != null
 

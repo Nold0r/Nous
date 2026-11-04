@@ -1,0 +1,14 @@
+# Урон в реальном времени. Внедрение в игру: выключено, пока игрок сам
+# не включит его в своём разделе Настроек и не примет риск.
+id = "veritas"
+title = "Урон в реальном времени (Veritas)"
+kind = "plugin"          # свой раздел в Настройках + виджеты поверх игры (overlay в ui.tsx)
+
+[rust]                   # module.rs: точка входа и команды для интерфейса
+commands = [
+  "get_veritas_status", "enable_veritas", "disable_veritas", "check_veritas_update",
+  "host::get_veritas_overlay", "host::get_veritas_battle", "host::set_veritas_overlay_settings",
+  "host::veritas_overlay_action", "host::export_veritas_battle",
+  "host::read_veritas_plugin_config", "host::write_veritas_plugin_config",
+  "host::set_veritas_replay_state", "host::inspect_veritas_replay_window",
+]

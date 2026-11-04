@@ -27,8 +27,8 @@ try {
   await page.evaluate(async () => {
     const { default: React } = await import('/node_modules/.vite/deps/react.js')
     const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js')
-    const { BattleView } = await import('/src/veritas/BattleView.tsx')
-    const { defaultSettings } = await import('/src/veritas/types.ts')
+    const { BattleView } = await import('/modules/veritas/BattleView.tsx')
+    const { defaultSettings } = await import('/modules/veritas/types.ts')
     document.getElementById('root').style.display = 'none'
     const fixture = document.createElement('div')
     fixture.id = 'veritas-render-fixture'

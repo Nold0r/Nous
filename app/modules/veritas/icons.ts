@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { avatarIcons } from '../lib/icons'
+import { avatarIcons } from '@app/lib/icons'
 
 /** Anything Veritas names: a character or an enemy. */
 type Named = { id: number; name: string }

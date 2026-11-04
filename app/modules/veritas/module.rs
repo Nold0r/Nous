@@ -27,18 +27,22 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::launch::LaunchState;
+// A module is one entry file; its parts sit next to it in the module folder.
+#[path = "geometry.rs"]
 mod geometry;
-pub mod overlay_host;
+#[path = "host.rs"]
 pub mod host;
+#[path = "overlay_host.rs"]
+pub mod overlay_host;
+#[path = "plugin_config.rs"]
 mod plugin_config;
+#[path = "settings.rs"]
 mod settings;
+#[path = "window.rs"]
 mod window;
 
-pub fn is_replay(app: &AppHandle) -> bool {
-    cfg!(debug_assertions)
-        && app.config().identifier == "com.nous.devtest"
-        && std::env::var("NOUS_VERITAS_REPLAY").as_deref() == Ok("1")
-}
+/// The app's isolated test mode (see launch.rs); Veritas replays a fake battle in it.
+pub use crate::launch::is_replay;
 
 const RELEASE_API: &str = "https://api.github.com/repos/hessiser/veritas/releases/latest";
 const TRUSTED_BUILDER: &str = "github-actions[bot]";
@@ -93,6 +97,11 @@ pub struct VeritasPacket {
     /// OnDamage, OnTurnBegin, OnTurnEnd, OnUseSkill, OnBattleBegin, OnBattleEnd, …
     pub name: String,
     pub data: serde_json::Value,
+}
+
+/// Module exit: hide the widgets and keep the battle history.
+pub fn shutdown(app: &AppHandle) {
+    host::shutdown(app);
 }
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {

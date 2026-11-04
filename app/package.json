@@ -13,7 +13,7 @@
     "assets": "node scripts/fetch-assets.mjs",
     "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
     "test:ui": "node scripts/tests/ui-smoke.mjs",
-    "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs",
+    "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs scripts/tests/manifest.test.mjs",
     "test:data": "cargo test -p nous-hsr --lib replay -- --include-ignored --nocapture"
   },
   "dependencies": {
@@ -24,7 +24,8 @@
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5"
+    "react-router-dom": "^7.18.5",
+    "smol-toml": "1.9.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",

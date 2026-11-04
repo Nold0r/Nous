@@ -1,0 +1,7 @@
+id = "relics"
+title = "Реликвии"
+kind = "tab"
+icon = "inventory"
+category = "inventory"
+order = 1
+requires = ["hsr"]

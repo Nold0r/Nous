@@ -1,4 +1,4 @@
-import { EmptyState, Page } from '../../ui'
+import { EmptyState, Page } from '@app/ui'
 
 export function RelicsPage() {
   return (
@@ -9,3 +9,5 @@ export function RelicsPage() {
     </Page>
   )
 }
+
+export default RelicsPage

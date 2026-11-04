@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import logo from '../../assets/brand/nous-logo.svg'
-import { itemIcons, signIcons } from '../../lib/icons'
+import logo from '@app/assets/brand/nous-logo.svg'
+import { itemIcons, signIcons } from '@app/lib/icons'
 import {
   Badge,
   Button,
@@ -18,7 +18,7 @@ import {
   Switch,
   Tabs,
   type Tone,
-} from '../../ui'
+} from '@app/ui'
 
 const colorTokens = [
   ['--brand-cream', 'Бренд: кремовый'],
@@ -189,3 +189,6 @@ export function DesignSystemPage() {
     </Page>
   )
 }
+
+export default DesignSystemPage
+export { Palette as icon } from 'lucide-react'

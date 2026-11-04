@@ -1,4 +1,4 @@
-import { EmptyState, Page } from '../../ui'
+import { EmptyState, Page } from '@app/ui'
 
 export function CharactersPage() {
   return (
@@ -9,3 +9,5 @@ export function CharactersPage() {
     </Page>
   )
 }
+
+export default CharactersPage

@@ -55,8 +55,17 @@ impl LaunchState {
     }
 }
 
+/// Isolated test mode: a debug build with the test identifier and
+/// NOUS_VERITAS_REPLAY=1. Nothing touches the game or its folder; modules
+/// (Veritas) replay fake data instead.
+pub fn is_replay(app: &AppHandle) -> bool {
+    cfg!(debug_assertions)
+        && app.config().identifier == "com.nous.devtest"
+        && std::env::var("NOUS_VERITAS_REPLAY").as_deref() == Ok("1")
+}
+
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
-    let replay = crate::veritas::is_replay(app);
+    let replay = is_replay(app);
     app.manage(LaunchState {
         pid: std::sync::atomic::AtomicU32::new(0),
         status: Mutex::new(GameStatus {
@@ -296,7 +305,7 @@ catch {{
 /// rights; declining resolves to false, not an error.
 #[tauri::command]
 pub async fn launch_game(app: AppHandle, state: State<'_, LaunchState>) -> Result<bool, String> {
-    if crate::veritas::is_replay(&app) {return Err("Запуск игры запрещён в debug-replay".into());}
+    if is_replay(&app) {return Err("Запуск игры запрещён в debug-replay".into());}
     let path = state.game_path().ok_or("Путь к игре неизвестен")?;
     let dir = Path::new(&path)
         .parent()
