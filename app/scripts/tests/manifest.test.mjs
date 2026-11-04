@@ -29,19 +29,14 @@ kind = "tab"
 [tab]
 icon = "map"
 category = "main"
-
-[needs]
-hsr = true
 `
 
 test('a settings module gets a Settings section, a tab a screen', () => {
   const section = loadModule('m/p/module.toml', '[module]\nid = "p"\ntitle = "P"\nkind = "settings"', { default: Screen })
   assert.equal(section.section, Screen)
   assert.equal(section.screens, undefined)
-  assert.deepEqual(section.requires, [])
   const tab = loadModule('m/t/module.toml', tabToml, { default: Screen })
   assert.equal(tab.screens[0].component, Screen)
-  assert.deepEqual(tab.requires, ['hsr'])
 })
 
 test('readable errors for broken manifests', () => {

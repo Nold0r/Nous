@@ -10,6 +10,3 @@ kind = "tab"             # tab — вкладка в меню, settings — ра
 icon = "characters"      # иконка из assets/icons/sign
 category = "inventory"   # раздел меню, см. src/features/categories.ts
 order = 0
-
-[needs]
-hsr = true               # данные игры из Nous SDK (пока модуль включён, идёт захват)

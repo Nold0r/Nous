@@ -21,21 +21,6 @@ pub fn get_sniffer_status(sdk: State<'_, Sdk>) -> SnifferStatus {
     sdk.status()
 }
 #[tauri::command]
-pub fn set_capture_enabled(
-    app: AppHandle,
-    sdk: State<'_, Sdk>,
-    enabled: bool,
-) -> Result<(), String> {
-    if crate::launch::is_replay(&app) {
-        return sdk.stop_capture();
-    }
-    if enabled {
-        sdk.start_capture()
-    } else {
-        sdk.stop_capture()
-    }
-}
-#[tauri::command]
 pub fn get_snapshot_kinds() -> Vec<(&'static str, &'static str)> {
     nous_core::snapshots::KINDS.to_vec()
 }

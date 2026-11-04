@@ -7,6 +7,3 @@ kind = "tab"
 icon = "overview"
 category = "main"
 default = true           # открывается при запуске
-
-[needs]
-hsr = true

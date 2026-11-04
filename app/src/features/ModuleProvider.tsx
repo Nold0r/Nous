@@ -47,13 +47,12 @@ function useModuleState() {
   }, [])
   const enabled = useMemo(() => new Set(modules.filter((m) => !configuration.disabled.includes(m.id)).map((m) => m.id)), [configuration])
   const [runtime] = useState(() => new ModuleRuntime(
-    async (services) => { if (isTauri()) await invoke('set_capture_enabled', { enabled: services.includes('hsr') }) },
     (module) => ({ storage: storage(module.id), navigate: (id) => { window.location.hash = `/${id}` },
-      services: { hsr: module.requires?.includes('hsr') ? { read: <T,>(command: string) => invoke<T>(command) } : undefined } }),
+      sdk: { read: <T,>(command: string) => invoke<T>(command) } }),
     setError,
   ))
-  useEffect(() => { if (ready) void runtime.update(modules.filter((m) => enabled.has(m.id)), configuration.settings) }, [runtime, enabled, configuration.settings, ready])
-  useEffect(() => () => { void runtime.update([]) }, [runtime])
+  useEffect(() => { if (ready) runtime.update(modules.filter((m) => enabled.has(m.id)), configuration.settings) }, [runtime, enabled, configuration.settings, ready])
+  useEffect(() => () => { runtime.update([]) }, [runtime])
   const save = async (next: Configuration) => {
     if (pending.current) return
     pending.current = true

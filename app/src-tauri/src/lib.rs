@@ -54,6 +54,11 @@ pub fn run() {
                 stop,
                 thread: std::sync::Mutex::new(Some(bridge)),
             });
+            // the account (always shipped) needs the game's login and profile,
+            // so capture runs for the whole session, not per module
+            if !launch::is_replay(app.handle()) {
+                sdk.start_capture().map_err(std::io::Error::other)?;
+            }
             app.manage(sdk);
             launch::setup(app.handle())?;
             // every module's Rust side (app/modules/*/module.rs)
@@ -74,7 +79,6 @@ pub fn run() {
             ipc::import_gacha_history,
             ipc::get_snapshot_kinds,
             ipc::get_sniffer_status,
-            ipc::set_capture_enabled,
             sniffer::restart_as_admin,
             launch::get_game_status,
             launch::launch_game,

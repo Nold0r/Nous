@@ -40,7 +40,6 @@ export function defineScreen(def: ScreenDef): ScreenDef {
   return def
 }
 
-export type ServiceId = 'hsr'
 export type ModuleSettings = Record<string, unknown>
 export interface ModuleStorage {
   get: (key: string) => unknown
@@ -49,7 +48,8 @@ export interface ModuleStorage {
 /** Capabilities supplied by the shell; background work must respect signal. */
 export interface ModuleContext {
   signal: AbortSignal
-  services: { hsr?: { read: <T>(command: string) => Promise<T> } }
+  /** Nous SDK: game data commands (get_inventory, get_profile…), always available. */
+  sdk: { read: <T>(command: string) => Promise<T> }
   settings: ModuleSettings
   storage: ModuleStorage
   navigate: (screenId: string) => void
@@ -70,7 +70,6 @@ export interface ModuleDef {
   section?: ComponentType
   /** Page for `#/overlay/<id>/...` windows over the game. */
   overlay?: ComponentType
-  requires?: readonly ServiceId[]
   screens?: readonly ScreenDef[]
   devOnly?: boolean
   settings?: { defaults: ModuleSettings }

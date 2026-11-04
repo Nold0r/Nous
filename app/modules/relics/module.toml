@@ -7,6 +7,3 @@ kind = "tab"
 icon = "inventory"
 category = "inventory"
 order = 1
-
-[needs]
-hsr = true

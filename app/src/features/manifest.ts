@@ -2,14 +2,13 @@ import type { ComponentType } from 'react'
 import { parse } from 'smol-toml'
 import type { IconSource } from '../ui'
 import { categories, type CategoryId } from './categories.ts'
-import type { ModuleDef, ModuleKind, ScreenDef, ServiceId } from './types'
+import type { ModuleDef, ModuleKind, ScreenDef } from './types'
 
 /** modules/<id>/module.toml: how the app shows the module. */
 interface Manifest {
   module: { id: string; title: string; kind: ModuleKind; badge?: string; dev_only?: boolean }
   /** Only for kind = "tab": the sidebar entry. */
   tab?: { icon?: string; category?: string; order?: number; default?: boolean }
-  needs?: { hsr?: boolean }
 }
 /** What modules/<id>/ui.tsx may export. */
 export interface UiExports {
@@ -35,9 +34,8 @@ export function loadModule(path: string, raw: string, ui: UiExports): ModuleDef 
   if (typeof m.title !== 'string' || !m.title) fail('[module] title is required')
   if (m.kind !== 'tab' && m.kind !== 'settings') fail('[module] kind must be "tab" or "settings"')
   if (!ui.default) fail('ui.tsx must export default the screen (tab) or Settings section (settings)')
-  const requires: ServiceId[] = manifest.needs?.hsr ? ['hsr'] : []
   const module: ModuleDef = {
-    id: m.id, title: m.title, kind: m.kind, requires, devOnly: m.dev_only,
+    id: m.id, title: m.title, kind: m.kind, devOnly: m.dev_only,
     start: ui.start, overlay: ui.overlay, settings: ui.settings,
   }
   if (m.kind === 'settings') {

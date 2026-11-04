@@ -8,6 +8,3 @@ kind = "tab"
 [tab]
 icon = "map"
 category = "exploration"
-
-[needs]
-hsr = true
