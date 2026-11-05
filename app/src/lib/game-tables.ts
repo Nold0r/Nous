@@ -70,6 +70,9 @@ export const RELIC_SLOTS: { id: RelicSlot; name: string }[] = [
   { id: 'OBJECT', name: 'Канат' },
 ]
 
+/** "Голова", "Сфера"… */
+export const slotName = (slot: RelicSlot) => RELIC_SLOTS.find((s) => s.id === slot)?.name ?? slot
+
 const STAR_RAIL_RES = 'https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/'
 
 /** Picture from StarRailRes by its table path, e.g. "icon/relic/101_0.png". */

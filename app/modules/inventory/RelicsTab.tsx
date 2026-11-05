@@ -1,34 +1,26 @@
 import { useMemo, useState } from 'react'
-import { Lock, NotebookPen, Trash2 } from 'lucide-react'
+import { NotebookPen } from 'lucide-react'
 import {
-  Badge,
-  Button,
   FilterMenu,
   FilterTags,
   Grid,
   ItemCard,
-  Modal,
-  Rarity,
   SearchInput,
-  SectionTitle,
   Select,
   StatIcon,
-  StatLine,
-  TextArea,
   type FilterOption,
   type FilterState,
 } from '@app/ui'
-import { isNewRelic, setRelicNote, useNotes, useNow, type Inventory } from '@app/lib/inventory'
+import { RelicBadges, RelicModal, RelicStats, RelicWearer } from '@app/components/relic'
+import { isNewRelic, useNotes, useNow, type Inventory } from '@app/lib/inventory'
 import { useProfile } from '@app/lib/profile'
 import {
   RELIC_SLOTS,
-  characterIcon,
   characterName,
-  formatStat,
   resUrl,
+  slotName,
   viewRelic,
   type GameTables,
-  type RelicSlot,
   type RelicView,
   type Stat,
 } from '@app/lib/game-tables'
@@ -222,48 +214,6 @@ function plural(n: number, one: string, few: string, many: string): string {
 }
 
 const slotIndex = (r: RelicView) => RELIC_SLOTS.findIndex((s) => s.id === r.slot)
-const slotName = (slot: RelicSlot) => RELIC_SLOTS.find((s) => s.id === slot)?.name ?? slot
-
-function Stats({ relic, labels }: { relic: RelicView; labels?: boolean }) {
-  const line = (s: Stat, main?: boolean) => (
-    <StatLine
-      key={s.property}
-      icon={s.icon}
-      label={s.name}
-      value={formatStat(s)}
-      rolls={s.rolls ? s.rolls - 1 : 0}
-      main={main}
-      showLabel={labels || main}
-    />
-  )
-  return (
-    <>
-      {relic.main && line(relic.main, true)}
-      <div className={labels ? 'inv-subs' : 'inv-subs inv-subs--grid'}>{relic.subs.map((s) => line(s))}</div>
-    </>
-  )
-}
-
-function Badges({ relic }: { relic: RelicView }) {
-  if (!relic.relic.locked && !relic.relic.discarded) return null
-  return (
-    <>
-      {relic.relic.locked && <Lock size={14} aria-label="Заблокирована" />}
-      {relic.relic.discarded && <Trash2 size={14} className="inv-discarded" aria-label="На разбор" />}
-    </>
-  )
-}
-
-function Wearer({ relic, name }: { relic: RelicView; name: string | null }) {
-  if (relic.relic.equippedBy == null || !name) return <span className="text-dim">Не надета</span>
-  return (
-    <span className="inv-wearer">
-      <img src={characterIcon(relic.relic.equippedBy)} alt="" loading="lazy" />
-      {name}
-    </span>
-  )
-}
-
 function RelicCard({
   relic,
   wearer,
@@ -283,138 +233,20 @@ function RelicCard({
       rarity={relic.rarity}
       title={relic.setName}
       meta={`${slotName(relic.slot)} · +${relic.relic.level}`}
-      badges={<Badges relic={relic} />}
+      badges={<RelicBadges relic={relic} />}
       isNew={isNew}
       onClick={onOpen}
       footer={
         <>
-          <Wearer relic={relic} name={wearer} />
+          <RelicWearer relic={relic} name={wearer} />
           <span className={note ? 'inv-note-mark inv-note-mark--set' : 'inv-note-mark'} title={note ? 'Есть заметка' : 'Добавить заметку'}>
             <NotebookPen size={14} />
           </span>
         </>
       }
     >
-      <Stats relic={relic} />
+      <RelicStats relic={relic} />
       {note && <p className="inv-note-text">{note}</p>}
     </ItemCard>
-  )
-}
-
-function RelicModal({
-  relic,
-  tables,
-  wearer,
-  note,
-  onClose,
-}: {
-  relic: RelicView
-  tables: GameTables
-  wearer: string | null
-  note: string
-  onClose: () => void
-}) {
-  const [text, setText] = useState(note)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const changed = text.trim() !== note
-
-  const save = (value: string) => {
-    if (saving) return
-    setSaving(true)
-    setError(null)
-    setRelicNote(relic.relic.uid, value)
-      .then(onClose)
-      .catch((e) => setError(String(e)))
-      .finally(() => setSaving(false))
-  }
-
-  const bonuses = tables.relicSets[relic.setId]?.desc ?? []
-  const pieces = relic.slot === 'NECK' || relic.slot === 'OBJECT' ? [2] : [2, 4]
-  const stars = Math.min(5, Math.max(1, relic.rarity)) as 1 | 2 | 3 | 4 | 5
-
-  return (
-    <Modal
-      open
-      size="lg"
-      title={relic.setName}
-      subtitle={`${slotName(relic.slot)} · +${relic.relic.level}`}
-      onClose={onClose}
-      footer={
-        <>
-          {note && (
-            <Button variant="danger" className="inv-detail__delete" disabled={saving} onClick={() => save('')}>
-              Удалить заметку
-            </Button>
-          )}
-          <Button variant="secondary" onClick={onClose}>
-            Отмена
-          </Button>
-          <Button variant="primary" disabled={saving || !changed} onClick={() => save(text)}>
-            Сохранить
-          </Button>
-        </>
-      }
-    >
-      <div className="inv-detail">
-        <section className="inv-detail__relic">
-          <div className={`inv-detail__hero ui-card--r${stars}`}>
-            <span className={`inv-detail__tile ui-card__tile ui-card__tile--r${stars}`}>
-              <img src={resUrl(relic.icon)} alt="" />
-            </span>
-            <div className="inv-detail__facts">
-              <Rarity stars={stars} />
-              <Wearer relic={relic} name={wearer} />
-              {(relic.relic.locked || relic.relic.discarded) && (
-                <span className="inv-detail__flags">
-                  {relic.relic.locked && (
-                    <Badge>
-                      <Lock size={11} /> Заблокирована
-                    </Badge>
-                  )}
-                  {relic.relic.discarded && (
-                    <Badge tone="danger">
-                      <Trash2 size={11} /> На разбор
-                    </Badge>
-                  )}
-                </span>
-              )}
-            </div>
-          </div>
-          <Stats relic={relic} labels />
-          {relic.reforge.length > 0 && (
-            <div className="inv-detail__reforge">
-              <Badge tone="warning">Переброс не принят</Badge>
-              {relic.reforge.map((s) => (
-                <StatLine key={s.property} icon={s.icon} label={s.name} value={formatStat(s)} rolls={s.rolls ? s.rolls - 1 : 0} showLabel />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="inv-detail__side">
-          <SectionTitle>Бонусы набора</SectionTitle>
-          {bonuses.map((d, i) => (
-            <div key={i} className="inv-detail__bonus">
-              <Badge tone="gold">{pieces[i]} предмета</Badge>
-              <p>{d}</p>
-            </div>
-          ))}
-
-          <SectionTitle aside={<NotebookPen size={14} />}>Заметка</SectionTitle>
-          <TextArea
-            autoFocus
-            rows={5}
-            maxLength={2000}
-            placeholder="Например: на Ахерон, не продавать; переброс на крит"
-            hint="Ctrl+Enter — сохранить. Заметка остаётся у реликвии после прокачки и переброса."
-            value={text}
-            onChange={setText}
-            onSubmit={() => changed && save(text)}
-          />
-          {error && <p className="inv-error">{error}</p>}
-        </section>
-      </div>
-    </Modal>
   )
 }

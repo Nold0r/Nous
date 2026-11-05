@@ -643,6 +643,12 @@
   gap: var(--space-3);
 }
 
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .ds-pill {
   padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
@@ -1442,4 +1448,442 @@ code {
   font-size: var(--fs-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---------- badge: solid ---------- */
+
+.ui-badge--solid {
+  border-color: transparent;
+}
+
+.ui-badge--solid.ui-badge--gold {
+  background: var(--gold);
+  color: var(--select-text);
+}
+
+.ui-badge--solid.ui-badge--neutral {
+  background: var(--panel-strong);
+  color: var(--text);
+}
+
+.ui-badge--solid.ui-badge--success {
+  background: var(--success);
+  color: var(--select-text);
+}
+
+.ui-badge--solid.ui-badge--danger {
+  background: var(--danger);
+  color: var(--select-text);
+}
+
+/* ---------- modal: head actions, pager ---------- */
+
+.ui-modal__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ui-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+}
+
+.ui-pager__step {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ui-pager__step:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.ui-pager__count {
+  min-width: 40px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---------- hero art (large character art) ---------- */
+
+.ui-hero {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(
+      circle at 50% 38%,
+      color-mix(in srgb, var(--hero-tint, var(--text)) 24%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.25));
+}
+
+.ui-hero--r5 {
+  --hero-tint: var(--rarity-5);
+}
+.ui-hero--r4 {
+  --hero-tint: var(--rarity-4);
+}
+
+.ui-hero__art {
+  position: absolute;
+  inset: 0;
+  animation: ui-hero-in 0.7s var(--ease) both;
+}
+
+.ui-hero__art > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ui-hero__overlay {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+  padding: var(--space-10) var(--space-5) var(--space-5);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+
+@keyframes ui-hero-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-hero__art {
+    animation: none;
+  }
+}
+
+/* ---------- relic orbit (relic screen layout) ---------- */
+
+.ui-orbit {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.ui-orbit__ring {
+  position: absolute;
+  inset: 12%;
+  border: 1px solid rgba(142, 197, 255, 0.28);
+  border-radius: 50%;
+  box-shadow:
+    0 0 24px rgba(142, 197, 255, 0.12),
+    inset 0 0 24px rgba(142, 197, 255, 0.08);
+}
+
+.ui-orbit__ring--inner {
+  inset: 28%;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.ui-orbit__slot {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  transform: translate(-50%, -50%);
+}
+
+button.ui-orbit__slot {
+  cursor: pointer;
+}
+
+.ui-orbit__slot--planar {
+  width: 22%;
+}
+
+/* positions: centre of each disc */
+.ui-orbit__slot--head {
+  left: 23%;
+  top: 17%;
+}
+.ui-orbit__slot--feet {
+  left: 81%;
+  top: 27%;
+}
+.ui-orbit__slot--hands {
+  left: 19%;
+  top: 73%;
+}
+.ui-orbit__slot--body {
+  left: 75%;
+  top: 83%;
+}
+.ui-orbit__slot--rope {
+  left: 44%;
+  top: 39%;
+}
+.ui-orbit__slot--sphere {
+  left: 58%;
+  top: 63%;
+}
+
+.ui-orbit__disc {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid var(--orbit-rarity, var(--line-strong));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 35%,
+    color-mix(in srgb, var(--orbit-rarity, var(--text)) 45%, transparent),
+    rgba(12, 7, 11, 0.85) 75%
+  );
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.ui-orbit__slot--planar .ui-orbit__disc {
+  border-radius: 28%;
+}
+
+.ui-orbit__slot--r5 {
+  --orbit-rarity: var(--rarity-5);
+}
+.ui-orbit__slot--r4 {
+  --orbit-rarity: var(--rarity-4);
+}
+.ui-orbit__slot--r3 {
+  --orbit-rarity: var(--rarity-3);
+}
+
+.ui-orbit__disc img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+}
+
+button.ui-orbit__slot:hover .ui-orbit__disc,
+button.ui-orbit__slot:focus-visible .ui-orbit__disc {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 3px rgba(216, 184, 117, 0.25),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
+button.ui-orbit__slot:focus-visible {
+  box-shadow: none;
+}
+
+.ui-orbit__level {
+  margin-top: -10px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: rgba(12, 7, 11, 0.9);
+  font-size: var(--fs-sm);
+  line-height: 20px;
+}
+
+.ui-orbit__slot--empty .ui-orbit__disc {
+  border: 1px dashed var(--line-strong);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* ---------- set effects ---------- */
+
+.ui-sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ui-sets__set {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ui-sets__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--gold);
+}
+
+.ui-sets__name img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.ui-sets__count {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.ui-sets__bonus {
+  display: flex;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.ui-sets__bonus svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ui-sets__bonus--on {
+  color: var(--success);
+}
+
+.ui-sets__bonus b {
+  font-weight: normal;
+}
+
+/* ---------- rank row (eidolons) ---------- */
+
+.ui-ranks {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ui-ranks__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  cursor: help;
+}
+
+.ui-ranks__item img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: grayscale(1) brightness(0.5);
+}
+
+.ui-ranks__item--on {
+  border-color: var(--gold-dim);
+  background: rgba(216, 184, 117, 0.08);
+  color: var(--gold);
+}
+
+.ui-ranks__item--on img {
+  filter: none;
+}
+
+/* ---------- skill row ---------- */
+
+.ui-skill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--band);
+}
+
+.ui-skill img {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.ui-skill__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-skill__kind {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.ui-skill__name {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-skill__level {
+  font-size: var(--fs-lg);
+  white-space: nowrap;
+}
+
+.ui-skill__bonus {
+  margin-left: 2px;
+  color: var(--success);
+  font-size: var(--fs-sm);
+}
+
+.ui-skill__max {
+  color: var(--text-dim);
+}
+
+/* ---------- stat chip ---------- */
+
+.ui-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.ui-stat-chip b {
+  color: var(--text);
+  font-weight: normal;
+}
+
+.ui-sets__bonus--plain {
+  color: var(--text-muted);
 }

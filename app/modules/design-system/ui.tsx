@@ -10,16 +10,23 @@ import {
   FilterTags,
   GameIcon,
   Grid,
+  HeroArt,
   ItemCard,
   ItemIcon,
   Page,
+  Pager,
   Panel,
   PortraitCard,
   ProgressBar,
+  RankRow,
   Rarity,
+  RelicOrbit,
   SearchInput,
   SectionTitle,
   Select,
+  SetEffects,
+  SkillRow,
+  StatChip,
   StatIcon,
   StatLine,
   StatList,
@@ -88,6 +95,7 @@ export function DesignSystemPage() {
   const [stats, setStats] = useState<FilterState>({ 'crit-rate': 'include', hp: 'exclude' })
   const [search, setSearch] = useState('')
   const [note, setNote] = useState('Не разбирать: на Ахерон')
+  const [page, setPage] = useState(0)
 
   return (
     <Page
@@ -162,6 +170,17 @@ export function DesignSystemPage() {
                 {t}
               </Badge>
             ))}
+          </div>
+          <div className="ds-row">
+            <Badge tone="gold" solid>
+              E2
+            </Badge>
+            <Badge tone="neutral" solid>
+              S5
+            </Badge>
+            <Badge tone="success" solid>
+              solid
+            </Badge>
           </div>
           <div className="ds-row">
             <Rarity stars={5} />
@@ -242,6 +261,54 @@ export function DesignSystemPage() {
           <StatLine icon="IconCriticalChance" label="Крит. шанс" value="9,7%" rolls={2} />
           <StatLine icon="IconCriticalDamage" label="Крит. урон" value="12,9%" rolls={1} />
         </ItemCard>
+      </Grid>
+
+      <SectionTitle aside="HeroArt · RankRow · RelicOrbit · SetEffects · SkillRow · StatChip · Pager">Страница персонажа</SectionTitle>
+      <Grid min={320}>
+        <div className="ds-stack">
+          <HeroArt rarity={5} art={<img src={STAR_RAIL_RES + 'image/character_portrait/1308.png'} alt="" />}>
+            <Rarity stars={5} />
+            <span>HeroArt: рамка большого арта, подпись поверх</span>
+          </HeroArt>
+          <RankRow
+            items={[1, 2, 3, 4, 5, 6].map((n) => ({
+              // E3 and E5 use skill icons in the game; the sample repeats existing ones
+              image: STAR_RAIL_RES + `icon/skill/1308_rank${[1, 2, 4, 6, 1, 2][n - 1]}.png`,
+              label: `E${n}`,
+              active: n <= 2,
+              title: `Эйдолон ${n}`,
+            }))}
+          />
+        </div>
+        <Panel title="RelicOrbit" aside="раскладка как в игре">
+          <RelicOrbit
+            slots={['117_0', '117_1', '117_2', '117_3', '314_0', null].map((icon) =>
+              icon ? { image: STAR_RAIL_RES + `icon/relic/${icon}.png`, rarity: 5, level: '+15', label: icon } : null,
+            )}
+            emptyLabels={['Голова', 'Руки', 'Тело', 'Ноги', 'Сфера', 'Канат']}
+          />
+        </Panel>
+        <div className="ds-stack">
+          <Panel title="SetEffects">
+            <SetEffects
+              sets={[
+                { name: 'Набор (надето 3)', count: 3, bonuses: [{ pieces: 2, text: 'Активный бонус' }, { pieces: 4, text: 'Не хватает предметов' }] },
+              ]}
+            />
+          </Panel>
+          <Panel title="SkillRow · StatChip">
+            <SkillRow icon={STAR_RAIL_RES + 'icon/skill/1308_ultimate.png'} kind="Сверхспособность" name="Рассечённый сон" level={10} bonus={2} max={10} />
+            <div className="ds-row">
+              <StatChip icon="IconAttack" label="Сила атаки" value="+28%" />
+              <StatChip icon="IconCriticalDamage" label="Крит. урон" value="+24%" />
+            </div>
+          </Panel>
+          <Panel title="Pager" aside="←/→ на клавиатуре">
+            <div className="ds-row">
+              <Pager index={page} count={6} onChange={setPage} />
+            </div>
+          </Panel>
+        </div>
       </Grid>
 
       <SectionTitle aside="PortraitCard">Карточка персонажа</SectionTitle>

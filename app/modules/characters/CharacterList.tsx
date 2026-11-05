@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { NotebookPen } from 'lucide-react'
 import {
+  Badge,
   FilterMenu,
   FilterTags,
   Grid,
@@ -168,7 +169,13 @@ export function CharacterList({
                 )}
               </>
             }
-            topRight={c.build.eidolon > 0 && <span className="char-eidolon">E{c.build.eidolon}</span>}
+            topRight={
+              c.build.eidolon > 0 && (
+                <Badge tone="gold" solid>
+                  E{c.build.eidolon}
+                </Badge>
+              )
+            }
             bottom={
               <>
                 <span>Ур. {c.avatar.level}</span>

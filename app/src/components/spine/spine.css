@@ -1,0 +1,31 @@
+/* Animated character art (components/spine): the still picture shows until
+   the animation is ready, then they cross-fade. */
+
+.spine-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spine-art__still,
+.spine-art__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.6s var(--ease);
+}
+
+.spine-art__canvas {
+  opacity: 0;
+}
+
+.spine-art--ready .spine-art__canvas {
+  opacity: 1;
+}
+
+.spine-art--ready .spine-art__still {
+  opacity: 0;
+}

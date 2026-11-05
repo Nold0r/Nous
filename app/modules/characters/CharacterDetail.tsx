@@ -5,20 +5,27 @@ import {
   Badge,
   Button,
   EmptyState,
+  HeroArt,
   ItemCard,
   Page,
   Panel,
+  RankRow,
   Rarity,
+  RelicOrbit,
+  SetEffects,
+  SkillRow,
+  StatChip,
   StatIcon,
-  StatLine,
   StatList,
   StatRow,
   TextArea,
 } from '@app/ui'
+import { RelicModal } from '@app/components/relic'
+import { SpineArt } from '@app/components/spine/SpineArt'
 import { setCharacterNote, useNotes, type Inventory } from '@app/lib/inventory'
 import { useProfile } from '@app/lib/profile'
-import { RELIC_SLOTS, formatStat, resUrl, type CharacterTables, type GameTables, type RelicView } from '@app/lib/game-tables'
-import { formatTotal, maxLevelOf, viewCharacter, type CharacterView } from '@app/lib/characters'
+import { RELIC_SLOTS, formatStat, resUrl, type CharacterTables, type GameTables } from '@app/lib/game-tables'
+import { formatTotal, maxLevelOf, viewCharacter } from '@app/lib/characters'
 
 export function CharacterDetail({
   inventory,
@@ -32,6 +39,8 @@ export function CharacterDetail({
   const navigate = useNavigate()
   const { id } = useParams()
   const profile = useProfile()
+  const notes = useNotes()
+  const [relicIndex, setRelicIndex] = useState<number | null>(null)
   const c = useMemo(
     () => viewCharacter(tables, ct, inventory, Number(id), profile.nickname),
     [tables, ct, inventory, id, profile.nickname],
@@ -53,27 +62,56 @@ export function CharacterDetail({
   }
 
   const stars = Math.min(5, Math.max(1, c.rarity)) as 1 | 2 | 3 | 4 | 5
+  // the dialog pages through the relics actually worn
+  const worn = c.relics.flatMap((r) => (r ? [r] : []))
+  const shown = relicIndex != null ? worn[relicIndex] : undefined
+
   return (
     <Page title={c.name} subtitle={`${c.elementName} · ${c.pathName}`} actions={back}>
-      <div className="char-detail">
-        <section className="char-detail__hero">
-          <div className={`char-portrait char-portrait--r${stars}`}>
-            <img src={resUrl(ct.characterIcons[c.id]?.portrait ?? `image/character_portrait/${c.id}.png`)} alt="" />
-            <div className="char-portrait__info">
-              <Rarity stars={stars} />
-              <span className="char-portrait__level">
-                Ур. {c.avatar.level}
-                <span className="text-dim">/{maxLevelOf(c.avatar.ascension)}</span>
-              </span>
-              {!c.isCurrentPath && <Badge>Путь не выбран в игре</Badge>}
-            </div>
-          </div>
-          <Eidolons c={c} ct={ct} />
-          <CharacterNote id={c.id} />
+      <div className="char-page">
+        <section className="char-page__hero">
+          <HeroArt
+            rarity={stars}
+            art={
+              <SpineArt
+                characterId={c.id}
+                fallback={resUrl(ct.characterIcons[c.id]?.portrait ?? `image/character_portrait/${c.id}.png`)}
+              />
+            }
+          >
+            <Rarity stars={stars} />
+            <span className="char-page__level">
+              Ур. {c.avatar.level}
+              <span className="text-dim">/{maxLevelOf(c.avatar.ascension)}</span>
+            </span>
+            <span className="char-page__tags">
+              {ct.elements[c.element] && (
+                <Badge>
+                  <img className="char-tag-icon" src={resUrl(ct.elements[c.element].icon)} alt="" />
+                  {c.elementName}
+                </Badge>
+              )}
+              {ct.paths[c.path] && (
+                <Badge>
+                  <img className="char-tag-icon" src={resUrl(ct.paths[c.path].icon)} alt="" />
+                  {c.pathName}
+                </Badge>
+              )}
+              {!c.isCurrentPath && <Badge tone="warning">Путь не выбран в игре</Badge>}
+            </span>
+          </HeroArt>
+          <RankRow
+            items={(ct.eidolons[c.id] ?? []).map((e, i) => ({
+              image: resUrl(e.icon),
+              label: `E${i + 1}`,
+              active: i < c.build.eidolon,
+              title: `E${i + 1}. ${e.name}\n\n${e.desc}`,
+            }))}
+          />
         </section>
 
-        <section className="char-detail__column">
-          <Panel title="Характеристики" aside="как в игре, без условных бонусов">
+        <section className="char-page__side">
+          <Panel title="Характеристики" aside="без условных бонусов">
             <StatList>
               {c.stats.map((s) => (
                 <StatRow
@@ -89,7 +127,7 @@ export function CharacterDetail({
                     <>
                       {formatTotal(s)}
                       {s.base != null && s.value - s.base >= 0.5 && (
-                        <span className="char-stat__bonus">+{formatTotal({ ...s, value: s.value - s.base })}</span>
+                        <span className="char-stat-bonus">+{formatTotal({ ...s, value: s.value - s.base })}</span>
                       )}
                     </>
                   }
@@ -98,46 +136,6 @@ export function CharacterDetail({
             </StatList>
           </Panel>
 
-          {c.skills.length > 0 && (
-            <Panel title="Умения">
-              <div className="char-skills">
-                {c.skills.map((s) => (
-                  <div key={s.anchor} className="char-skill" title={s.name}>
-                    <img src={resUrl(s.icon)} alt="" />
-                    <span className="char-skill__text">
-                      <span className="char-skill__type">{s.typeText}</span>
-                      <span className="char-skill__name">{s.name}</span>
-                    </span>
-                    <span className="char-skill__level">
-                      {s.level + s.bonus}
-                      {s.bonus > 0 && <span className="char-stat__bonus" title="от эйдолонов">+{s.bonus}</span>}
-                      <span className="text-dim">/{s.maxLevel + (s.bonus > 0 ? s.bonus : 0)}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          )}
-
-          {c.traceBonuses.length > 0 && (
-            <Panel title="Бонусы следов">
-              <div className="char-traces">
-                {c.traceBonuses.map((p) => {
-                  const prop = tables.properties[p.type]
-                  return (
-                    <span key={p.type} className="char-trace" title={prop?.name}>
-                      <StatIcon icon={prop?.icon ?? ''} size={16} />
-                      {prop?.name ?? p.type}
-                      <b>+{formatStat({ property: p.type, name: '', icon: '', value: p.value, percent: prop?.percent ?? false })}</b>
-                    </span>
-                  )
-                })}
-              </div>
-            </Panel>
-          )}
-        </section>
-
-        <section className="char-detail__column">
           {c.lightCone ? (
             <ItemCard
               image={resUrl(c.lightCone.icon)}
@@ -148,55 +146,79 @@ export function CharacterDetail({
               footer={c.lightCone.skill && <span className="text-gold">{c.lightCone.skill}</span>}
             />
           ) : (
-            <div className="char-empty-slot">Световой конус не надет</div>
+            <EmptyState title="Световой конус не надет" />
           )}
-
-          <Panel
-            title="Реликвии"
-            aside={c.sets.flatMap((s) => (s.active.length ? [`${s.name} ×${s.count}`] : [])).join(' · ') || undefined}
-          >
-            <div className="char-relics">
-              {c.relics.map((r, i) => (r ? <RelicMini key={i} relic={r} /> : <div key={i} className="char-empty-slot">{RELIC_SLOTS[i].name}: пусто</div>))}
-            </div>
-            {c.sets.some((s) => s.active.length) && (
-              <div className="char-sets">
-                {c.sets
-                  .filter((s) => s.active.length)
-                  .map((s) => (
-                    <div key={s.setId} className="char-set">
-                      <img src={resUrl(s.icon)} alt="" />
-                      <span className="char-set__name">{s.name}</span>
-                      {s.active.map((n) => (
-                        <Badge key={n} tone="gold">
-                          {n} предмета
-                        </Badge>
-                      ))}
-                    </div>
-                  ))}
-              </div>
-            )}
-          </Panel>
         </section>
       </div>
-    </Page>
-  )
-}
 
-function Eidolons({ c, ct }: { c: CharacterView; ct: CharacterTables }) {
-  const list = ct.eidolons[c.id] ?? []
-  return (
-    <div className="char-eidolons" aria-label={`Эйдолоны: ${c.build.eidolon} из 6`}>
-      {list.map((e, i) => (
-        <span
-          key={i}
-          className={`char-eidolons__item${i < c.build.eidolon ? ' char-eidolons__item--on' : ''}`}
-          title={`E${i + 1}. ${e.name}\n\n${e.desc}`}
-        >
-          <img src={resUrl(e.icon)} alt="" />
-          <span>E{i + 1}</span>
-        </span>
-      ))}
-    </div>
+      <Panel title="Реликвии" aside="нажмите на реликвию, чтобы увидеть характеристики">
+        <div className="char-relics">
+          <RelicOrbit
+            slots={c.relics.map((r) =>
+              r ? { image: resUrl(r.icon), rarity: r.rarity, level: `+${r.relic.level}`, label: `${r.setName}, +${r.relic.level}` } : null,
+            )}
+            emptyLabels={RELIC_SLOTS.map((s) => s.name)}
+            onSelect={(slot) => setRelicIndex(worn.indexOf(c.relics[slot]!))}
+          />
+          {c.sets.length > 0 ? (
+            <SetEffects
+              sets={c.sets.map((s) => {
+                const desc = tables.relicSets[s.setId]?.desc ?? []
+                const planar = desc.length === 1
+                return {
+                  name: s.name,
+                  icon: s.icon ? resUrl(s.icon) : undefined,
+                  count: s.count,
+                  bonuses: desc.map((text, i) => ({ pieces: planar ? 2 : (i + 1) * 2, text })),
+                }
+              })}
+            />
+          ) : (
+            <EmptyState title="Реликвии не надеты" />
+          )}
+        </div>
+      </Panel>
+
+      <div className="char-page__bottom">
+        {c.skills.length > 0 && (
+          <Panel title="Умения">
+            <div className="char-stack">
+              {c.skills.map((s) => (
+                <SkillRow key={s.anchor} icon={resUrl(s.icon)} kind={s.typeText} name={s.name} level={s.level} bonus={s.bonus} max={s.maxLevel} />
+              ))}
+            </div>
+          </Panel>
+        )}
+
+        <div className="char-stack">
+          {c.traceBonuses.length > 0 && (
+            <Panel title="Бонусы следов">
+              <div className="char-chips">
+                {c.traceBonuses.map((p) => {
+                  const prop = tables.properties[p.type]
+                  const value = formatStat({ property: p.type, name: '', icon: '', value: p.value, percent: prop?.percent ?? false })
+                  return <StatChip key={p.type} icon={prop?.icon ?? ''} label={prop?.name ?? p.type} value={`+${value}`} />
+                })}
+              </div>
+            </Panel>
+          )}
+          <Panel title="Заметка">
+            <CharacterNote id={c.id} />
+          </Panel>
+        </div>
+      </div>
+
+      {shown && (
+        <RelicModal
+          relic={shown}
+          tables={tables}
+          wearer={c.name}
+          note={notes?.relics[shown.relic.uid]?.text ?? ''}
+          pager={{ index: relicIndex!, count: worn.length, onChange: setRelicIndex }}
+          onClose={() => setRelicIndex(null)}
+        />
+      )}
+    </Page>
   )
 }
 
@@ -216,9 +238,8 @@ function CharacterNote({ id }: { id: number }) {
   }
 
   return (
-    <div className="char-note">
+    <div className="char-stack">
       <TextArea
-        label="Заметка"
         rows={4}
         maxLength={2000}
         placeholder="Например: нужен E2 и сфера на электро; фармить «Вор падающего метеора»"
@@ -228,7 +249,7 @@ function CharacterNote({ id }: { id: number }) {
         onSubmit={() => changed && save(value)}
       />
       {(changed || saved) && (
-        <div className="char-note__actions">
+        <div className="char-note-actions">
           {saved && (
             <Button variant="danger" size="sm" onClick={() => save('')}>
               Удалить
@@ -251,21 +272,3 @@ function CharacterNote({ id }: { id: number }) {
   )
 }
 
-function RelicMini({ relic }: { relic: RelicView }) {
-  return (
-    <ItemCard
-      image={resUrl(relic.icon)}
-      rarity={relic.rarity}
-      title={relic.setName}
-      meta={`+${relic.relic.level}`}
-      badges={relic.relic.locked && <Lock size={12} aria-label="Заблокирована" />}
-    >
-      {relic.main && <StatLine icon={relic.main.icon} label={relic.main.name} value={formatStat(relic.main)} main showLabel />}
-      <div className="char-relic-subs">
-        {relic.subs.map((s) => (
-          <StatLine key={s.property} icon={s.icon} label={s.name} value={formatStat(s)} rolls={s.rolls ? s.rolls - 1 : 0} />
-        ))}
-      </div>
-    </ItemCard>
-  )
-}

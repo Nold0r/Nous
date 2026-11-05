@@ -1,0 +1,118 @@
+/* Relic pieces and the relic dialog, shared by the inventory and characters
+   screens (components/relic). */
+
+.relic-subs {
+  display: flex;
+  flex-direction: column;
+}
+
+/* cards: substats in two columns, icon + value */
+.relic-subs--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-1);
+}
+
+.relic-discarded {
+  color: var(--danger);
+}
+
+.relic-wearer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--gold);
+}
+
+.relic-wearer img {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--panel-strong);
+  object-fit: cover;
+}
+
+.relic-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- dialog ---------- */
+
+.relic-modal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 760px) {
+  .relic-modal {
+    grid-template-columns: 1fr;
+  }
+}
+
+.relic-modal__relic,
+.relic-modal__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* picture on a rarity glow, like the game's relic screen */
+.relic-modal__hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: radial-gradient(
+    120% 140% at 0% 0%,
+    color-mix(in srgb, var(--card-rarity, var(--line-strong)) 28%, transparent),
+    transparent 60%
+  );
+}
+
+.relic-modal__tile {
+  width: 96px;
+  height: 96px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.relic-modal__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.relic-modal__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.relic-modal__reforge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: var(--space-2);
+  border: 1px dashed rgba(240, 195, 109, 0.35);
+  border-radius: var(--radius);
+}
+
+.relic-modal__reforge .ui-statline {
+  align-self: stretch;
+}
+
+/* the destructive action stands apart, on the left */
+.relic-modal__delete {
+  margin-right: auto;
+}

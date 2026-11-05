@@ -12,6 +12,7 @@ export function Modal({
   title,
   subtitle,
   size = 'md',
+  actions,
   onClose,
   footer,
   children,
@@ -22,6 +23,8 @@ export function Modal({
   subtitle?: ReactNode
   /** md: text dialogs; lg: wide, for two-column content (item details). */
   size?: 'md' | 'lg'
+  /** Head row, left of the close button, e.g. a Pager. */
+  actions?: ReactNode
   onClose: () => void
   /** Bottom row, e.g. actions. */
   footer?: ReactNode
@@ -43,6 +46,7 @@ export function Modal({
             <span className="ui-modal__title">{title}</span>
             {subtitle && <span className="ui-modal__subtitle">{subtitle}</span>}
           </span>
+          {actions && <span className="ui-modal__actions">{actions}</span>}
           <button type="button" className="ui-modal__close" onClick={onClose} aria-label="Закрыть">
             <X size={18} />
           </button>
