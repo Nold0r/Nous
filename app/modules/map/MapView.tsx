@@ -76,7 +76,21 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View | null>(null)
   const [follow, setFollow] = useState(true)
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [failed, setFailed] = useState<string | null>(null)
+  // The previous floor's roads stay under the new ones until these fade in.
+  // Load states reset while rendering, not in an effect: an effect ran after
+  // cached pictures had loaded and left "loading" up for good. They are per
+  // showing, so a picture seen before fades in again.
+  const [roads, setRoads] = useState({ map, file: layer.file })
+  const [under, setUnder] = useState<string | null>(null)
+  const [ready, setReady] = useState<string | null>(null)
+  const [bgReady, setBgReady] = useState<string | null>(null)
+  if (roads.file !== layer.file || roads.map !== map) {
+    setRoads({ map, file: layer.file })
+    setUnder(roads.map === map && ready === roads.file ? roads.file : null)
+    setReady(null)
+    if (roads.map !== map) setBgReady(null)
+  }
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
 
   const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
@@ -106,8 +120,6 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
     setView(null)
     setFollow(true)
   }, [map])
-
-  useEffect(() => setState('loading'), [layer.file])
 
   // first view: on the player, else the whole map
   const hasPlayer = !!at
@@ -173,14 +185,31 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
           style={{ width: map.width, height: map.height, transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.zoom})` }}
         >
           {/* the game's way: the background, then the roads of the floor */}
-          {map.background && <img src={mapUrl(map.background)} alt="" draggable={false} />}
+          {map.background && (
+            <img
+              key={map.background}
+              src={mapUrl(map.background)}
+              alt=""
+              draggable={false}
+              className={bgReady === map.background ? 'is-ready' : undefined}
+              onLoad={() => setBgReady(map.background)}
+            />
+          )}
+          {under && under !== layer.file && (
+            <img key={under} src={mapUrl(under)} alt="" draggable={false} className="is-under" />
+          )}
           <img
             key={layer.file}
             src={mapUrl(layer.file)}
             alt=""
             draggable={false}
-            onLoad={() => setState('ready')}
-            onError={() => setState('error')}
+            className={ready === layer.file ? 'is-ready' : undefined}
+            onLoad={() => setReady(layer.file)}
+            onError={() => {
+              setFailed(layer.file)
+              setUnder(null)
+            }}
+            onAnimationEnd={() => setUnder(null)}
           />
         </div>
       )}
@@ -201,9 +230,9 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
         </div>
       )}
 
-      {state !== 'ready' && (
+      {ready !== layer.file && !under && (
         <div className="map-view__status">
-          {state === 'loading' ? 'Загрузка карты…' : 'Не удалось загрузить карту'}
+          {failed === layer.file ? 'Не удалось загрузить карту' : 'Загрузка карты…'}
         </div>
       )}
 
