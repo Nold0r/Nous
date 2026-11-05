@@ -1,20 +1,23 @@
 /* Animated character art (components/spine): the still picture shows until
-   the animation is ready, then they cross-fade. */
+   the animation is ready, then they cross-fade. Both are framed around the
+   art's centre point: --art-w is the art width in frame widths, --art-x and
+   --art-y the centre as a fraction of the art (cqw: frame width). */
 
 .spine-art {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: size;
 }
 
 .spine-art__still,
 .spine-art__canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  left: calc(50% - var(--art-x) * var(--art-w) * 100cqw);
+  top: calc(50% - var(--art-y) * var(--art-w) * 100cqw);
+  width: calc(var(--art-w) * 100cqw);
+  height: calc(var(--art-w) * 100cqw);
+  max-width: none;
   transition: opacity 0.6s var(--ease);
 }
 

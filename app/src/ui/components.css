@@ -1523,7 +1523,8 @@ code {
 
 .ui-hero {
   position: relative;
-  aspect-ratio: 4 / 5;
+  /* the portrait frame of HSR Optimizer's showcase (422 × 722) */
+  aspect-ratio: 422 / 722;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
