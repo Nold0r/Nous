@@ -1188,6 +1188,64 @@ code {
   transform: rotate(45deg);
 }
 
+/* ---------- rarity: one look for every card ----------
+   ui-r5/4/3 sets --rarity; ui-edge-top/-bottom draws the rarity line along
+   that edge, fading out to the sides (border-image: always meets the edge,
+   whole device pixels at any display scale; clip-path rounds the corners,
+   line included, so these cards have no other outline); ui-rarity-tile is
+   the background under a picture; ui-lift is the hover of a clickable card. */
+
+.ui-r5 {
+  --rarity: var(--rarity-5);
+}
+.ui-r4 {
+  --rarity: var(--rarity-4);
+}
+.ui-r3 {
+  --rarity: var(--rarity-3);
+}
+
+.ui-edge-top,
+.ui-edge-bottom {
+  border: 0 solid transparent;
+  border-image: linear-gradient(90deg, transparent, var(--rarity, var(--line-strong)) 50%, transparent) 1;
+  clip-path: inset(0 round var(--radius-lg));
+}
+
+.ui-edge-top {
+  border-top-width: 2px;
+}
+
+.ui-edge-bottom {
+  border-bottom-width: 3px;
+}
+
+.ui-rarity-tile {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--rarity, rgba(255, 255, 255, 0.2)) 50%, transparent),
+    rgba(255, 255, 255, 0.02)
+  );
+}
+
+.ui-lift {
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    filter var(--dur-fast) var(--ease);
+}
+
+.ui-lift:hover {
+  transform: translateY(-2px);
+}
+
+.ui-lift:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--gold-dim);
+  outline-offset: 3px;
+}
+
 /* ---------- item card ---------- */
 
 .ui-card {
@@ -1196,48 +1254,13 @@ code {
   gap: var(--space-3);
   padding: var(--space-3);
   overflow: hidden;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   color: var(--text);
   text-align: left;
 }
 
-/* rarity line inside the top edge, fading out to the sides; the card's
-   own 1px outline stays closed around it. Its thickness is a border width
-   (not a height): borders snap to whole device pixels, so every card gets
-   the same line at any display scale. */
-.ui-card::after {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  inset: 0 0 auto;
-  height: 0;
-  border-top: 2px solid transparent;
-  background: linear-gradient(90deg, transparent, var(--card-rarity, var(--line-strong)) 50%, transparent) border-box;
-}
-
-.ui-card--r5 {
-  --card-rarity: var(--rarity-5);
-}
-.ui-card--r4 {
-  --card-rarity: var(--rarity-4);
-}
-.ui-card--r3 {
-  --card-rarity: var(--rarity-3);
-}
-
-.ui-card--interactive {
-  cursor: pointer;
-  transition:
-    border-color var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease),
-    background-color var(--dur-fast) var(--ease);
-}
-
-.ui-card--interactive:hover {
-  border-color: var(--line-strong);
+.ui-card.ui-lift:hover {
   background-color: var(--hover);
-  transform: translateY(-2px);
 }
 
 .ui-card__head {
@@ -1254,17 +1277,6 @@ code {
   height: 56px;
   flex-shrink: 0;
   border-radius: var(--radius);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-}
-
-.ui-card__tile--r5 {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--rarity-5) 50%, transparent), rgba(255, 255, 255, 0.02));
-}
-.ui-card__tile--r4 {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--rarity-4) 50%, transparent), rgba(255, 255, 255, 0.02));
-}
-.ui-card__tile--r3 {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--rarity-3) 50%, transparent), rgba(255, 255, 255, 0.02));
 }
 
 .ui-card__tile img {
@@ -1301,16 +1313,16 @@ code {
   color: var(--text-dim);
 }
 
-/* recently obtained: gold edge, glow that settles after arriving */
+/* recently obtained: a gold wash from the top that flares as it arrives
+   (an outer glow would be cut by the rounded clip) */
 .ui-card--new {
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 22px rgba(216, 184, 117, 0.16);
+  background-image: linear-gradient(180deg, rgba(216, 184, 117, 0.16), transparent 55%);
   animation: ui-card-arrive 1.2s var(--ease);
 }
 
 @keyframes ui-card-arrive {
   from {
-    box-shadow: 0 0 40px rgba(216, 184, 117, 0.55);
+    filter: brightness(1.6);
     transform: scale(0.97);
   }
 }
@@ -1361,49 +1373,7 @@ code {
   cursor: pointer;
 }
 
-.ui-portrait__frame {
-  position: relative;
-  display: block;
-  aspect-ratio: 1;
-  margin-bottom: var(--space-2);
-  overflow: hidden;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-  transition:
-    filter var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
-}
-
-/* rarity line: the frame's own bottom edge (no other outline, as in the
-   game's character list), fading out to the sides. Being the frame's
-   border it always meets the edge exactly and snaps to whole pixels.
-   border-image ignores border-radius, so clip-path rounds the whole frame,
-   line included. */
-.ui-portrait__frame {
-  border-bottom: 3px solid transparent;
-  border-image: linear-gradient(90deg, transparent, var(--portrait-rarity, var(--line-strong)) 50%, transparent) 1;
-  clip-path: inset(0 round var(--radius-lg));
-}
-
-.ui-portrait__frame--r5 {
-  --portrait-rarity: var(--rarity-5);
-  background: linear-gradient(170deg, color-mix(in srgb, var(--rarity-5) 42%, transparent), rgba(255, 255, 255, 0.02) 75%);
-}
-.ui-portrait__frame--r4 {
-  --portrait-rarity: var(--rarity-4);
-  background: linear-gradient(170deg, color-mix(in srgb, var(--rarity-4) 42%, transparent), rgba(255, 255, 255, 0.02) 75%);
-}
-
-.ui-portrait__frame > img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
-}
-
-.ui-portrait--interactive:hover .ui-portrait__frame,
-.ui-portrait--interactive:focus-visible .ui-portrait__frame {
+.ui-portrait--interactive:hover .ui-portrait__frame {
   transform: translateY(-2px);
   filter: brightness(1.08);
 }
@@ -1415,6 +1385,24 @@ code {
   border-radius: var(--radius-lg);
 }
 
+.ui-portrait__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  margin-bottom: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  transition:
+    filter var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.ui-portrait__frame > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
 
 .ui-portrait--dimmed .ui-portrait__frame > img {
   opacity: 0.55;
@@ -1540,23 +1528,17 @@ code {
   /* the portrait frame of HSR Optimizer's showcase (422 × 722) */
   aspect-ratio: 422 / 722;
   overflow: hidden;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background:
     radial-gradient(
       circle at 50% 38%,
-      color-mix(in srgb, var(--hero-tint, var(--text)) 24%, transparent),
+      color-mix(in srgb, var(--rarity, var(--text)) 24%, transparent),
       transparent 62%
     ),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.25));
 }
 
-.ui-hero--r5 {
-  --hero-tint: var(--rarity-5);
-}
-.ui-hero--r4 {
-  --hero-tint: var(--rarity-4);
-}
+
 
 .ui-hero__art {
   position: absolute;
@@ -1914,4 +1896,35 @@ button.ui-orbit__slot:focus-visible {
 
 .ui-link:hover {
   border-bottom-color: var(--gold);
+}
+
+/* ---------- item tile (materials, consumables) ---------- */
+
+.ui-item-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) var(--space-1) var(--space-1);
+  border-radius: var(--radius-lg);
+}
+
+.ui-item-tile img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.ui-item-tile__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-item-tile__name {
+  width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

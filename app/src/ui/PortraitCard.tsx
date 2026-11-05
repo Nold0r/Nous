@@ -33,7 +33,7 @@ export function PortraitCard({
   const r = Math.min(5, Math.max(1, rarity))
   const content = (
     <>
-      <span className={`ui-portrait__frame ui-portrait__frame--r${r}`}>
+      <span className={`ui-portrait__frame ui-rarity-tile ui-edge-bottom ui-r${r}`}>
         <img src={image} alt="" draggable={false} loading="lazy" />
         {topLeft && <span className="ui-portrait__corner ui-portrait__corner--left">{topLeft}</span>}
         {topRight && <span className="ui-portrait__corner ui-portrait__corner--right">{topRight}</span>}

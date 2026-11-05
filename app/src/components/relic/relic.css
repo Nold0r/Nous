@@ -70,11 +70,10 @@
   gap: var(--space-4);
   padding: var(--space-4);
   overflow: hidden;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: radial-gradient(
     120% 140% at 0% 0%,
-    color-mix(in srgb, var(--card-rarity, var(--line-strong)) 28%, transparent),
+    color-mix(in srgb, var(--rarity, var(--line-strong)) 28%, transparent),
     transparent 60%
   );
 }

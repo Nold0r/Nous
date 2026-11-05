@@ -1,4 +1,4 @@
-import { Panel } from '@app/ui'
+import { ItemTile, Panel } from '@app/ui'
 import type { Inventory, Material } from '@app/lib/inventory'
 import { resUrl, type GameTables } from '@app/lib/game-tables'
 import { formatNumber } from '@app/lib/format'
@@ -36,11 +36,13 @@ export function MaterialsTab({ inventory, tables }: { inventory: Inventory; tabl
                   const def = tables.items[m.tid]
                   const name = def?.name ?? `Предмет ${m.tid}`
                   return (
-                    <div key={m.tid} className={`inv-item ui-card__tile--r${def?.rarity ?? 1}`} title={name}>
-                      <img src={resUrl(def?.icon ?? `icon/item/${m.tid}.png`)} alt="" draggable={false} />
-                      <span className="inv-item__count">{formatNumber(m.count, { compact: true })}</span>
-                      <span className="inv-item__name">{name}</span>
-                    </div>
+                    <ItemTile
+                      key={m.tid}
+                      image={resUrl(def?.icon ?? `icon/item/${m.tid}.png`)}
+                      rarity={def?.rarity ?? 1}
+                      count={formatNumber(m.count, { compact: true })}
+                      name={name}
+                    />
                   )
                 })}
             </div>

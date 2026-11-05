@@ -17,6 +17,7 @@ import {
   HeroArt,
   ItemCard,
   ItemIcon,
+  ItemTile,
   Page,
   Pager,
   Panel,
@@ -355,6 +356,20 @@ export function DesignSystemPage() {
           </span>
         </div>
       </div>
+
+      <SectionTitle aside="ItemTile · ui-r5/4/3 · ui-edge-top/-bottom · ui-rarity-tile · ui-lift">Плитки предметов</SectionTitle>
+      <div className="ds-row">
+        {[5, 4, 3, 2].map((r) => (
+          <div key={r} style={{ width: 96 }}>
+            <ItemTile image={STAR_RAIL_RES + 'icon/item/238.png'} rarity={r} count="1 024" name={`Редкость ${r}`} />
+          </div>
+        ))}
+      </div>
+      <span className="text-muted">
+        У всех карточек одна редкость: цвет из ui-r5/4/3, полоса вдоль края (сверху у ItemCard, снизу у PortraitCard, HeroArt
+        и ItemTile) с затуханием к бокам, фон под картинкой ui-rarity-tile, скругление var(--radius-lg) без отдельной рамки,
+        наведение ui-lift.
+      </span>
 
       <SectionTitle aside="PortraitCard">Карточка персонажа</SectionTitle>
       <Grid min={150}>

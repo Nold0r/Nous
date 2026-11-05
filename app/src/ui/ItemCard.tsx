@@ -35,7 +35,7 @@ export function ItemCard({
   const content = (
     <>
       <div className="ui-card__head">
-        <span className={`ui-card__tile ui-card__tile--r${r}`}>
+        <span className={`ui-card__tile ui-rarity-tile`}>
           <img src={image} alt="" draggable={false} loading="lazy" />
         </span>
         <span className="ui-card__titles">
@@ -53,7 +53,7 @@ export function ItemCard({
       {footer && <div className="ui-card__footer">{footer}</div>}
     </>
   )
-  const cls = `ui-card acrylic ui-card--r${r}${onClick ? ' ui-card--interactive' : ''}${isNew ? ' ui-card--new' : ''}`
+  const cls = `ui-card acrylic ui-edge-top ui-r${r}${onClick ? ' ui-lift' : ''}${isNew ? ' ui-card--new' : ''}`
   return onClick ? (
     <button type="button" className={cls} onClick={onClick}>
       {content}
