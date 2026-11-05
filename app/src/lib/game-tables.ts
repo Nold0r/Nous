@@ -70,6 +70,24 @@ export const RELIC_SLOTS: { id: RelicSlot; name: string }[] = [
   { id: 'OBJECT', name: 'Канат' },
 ]
 
+/** Main stats a relic in this slot can roll, from the game tables (properties, e.g. "HPDelta"). */
+export function slotMainStats(t: GameTables, slot: RelicSlot): Set<string> {
+  const groups = new Set(Object.values(t.relics).filter((r) => r.slot === slot).map((r) => r.mainGroup))
+  return new Set([...groups].flatMap((g) => Object.values(t.mainAffixes[g] ?? {}).map((a) => a.property)))
+}
+
+/**
+ * Substats a relic in this slot can roll: every substat except a main stat
+ * the slot always has (head: flat HP, hands: flat ATK) — a substat never
+ * repeats the main stat.
+ */
+export function slotSubStats(t: GameTables, slot: RelicSlot): Set<string> {
+  const all = new Set(Object.values(t.subAffixes).flatMap((g) => Object.values(g).map((a) => a.property)))
+  const main = slotMainStats(t, slot)
+  if (main.size === 1) all.delete([...main][0])
+  return all
+}
+
 /** "Голова", "Сфера"… */
 export const slotName = (slot: RelicSlot) => RELIC_SLOTS.find((s) => s.id === slot)?.name ?? slot
 

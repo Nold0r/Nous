@@ -18,7 +18,9 @@ import {
   RELIC_SLOTS,
   characterName,
   resUrl,
+  slotMainStats,
   slotName,
+  slotSubStats,
   viewRelic,
   type GameTables,
   type RelicView,
@@ -82,6 +84,15 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
     [inventory.relics, tables],
   )
 
+  // stats the chosen slots can have (all slots when none is chosen), from the game tables
+  const possible = useMemo(() => {
+    const slots = RELIC_SLOTS.map((x) => x.id).filter((id) => passOne(filters.slot, id))
+    return {
+      main: new Set(slots.flatMap((id) => [...slotMainStats(tables, id)])),
+      sub: new Set(slots.flatMap((id) => [...slotSubStats(tables, id)])),
+    }
+  }, [filters.slot, tables])
+
   const options = useMemo(() => {
     const setIds = [...new Set(relics.map((r) => r.setId))]
     return {
@@ -93,11 +104,11 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
           icon: tables.relicSets[id] && <img className="inv-set-icon" src={resUrl(tables.relicSets[id].icon)} alt="" />,
         }))
         .sort((a, b) => a.label.localeCompare(b.label, 'ru')),
-      main: statOptions(relics.flatMap((r) => r.main ?? [])),
-      sub: statOptions(relics.flatMap((r) => r.subs)),
+      main: statOptions(relics.flatMap((r) => r.main ?? []).filter((st) => possible.main.has(st.property))),
+      sub: statOptions(relics.flatMap((r) => r.subs).filter((st) => possible.sub.has(st.property))),
       status: STATUS,
     }
-  }, [relics, tables])
+  }, [relics, tables, possible])
 
   const groups = (
     [
@@ -113,8 +124,17 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
     tag,
     options: options[key],
     value: filters[key],
-    onChange: (v: FilterState) => setFilters((f) => ({ ...f, [key]: v })),
+    onChange: (v: FilterState) => setFilters((f) => (key === 'slot' ? dropImpossible({ ...f, slot: v }) : { ...f, [key]: v })),
   }))
+
+  // a slot change drops chosen stats that slot can't have, so no tag filters out everything
+  function dropImpossible(f: Filters): Filters {
+    const slots = RELIC_SLOTS.map((x) => x.id).filter((id) => passOne(f.slot, id))
+    const main = new Set(slots.flatMap((id) => [...slotMainStats(tables, id)]))
+    const sub = new Set(slots.flatMap((id) => [...slotSubStats(tables, id)]))
+    const keep = (state: FilterState, ok: Set<string>) => Object.fromEntries(Object.entries(state).filter(([k]) => ok.has(k)))
+    return { ...f, main: keep(f.main, main), sub: keep(f.sub, sub) }
+  }
 
   const noteOf = (uid: number) => notes?.relics[uid]?.text ?? ''
   const isNew = (r: RelicView) => isNewRelic(r.relic, inventory, now)
