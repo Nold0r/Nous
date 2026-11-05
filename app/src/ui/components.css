@@ -1202,14 +1202,10 @@ code {
   text-align: left;
 }
 
-/* rarity glow along the top edge (::before is the acrylic grain) */
-.ui-card::after {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--card-rarity, var(--line-strong)), transparent);
+/* rarity line along the top edge: a border, so every card gets the same
+   whole-pixel thickness and the same rounded ends at any display scale */
+.ui-card {
+  border-top: 2px solid var(--card-rarity, var(--line-strong));
 }
 
 .ui-card--r5 {
@@ -1232,6 +1228,7 @@ code {
 
 .ui-card--interactive:hover {
   border-color: var(--line-strong);
+  border-top-color: var(--card-rarity, var(--line-strong));
   background-color: var(--hover);
   transform: translateY(-2px);
 }
@@ -1300,6 +1297,7 @@ code {
 /* recently obtained: gold edge, glow that settles after arriving */
 .ui-card--new {
   border-color: var(--gold-dim);
+  border-top-color: var(--card-rarity, var(--gold));
   box-shadow: 0 0 22px rgba(216, 184, 117, 0.16);
   animation: ui-card-arrive 1.2s var(--ease);
 }
