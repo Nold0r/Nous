@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react'
 import { Grid, ItemCard, Select } from '@app/ui'
 import type { Inventory } from '@app/lib/inventory'
 import { useProfile } from '@app/lib/profile'
+import '@app/components/relic/relic.css'
 import { characterIcon, characterName, resUrl, type GameTables } from '@app/lib/game-tables'
 
 const RARITIES = [
@@ -40,7 +41,7 @@ export function LightConesTab({ inventory, tables }: { inventory: Inventory; tab
             badges={cone.locked && <Lock size={14} aria-label="Заблокирован" />}
             footer={
               cone.equippedBy != null ? (
-                <span className="inv-wearer">
+                <span className="relic-wearer">
                   <img src={characterIcon(cone.equippedBy)} alt="" loading="lazy" />
                   {characterName(tables, cone.equippedBy, profile.nickname)}
                 </span>
