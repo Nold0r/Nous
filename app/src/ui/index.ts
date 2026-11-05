@@ -5,6 +5,7 @@
 export { Badge, type Tone } from './Badge'
 export { Button } from './Button'
 export { EmptyState } from './EmptyState'
+export { ExternalLink } from './ExternalLink'
 export { FilterMenu, FilterTags, type FilterMode, type FilterOption, type FilterState } from './FilterMenu'
 export { GameIcon, type IconSource } from './GameIcon'
 export { Grid } from './Grid'

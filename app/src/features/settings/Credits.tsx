@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { isTauri } from '@tauri-apps/api/core'
-import { openUrl } from '@tauri-apps/plugin-opener'
-import { Button, Modal, Panel } from '../../ui'
+import { ExternalLink, Modal, Panel } from '../../ui'
 
 // Who owns what Nous shows, and the licenses of what it is built with.
 // HoYoverse's fan content guide asks fan works to carry the copyright
@@ -9,39 +7,29 @@ import { Button, Modal, Panel } from '../../ui'
 // texts to ship with the app (public/licenses).
 // Docs: docs/Архитектура/Модуль персонажей.md
 
-const open = (url: string) => (isTauri() ? openUrl(url).catch(console.error) : window.open(url, '_blank'))
-
-const CREDITS: { title: string; text: string; url?: string; license?: string }[] = [
+const CREDITS: { title: string; url: string; text: string; license?: string }[] = [
   {
     title: 'Honkai: Star Rail',
-    text: 'Игра, персонажи, арты, иконки, шрифт и другие игровые материалы © HoYoverse. All rights reserved by miHoYo. Используются по правилам фан-творчества Honkai: Star Rail для некоммерческой фанатской программы.',
     url: 'https://hsr.hoyoverse.com/en-us/news/111203?type=news',
+    text: 'игра, арты, иконки, шрифт © HoYoverse. All rights reserved by miHoYo',
   },
+  { title: 'StarRailRes', url: 'https://github.com/Mar-7th/StarRailRes', text: 'таблицы игры и картинки' },
   {
-    title: 'StarRailRes',
-    text: 'Таблицы игры (названия, характеристики, следы, эйдолоны) и картинки персонажей, реликвий, конусов и предметов.',
-    url: 'https://github.com/Mar-7th/StarRailRes',
-  },
-  {
-    title: 'HSR Optimizer (Fribbels)',
-    text: 'Анимированные арты персонажей и их кадрирование; движок анимации Nous основан на их коде. Лицензия MIT.',
+    title: 'HSR Optimizer',
     url: 'https://github.com/fribbels/hsr-optimizer',
+    text: 'анимированные арты и их кадр, MIT',
     license: 'hsr-optimizer.txt',
   },
   {
     title: 'Spine Runtimes',
-    text: 'Проигрывание анимированных артов. © Esoteric Software, Spine Runtimes License.',
     url: 'http://esotericsoftware.com',
+    text: 'проигрывание анимаций © Esoteric Software',
     license: 'spine-runtimes.txt',
   },
-  {
-    title: 'reliquary',
-    text: 'Разбор сетевого протокола игры для чтения данных аккаунта.',
-    url: 'https://github.com/IceDynamix/reliquary',
-  },
+  { title: 'reliquary', url: 'https://github.com/IceDynamix/reliquary', text: 'разбор протокола игры' },
 ]
 
-/** "Правообладатели" in Settings: the notices and licenses. */
+/** "Правообладатели" in Settings: the notices and licenses, one line each. */
 export function Credits() {
   const [license, setLicense] = useState<{ title: string; text: string } | null>(null)
 
@@ -53,31 +41,20 @@ export function Credits() {
 
   return (
     <Panel title="Правообладатели">
-      <p className="credits-lead">
-        Nous — фанатская программа. Она не связана с HoYoverse, не одобрена и не поддерживается ею.
-      </p>
-      <div className="credits">
+      <p className="credits-lead">Nous — фанатская программа, не связана с HoYoverse и не одобрена ею.</p>
+      <ul className="credits">
         {CREDITS.map((c) => (
-          <div key={c.title} className="credits__item">
-            <div className="credits__text">
-              <span className="credits__title">{c.title}</span>
-              <span className="credits__desc">{c.text}</span>
-            </div>
-            <div className="credits__actions">
-              {c.license && (
-                <Button size="sm" variant="ghost" onClick={() => showLicense(c.title, c.license!)}>
-                  Лицензия
-                </Button>
-              )}
-              {c.url && (
-                <Button size="sm" variant="ghost" onClick={() => open(c.url!)}>
-                  Сайт
-                </Button>
-              )}
-            </div>
-          </div>
+          <li key={c.title}>
+            <ExternalLink href={c.url}>{c.title}</ExternalLink>
+            <span className="credits__desc"> — {c.text}</span>
+            {c.license && (
+              <button type="button" className="credits__license" onClick={() => showLicense(c.title, c.license!)}>
+                лицензия
+              </button>
+            )}
+          </li>
         ))}
-      </div>
+      </ul>
       <Modal open={!!license} title={license ? `${license.title}: лицензия` : ''} onClose={() => setLicense(null)}>
         <pre className="credits-license">{license?.text}</pre>
       </Modal>

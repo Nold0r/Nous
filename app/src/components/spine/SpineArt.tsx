@@ -17,12 +17,21 @@ const place = (c: ArtCenter) =>
  * like HSR Optimizer frames it (see lib/spine/manifest). Fills its parent and
  * crops. The animation pauses while the window is hidden or out of focus.
  */
-export function SpineArt({ characterId, fallback }: { characterId: number; fallback: string }) {
+export function SpineArt({
+  characterId,
+  fallback,
+  frame,
+}: {
+  characterId: number
+  fallback: string
+  /** override the framing of both layers (design system: whole canvas) */
+  frame?: ArtCenter
+}) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const player = useRef<SpinePlayer | null>(null)
   const [ready, setReady] = useState(false)
   const files = spineFiles(characterId)
-  const centers = artCenters(characterId)
+  const centers = frame ? { image: frame, spine: frame } : artCenters(characterId)
 
   useEffect(() => {
     if (!files || !canvas.current) return

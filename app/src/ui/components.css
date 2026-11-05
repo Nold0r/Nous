@@ -643,6 +643,13 @@
   gap: var(--space-3);
 }
 
+.ds-art {
+  display: grid;
+  grid-template-columns: minmax(240px, 380px) 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+
 .ds-stack {
   display: flex;
   flex-direction: column;
@@ -1887,4 +1894,17 @@ button.ui-orbit__slot:focus-visible {
 
 .ui-sets__bonus--plain {
   color: var(--text-muted);
+}
+
+/* ---------- external link ---------- */
+
+.ui-link {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px solid var(--gold-dim);
+  transition: border-color var(--dur-fast);
+}
+
+.ui-link:hover {
+  border-bottom-color: var(--gold);
 }

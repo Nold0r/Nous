@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { Lock } from 'lucide-react'
 import logo from '@app/assets/brand/nous-logo.svg'
 import { itemIcons, propertyIcons, signIcons } from '@app/lib/icons'
+import { useGameTables } from '@app/lib/game-tables'
+import { artCenters, spineCharacters, spineDisabledUpstream } from '@app/lib/spine/manifest'
+import { SpineArt } from '@app/components/spine/SpineArt'
 import {
   Badge,
   Button,
   EmptyState,
+  ExternalLink,
   FilterMenu,
   FilterTags,
   GameIcon,
@@ -96,6 +100,9 @@ export function DesignSystemPage() {
   const [search, setSearch] = useState('')
   const [note, setNote] = useState('Не разбирать: на Ахерон')
   const [page, setPage] = useState(0)
+  const [artId, setArtId] = useState('1308')
+  const [wholeCanvas, setWholeCanvas] = useState(false)
+  const tables = useGameTables()
 
   return (
     <Page
@@ -219,6 +226,9 @@ export function DesignSystemPage() {
           </Tag>
         </div>
         <span className="text-muted">
+          <ExternalLink href="https://github.com/Mar-7th/StarRailRes">ExternalLink</ExternalLink> — ссылка на сайт, открывается в браузере.
+        </span>
+        <span className="text-muted">
           FilterMenu: клик по строке — включить (зелёный, белый список) → исключить (красный, чёрный список) → сбросить; кнопки + и ⊘ задают режим сразу.
         </span>
       </Panel>
@@ -310,6 +320,41 @@ export function DesignSystemPage() {
           </Panel>
         </div>
       </Grid>
+
+      <SectionTitle aside="SpineArt в HeroArt · lib/spine/framing.json">Анимированные арты</SectionTitle>
+      <div className="ds-art">
+        <div className="ds-art__frame">
+          <HeroArt
+            rarity={tables?.characters[artId]?.rarity ?? 5}
+            art={
+              <SpineArt
+                key={artId}
+                characterId={Number(artId)}
+                fallback={STAR_RAIL_RES + `image/character_portrait/${artId}.png`}
+                // the whole 2048 px canvas, centred, as wide as the frame
+                frame={wholeCanvas ? { x: 1024, y: 1024, z: 422 / 950 } : undefined}
+              />
+            }
+          />
+        </div>
+        <div className="ds-stack">
+          <Select
+            title="Персонаж"
+            value={artId}
+            options={spineCharacters.map((id) => ({
+              value: id,
+              label: `${tables?.characters[id]?.name ?? id} (${id})${spineDisabledUpstream(id) ? ' · свой кадр' : ''}`,
+            }))}
+            onChange={setArtId}
+          />
+          <Switch checked={wholeCanvas} onChange={setWholeCanvas} label="Весь холст" hint="Показать сцену целиком, чтобы увидеть её края" />
+          <code className="text-dim">кадр: {JSON.stringify(artCenters(artId).spine)}</code>
+          <span className="text-muted">
+            Центр арта (в координатах 2048 px) и масштаб. «Свой кадр» — анимации, выключенные в HSR Optimizer; их кадр подобран
+            в framing.json так, чтобы края сцены не попадали в рамку.
+          </span>
+        </div>
+      </div>
 
       <SectionTitle aside="PortraitCard">Карточка персонажа</SectionTitle>
       <Grid min={150}>

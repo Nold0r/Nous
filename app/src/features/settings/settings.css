@@ -58,7 +58,7 @@
 /* ---------- credits ---------- */
 
 .credits-lead {
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-2);
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
@@ -66,40 +66,31 @@
 .credits {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-}
-
-.credits__item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3);
-  border-radius: var(--radius);
-  background: var(--band);
-}
-
-.credits__text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.credits__title {
-  font-size: var(--fs-md);
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
 }
 
 .credits__desc {
   color: var(--text-muted);
-  font-size: var(--fs-sm);
-  line-height: 1.5;
 }
 
-.credits__actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-1);
+.credits__license {
+  margin-left: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.credits__license:hover {
+  color: var(--text);
 }
 
 .credits-license {
