@@ -57,6 +57,24 @@ function passAll(f: FilterState, values: string[]): boolean {
   return Object.entries(f).every(([v, mode]) => values.includes(v) === (mode === 'include'))
 }
 
+/**
+ * Stats a matching relic can still have, so the filters offer nothing
+ * impossible: main stats of the chosen slots and substats they allow (from
+ * the game tables), and a substat never repeats the main stat — a main stat
+ * chosen as "only" removes it from the substats, a substat chosen as "only"
+ * removes it from the main stats.
+ */
+function possibleStats(t: GameTables, f: Filters): { main: Set<string>; sub: Set<string> } {
+  const slots = RELIC_SLOTS.map((x) => x.id).filter((id) => passOne(f.slot, id))
+  const main = new Set(slots.flatMap((id) => [...slotMainStats(t, id)]))
+  const sub = new Set(slots.flatMap((id) => [...slotSubStats(t, id)]))
+  const included = (state: FilterState) => Object.keys(state).filter((k) => state[k] === 'include')
+  const onlyMain = included(f.main)
+  if (onlyMain.length === 1) sub.delete(onlyMain[0])
+  for (const k of included(f.sub)) main.delete(k)
+  return { main, sub }
+}
+
 /** Stat options; "%" tells HP% from flat HP and the like. */
 function statOptions(stats: Stat[]): FilterOption[] {
   const byProperty = new Map(stats.map((s) => [s.property, s]))
@@ -84,14 +102,7 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
     [inventory.relics, tables],
   )
 
-  // stats the chosen slots can have (all slots when none is chosen), from the game tables
-  const possible = useMemo(() => {
-    const slots = RELIC_SLOTS.map((x) => x.id).filter((id) => passOne(filters.slot, id))
-    return {
-      main: new Set(slots.flatMap((id) => [...slotMainStats(tables, id)])),
-      sub: new Set(slots.flatMap((id) => [...slotSubStats(tables, id)])),
-    }
-  }, [filters.slot, tables])
+  const possible = useMemo(() => possibleStats(tables, filters), [tables, filters])
 
   const options = useMemo(() => {
     const setIds = [...new Set(relics.map((r) => r.setId))]
@@ -104,11 +115,12 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
           icon: tables.relicSets[id] && <img className="inv-set-icon" src={resUrl(tables.relicSets[id].icon)} alt="" />,
         }))
         .sort((a, b) => a.label.localeCompare(b.label, 'ru')),
-      main: statOptions(relics.flatMap((r) => r.main ?? []).filter((st) => possible.main.has(st.property))),
-      sub: statOptions(relics.flatMap((r) => r.subs).filter((st) => possible.sub.has(st.property))),
+      // chosen values stay listed, so their tags keep a name
+      main: statOptions(relics.flatMap((r) => r.main ?? []).filter((st) => possible.main.has(st.property) || st.property in filters.main)),
+      sub: statOptions(relics.flatMap((r) => r.subs).filter((st) => possible.sub.has(st.property) || st.property in filters.sub)),
       status: STATUS,
     }
-  }, [relics, tables, possible])
+  }, [relics, tables, possible, filters.main, filters.sub])
 
   const groups = (
     [
@@ -124,16 +136,15 @@ export function RelicsTab({ inventory, tables }: { inventory: Inventory; tables:
     tag,
     options: options[key],
     value: filters[key],
-    onChange: (v: FilterState) => setFilters((f) => (key === 'slot' ? dropImpossible({ ...f, slot: v }) : { ...f, [key]: v })),
+    onChange: (v: FilterState) => setFilters((f) => (key === 'status' || key === 'set' ? { ...f, [key]: v } : dropImpossible({ ...f, [key]: v }))),
   }))
 
   // a slot change drops chosen stats that slot can't have, so no tag filters out everything
   function dropImpossible(f: Filters): Filters {
-    const slots = RELIC_SLOTS.map((x) => x.id).filter((id) => passOne(f.slot, id))
-    const main = new Set(slots.flatMap((id) => [...slotMainStats(tables, id)]))
-    const sub = new Set(slots.flatMap((id) => [...slotSubStats(tables, id)]))
-    const keep = (state: FilterState, ok: Set<string>) => Object.fromEntries(Object.entries(state).filter(([k]) => ok.has(k)))
-    return { ...f, main: keep(f.main, main), sub: keep(f.sub, sub) }
+    const ok = possibleStats(tables, f)
+    const keep = (state: FilterState, allowed: Set<string>) =>
+      Object.fromEntries(Object.entries(state).filter(([k, mode]) => mode === 'exclude' || allowed.has(k)))
+    return { ...f, main: keep(f.main, ok.main), sub: keep(f.sub, ok.sub) }
   }
 
   const noteOf = (uid: number) => notes?.relics[uid]?.text ?? ''
