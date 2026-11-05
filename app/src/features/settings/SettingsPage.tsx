@@ -5,6 +5,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { openPatchNotes } from '../../lib/patch-notes'
 import { Button, Page, Panel, StatList, StatRow, Switch } from '../../ui'
 import './settings.css'
+import { Credits } from './Credits'
 import { enabledSections, modules } from '../registry'
 import { useModules } from '../module-context'
 
@@ -68,6 +69,7 @@ export function SettingsPage() {
           <StatRow label="Версия Nous" value={version ?? '—'} />
         </StatList>
       </Panel>
+      <Credits />
     </Page>
   )
 }
