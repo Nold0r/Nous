@@ -14,6 +14,7 @@ import {
   ItemIcon,
   Page,
   Panel,
+  PortraitCard,
   ProgressBar,
   Rarity,
   SearchInput,
@@ -241,6 +242,28 @@ export function DesignSystemPage() {
           <StatLine icon="IconCriticalChance" label="Крит. шанс" value="9,7%" rolls={2} />
           <StatLine icon="IconCriticalDamage" label="Крит. урон" value="12,9%" rolls={1} />
         </ItemCard>
+      </Grid>
+
+      <SectionTitle aside="PortraitCard">Карточка персонажа</SectionTitle>
+      <Grid min={150}>
+        <PortraitCard
+          image={STAR_RAIL_RES + 'icon/character/1308.png'}
+          rarity={5}
+          title="Ахерон"
+          subtitle="Небытие"
+          topRight={<span className="ds-pill">E2</span>}
+          bottom={<span>Ур. 80</span>}
+          onClick={() => {}}
+        />
+        <PortraitCard
+          image={STAR_RAIL_RES + 'icon/character/1001.png'}
+          rarity={4}
+          title="Приглушённая (dimmed)"
+          subtitle="путь не выбран"
+          bottom={<span>Ур. 12</span>}
+          dimmed
+          onClick={() => {}}
+        />
       </Grid>
 
       <SectionTitle aside="Panel variant / compact / onClick">Панели</SectionTitle>

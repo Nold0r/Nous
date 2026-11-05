@@ -90,11 +90,18 @@ impl Client {
     /// Writes the player's note of a relic (blank text deletes it) and
     /// publishes `notes-changed` with all notes. Needs a known account.
     pub fn set_relic_note(&self, uid: u32, text: &str) -> Result<(), String> {
+        self.edit_notes(|notes, now| notes.set_relic(uid, text, now))
+    }
+    /// The same for a character (path avatar id).
+    pub fn set_character_note(&self, avatar_id: u32, text: &str) -> Result<(), String> {
+        self.edit_notes(|notes, now| notes.set_character(avatar_id, text, now))
+    }
+    fn edit_notes(&self, edit: impl FnOnce(&mut crate::notes::Notes, i64) -> bool) -> Result<(), String> {
         let mut game = self.owner.inner.game.lock().unwrap();
         if game.account.uid.is_none() {
             return Err("аккаунт ещё не определён: войдите в игру с запущенным Nous".into());
         }
-        if !game.account.notes.set_relic(uid, text, crate::profile::now()) {
+        if !edit(&mut game.account.notes, crate::profile::now()) {
             return Ok(());
         }
         game.mark_changed();

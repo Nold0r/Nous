@@ -138,6 +138,8 @@ export interface Note {
 export interface Notes {
   /** relic uid -> note; a note stays after its relic is salvaged */
   relics: Record<string, Note>
+  /** path avatar id -> note (each Trailblazer path has its own) */
+  characters?: Record<string, Note>
 }
 
 const readNotes = () => invoke<Versioned<Notes>>('get_notes')
@@ -150,6 +152,11 @@ export function useNotes(): Notes | null {
 /** Saves a relic's note; empty text deletes it. Rejects with a message to show. */
 export function setRelicNote(uid: number, text: string): Promise<void> {
   return invoke('set_relic_note', { uid, text })
+}
+
+/** Saves a character's note (path avatar id); empty text deletes it. */
+export function setCharacterNote(avatarId: number, text: string): Promise<void> {
+  return invoke('set_character_note', { avatarId, text })
 }
 
 /**

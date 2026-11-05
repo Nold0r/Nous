@@ -312,6 +312,9 @@ fn relic_notes_are_saved_with_the_account_and_published() {
     assert_eq!(store.accounts.lock().unwrap()[&7].notes.relics[&10].text, "на Ахерон");
     client.set_relic_note(10, "").unwrap();
     assert!(client.read().data.notes.relics.is_empty());
+    assert!(events.try_recv().is_ok(), "deleting publishes too");
+    client.set_character_note(1308, "E2").unwrap();
+    assert_eq!(events.try_recv().unwrap().payload["data"]["characters"]["1308"]["text"], "E2");
 }
 
 #[test]

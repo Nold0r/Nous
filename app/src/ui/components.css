@@ -643,6 +643,15 @@
   gap: var(--space-3);
 }
 
+.ds-pill {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--gold);
+  color: var(--select-text);
+  font-size: var(--fs-xs);
+  line-height: 20px;
+}
+
 .ds-swatch {
   display: flex;
   flex-direction: column;
@@ -1315,4 +1324,122 @@ code {
   border-top: 1px solid var(--line);
   color: var(--text-muted);
   font-size: var(--fs-sm);
+}
+
+/* ---------- portrait card (character list) ---------- */
+
+.ui-portrait {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.ui-portrait--interactive {
+  cursor: pointer;
+}
+
+.ui-portrait__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  margin-bottom: var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.ui-portrait__frame::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--portrait-rarity, var(--line-strong));
+}
+
+.ui-portrait__frame--r5 {
+  --portrait-rarity: var(--rarity-5);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--rarity-5) 42%, transparent), rgba(255, 255, 255, 0.02) 75%);
+}
+.ui-portrait__frame--r4 {
+  --portrait-rarity: var(--rarity-4);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--rarity-4) 42%, transparent), rgba(255, 255, 255, 0.02) 75%);
+}
+
+.ui-portrait__frame > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.ui-portrait--interactive:hover .ui-portrait__frame,
+.ui-portrait--interactive:focus-visible .ui-portrait__frame {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+
+.ui-portrait--interactive:focus-visible {
+  box-shadow: none;
+}
+
+.ui-portrait--interactive:focus-visible .ui-portrait__frame {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-portrait--dimmed .ui-portrait__frame > img {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+.ui-portrait__corner {
+  position: absolute;
+  top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ui-portrait__corner--left {
+  left: var(--space-2);
+}
+
+.ui-portrait__corner--right {
+  right: var(--space-2);
+}
+
+.ui-portrait__bottom {
+  position: absolute;
+  inset: auto 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-2) var(--space-2);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  font-size: var(--fs-sm);
+}
+
+.ui-portrait__title {
+  overflow: hidden;
+  font-size: var(--fs-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-portrait__subtitle {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

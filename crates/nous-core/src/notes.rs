@@ -1,7 +1,8 @@
 //! The player's own notes, stored in the account file next to the game data.
 //! Relic notes are keyed by the relic `uid` (the game's unique_id, stable
 //! while the relic exists, see docs: Данные аккаунта). A note outlives its
-//! relic: nothing is deleted when the relic is salvaged.
+//! relic: nothing is deleted when the relic is salvaged. Character notes are
+//! keyed by the path avatar id (each Trailblazer path has its own).
 
 use std::collections::BTreeMap;
 
@@ -16,6 +17,8 @@ pub const MAX_LEN: usize = 2000;
 pub struct Notes {
     /// relic uid -> note
     pub relics: BTreeMap<u32, Note>,
+    /// path avatar id -> note
+    pub characters: BTreeMap<u32, Note>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -29,16 +32,25 @@ pub struct Note {
 impl Notes {
     /// Sets the note of relic `uid`; blank text removes it. Returns whether anything changed.
     pub fn set_relic(&mut self, uid: u32, text: &str, now: i64) -> bool {
-        let text: String = text.trim().chars().take(MAX_LEN).collect();
-        if text.is_empty() {
-            return self.relics.remove(&uid).is_some();
-        }
-        if self.relics.get(&uid).is_some_and(|n| n.text == text) {
-            return false;
-        }
-        self.relics.insert(uid, Note { text, updated_at: now });
-        true
+        set(&mut self.relics, uid, text, now)
     }
+
+    /// Sets the note of character `avatar_id` (path avatar id); blank text removes it.
+    pub fn set_character(&mut self, avatar_id: u32, text: &str, now: i64) -> bool {
+        set(&mut self.characters, avatar_id, text, now)
+    }
+}
+
+fn set(notes: &mut BTreeMap<u32, Note>, id: u32, text: &str, now: i64) -> bool {
+    let text: String = text.trim().chars().take(MAX_LEN).collect();
+    if text.is_empty() {
+        return notes.remove(&id).is_some();
+    }
+    if notes.get(&id).is_some_and(|n| n.text == text) {
+        return false;
+    }
+    notes.insert(id, Note { text, updated_at: now });
+    true
 }
 
 #[cfg(test)]
@@ -55,6 +67,14 @@ mod tests {
         assert!(notes.set_relic(17054, "   ", 30));
         assert!(notes.relics.is_empty());
         assert!(!notes.set_relic(17054, "", 40), "removing a missing note changes nothing");
+    }
+
+    #[test]
+    fn character_notes_are_separate_from_relic_notes() {
+        let mut notes = Notes::default();
+        assert!(notes.set_character(1308, "E2 в планах", 1));
+        assert!(notes.relics.is_empty());
+        assert_eq!(notes.characters[&1308].text, "E2 в планах");
     }
 
     #[test]

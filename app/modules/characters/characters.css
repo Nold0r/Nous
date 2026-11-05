@@ -1,0 +1,329 @@
+/* Characters module. Cards, filters and stats are design system components
+   (PortraitCard, ItemCard, FilterMenu, StatRow…); here only the layout. */
+
+/* ---------- list ---------- */
+
+.char-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.char-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.char-toolbar__count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.char-filter-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.char-badge-icon {
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  object-fit: contain;
+}
+
+.char-eidolon {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--gold);
+  color: var(--select-text);
+  font-size: var(--fs-xs);
+  line-height: 20px;
+}
+
+.char-cone-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.char-cone-mark img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.char-note-mark {
+  margin-left: var(--space-1);
+  color: var(--gold);
+  vertical-align: -1px;
+}
+
+/* ---------- detail ---------- */
+
+.char-detail {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(300px, 1fr) minmax(320px, 1.1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 1280px) {
+  .char-detail {
+    grid-template-columns: minmax(240px, 0.8fr) minmax(300px, 1fr);
+  }
+  .char-detail > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.char-detail__hero,
+.char-detail__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.char-portrait {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: radial-gradient(
+    120% 90% at 50% 10%,
+    color-mix(in srgb, var(--portrait-rarity, var(--line-strong)) 35%, transparent),
+    rgba(255, 255, 255, 0.02) 70%
+  );
+}
+
+.char-portrait--r5 {
+  --portrait-rarity: var(--rarity-5);
+}
+.char-portrait--r4 {
+  --portrait-rarity: var(--rarity-4);
+}
+
+.char-portrait img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.char-portrait__info {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+  padding: var(--space-8) var(--space-4) var(--space-4);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+}
+
+.char-portrait__level {
+  font-size: var(--fs-xl);
+}
+
+.char-eidolons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-1);
+}
+
+.char-eidolons__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  cursor: help;
+}
+
+.char-eidolons__item img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: grayscale(1) brightness(0.5);
+}
+
+.char-eidolons__item--on {
+  border-color: var(--gold-dim);
+  background: rgba(216, 184, 117, 0.08);
+  color: var(--gold);
+}
+
+.char-eidolons__item--on img {
+  filter: none;
+}
+
+.char-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.char-note__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.char-note__actions .ui-button--danger {
+  margin-right: auto;
+}
+
+.char-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+.char-stat__bonus {
+  margin-left: var(--space-2);
+  color: var(--success);
+  font-size: var(--fs-sm);
+}
+
+.char-skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.char-skill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--band);
+}
+
+.char-skill img {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.char-skill__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.char-skill__type {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.char-skill__name {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.char-skill__level {
+  font-size: var(--fs-lg);
+  white-space: nowrap;
+}
+
+.char-skill__level .char-stat__bonus {
+  margin-left: 2px;
+}
+
+.char-traces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.char-trace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.char-trace b {
+  color: var(--text);
+  font-weight: normal;
+}
+
+.char-empty-slot {
+  padding: var(--space-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.char-relics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+
+.char-relics .ui-card {
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+
+.char-relics .ui-card__tile {
+  width: 44px;
+  height: 44px;
+}
+
+.char-relic-subs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-1);
+}
+
+.char-sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.char-set {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.char-set img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.char-set__name {
+  flex: 1;
+}

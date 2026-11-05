@@ -7,7 +7,8 @@ import type { Affix, Relic } from './inventory'
 
 export interface GameTables {
   relics: Record<string, { set: string; slot: RelicSlot; rarity: number; mainGroup: string; subGroup: string; icon: string }>
-  relicSets: Record<string, { name: string; desc: string[]; icon: string }>
+  /** properties: unconditional stats of the 2- and 4-piece bonuses */
+  relicSets: Record<string, { name: string; desc: string[]; icon: string; properties: Property[][] }>
   /** group -> affix id -> property */
   mainAffixes: Record<string, Record<string, AffixDef>>
   subAffixes: Record<string, Record<string, AffixDef>>
@@ -16,6 +17,39 @@ export interface GameTables {
   lightCones: Record<string, { name: string; rarity: number; path: string; icon: string }>
   items: Record<string, { name: string; rarity: number; type: string; subType: string; icon: string }>
   characters: Record<string, { name: string; rarity: number; path: string; element: string }>
+}
+
+/** A stat bonus as the game tables write it, e.g. { type: 'AttackAddedRatio', value: 0.04 }. */
+export interface Property {
+  type: string
+  value: number
+}
+
+/** [base, step per level above 1] */
+type Growth = [number, number]
+
+/** Tables only the characters screen needs (game-data-characters.json). */
+export interface CharacterTables {
+  /** character id -> by ascension */
+  promotions: Record<
+    string,
+    { hp: Growth; atk: Growth; def: Growth; spd: Growth; critRate: Growth; critDmg: Growth }[]
+  >
+  /** light cone id -> by ascension */
+  lightConePromotions: Record<string, { hp: Growth; atk: Growth; def: Growth }[]>
+  /** light cone id -> passive; properties by superimposition 1..5 */
+  lightConeRanks: Record<string, { skill: string; desc: string; params: number[][]; properties: Property[][] }>
+  /** character id -> "Point01" -> trace point */
+  traces: Record<
+    string,
+    Record<string, { maxLevel: number; name: string; icon: string; skill?: string; properties: Property[] }>
+  >
+  skills: Record<string, { name: string; type: string; typeText: string; maxLevel: number; icon: string }>
+  /** character id -> eidolons 1..6; skills: levels they add */
+  eidolons: Record<string, { name: string; desc: string; icon: string; skills: { id: string; num: number }[] }[]>
+  elements: Record<string, { name: string; color: string; icon: string }>
+  paths: Record<string, { name: string; icon: string }>
+  characterIcons: Record<string, { icon: string; portrait: string }>
 }
 
 interface AffixDef {
@@ -47,6 +81,25 @@ let loaded: GameTables | null = null
 function loadTables(): Promise<GameTables> {
   loading ??= import('../assets/data/game-data.json').then((m) => (loaded = m.default as unknown as GameTables))
   return loading
+}
+
+let charactersLoading: Promise<CharacterTables> | null = null
+let charactersLoaded: CharacterTables | null = null
+
+function loadCharacterTables(): Promise<CharacterTables> {
+  charactersLoading ??= import('../assets/data/game-data-characters.json').then(
+    (m) => (charactersLoaded = m.default as unknown as CharacterTables),
+  )
+  return charactersLoading
+}
+
+/** Base stats, traces, skills and eidolons, or null while they load. */
+export function useCharacterTables(): CharacterTables | null {
+  const [tables, setTables] = useState(charactersLoaded)
+  useEffect(() => {
+    if (!tables) loadCharacterTables().then(setTables).catch(console.error)
+  }, [tables])
+  return tables
 }
 
 /** The tables, or null while they load. */

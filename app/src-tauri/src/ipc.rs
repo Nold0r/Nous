@@ -51,6 +51,12 @@ pub fn set_relic_note(sdk: State<'_, Sdk>, uid: u32, text: String) -> Result<(),
     sdk.client().set_relic_note(uid, &text)
 }
 
+/// Writes a character's note (path avatar id); empty text deletes it. Emits `notes-changed`.
+#[tauri::command]
+pub fn set_character_note(sdk: State<'_, Sdk>, avatar_id: u32, text: String) -> Result<(), String> {
+    sdk.client().set_character_note(avatar_id, &text)
+}
+
 /// Location, position, opened chests and object states.
 #[tauri::command]
 pub fn get_world(sdk: State<'_, Sdk>) -> Versioned<World> {
