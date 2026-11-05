@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::battles::Battles;
 use crate::gacha::Gacha;
 use crate::inventory::{Inventory, InventoryChanges, SnapshotReport};
+use crate::notes::Notes;
 use crate::profile::{PlayerProfile, ProfileSource};
 use crate::snapshots::Snapshots;
 use crate::world::World;
@@ -42,6 +43,9 @@ pub struct Account {
     /// Raw answers of the game, see snapshots.rs.
     #[serde(default)]
     pub snapshots: Snapshots,
+    /// The player's notes (relics), see notes.rs.
+    #[serde(default)]
+    pub notes: Notes,
 }
 
 impl Account {
@@ -56,6 +60,7 @@ impl Account {
             gacha: Gacha::default(),
             battles: Battles::default(),
             snapshots: Snapshots::default(),
+            notes: Notes::default(),
         }
     }
 
@@ -249,6 +254,7 @@ mod tests {
                 ..Default::default()
             },
         );
+        account.notes.set_relic(254, "на Ахерон", 1);
         account.profile.source = ProfileSource::Live;
         store.save(&account).unwrap();
 
@@ -264,6 +270,7 @@ mod tests {
             back.inventory.relics[&254].tid, 61011,
             "relics keyed by number read back"
         );
+        assert_eq!(back.notes.relics[&254].text, "на Ахерон", "notes keyed by number read back");
         fs::remove_dir_all(dir).ok();
     }
 

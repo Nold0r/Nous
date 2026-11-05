@@ -1,22 +1,33 @@
 import { useState } from 'react'
+import { Lock } from 'lucide-react'
 import logo from '@app/assets/brand/nous-logo.svg'
-import { itemIcons, signIcons } from '@app/lib/icons'
+import { itemIcons, propertyIcons, signIcons } from '@app/lib/icons'
 import {
   Badge,
   Button,
   EmptyState,
+  FilterMenu,
+  FilterTags,
   GameIcon,
   Grid,
+  ItemCard,
   ItemIcon,
   Page,
   Panel,
   ProgressBar,
   Rarity,
+  SearchInput,
   SectionTitle,
+  Select,
+  StatIcon,
+  StatLine,
   StatList,
   StatRow,
   Switch,
   Tabs,
+  Tag,
+  TextArea,
+  type FilterState,
   type Tone,
 } from '@app/ui'
 
@@ -54,9 +65,28 @@ const tabItems = [
   { id: 'skills', label: 'Умения' },
 ] as const
 
+const sortOptions = [
+  { value: 'level', label: 'По уровню' },
+  { value: 'new', label: 'Сначала новые' },
+  { value: 'set', label: 'По набору' },
+] as const
+
+const statOptions = [
+  { value: 'crit-rate', label: 'Крит. шанс', icon: <StatIcon icon="IconCriticalChance" size={16} /> },
+  { value: 'crit-dmg', label: 'Крит. урон', icon: <StatIcon icon="IconCriticalDamage" size={16} /> },
+  { value: 'speed', label: 'Скорость', icon: <StatIcon icon="IconSpeed" size={16} /> },
+  { value: 'hp', label: 'НР', icon: <StatIcon icon="IconMaxHP" size={16} /> },
+]
+
+const STAR_RAIL_RES = 'https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/'
+
 export function DesignSystemPage() {
   const [tab, setTab] = useState<(typeof tabItems)[number]['id']>('stats')
   const [switchOn, setSwitchOn] = useState(true)
+  const [sort, setSort] = useState<(typeof sortOptions)[number]['value']>('level')
+  const [stats, setStats] = useState<FilterState>({ 'crit-rate': 'include', hp: 'exclude' })
+  const [search, setSearch] = useState('')
+  const [note, setNote] = useState('Не разбирать: на Ахерон')
 
   return (
     <Page
@@ -107,6 +137,7 @@ export function DesignSystemPage() {
             <Button variant="primary">Primary</Button>
             <Button>Secondary</Button>
             <Button variant="ghost">Ghost</Button>
+            <Button variant="danger">Danger</Button>
             <Button disabled>Disabled</Button>
           </div>
           <div className="ds-row">
@@ -151,6 +182,65 @@ export function DesignSystemPage() {
           <ProgressBar label="Сундуки" value={8} max={10} tone="gold" />
           <ProgressBar label="Готово" value={3} max={3} tone="success" />
         </Panel>
+      </Grid>
+
+      <Panel title="Фильтры и поиск" aside="Select · FilterMenu · FilterTags · SearchInput · Tag">
+        <div className="ds-row">
+          <SearchInput value={search} onChange={setSearch} placeholder="Поиск по заметкам и наборам" />
+          <Select title="Порядок" value={sort} options={sortOptions} onChange={setSort} />
+          <FilterMenu label="Доп. характеристики" options={statOptions} value={stats} onChange={setStats} />
+        </div>
+        <FilterTags groups={[{ label: 'Доп.', options: statOptions, value: stats, onChange: setStats }]} onReset={() => setStats({})} />
+        <div className="ds-row">
+          <Tag>Нейтральный</Tag>
+          <Tag tone="include">Показать только</Tag>
+          <Tag tone="exclude" onRemove={() => {}}>
+            Скрыть
+          </Tag>
+        </div>
+        <span className="text-muted">
+          FilterMenu: клик по строке — включить (зелёный, белый список) → исключить (красный, чёрный список) → сбросить; кнопки + и ⊘ задают режим сразу.
+        </span>
+      </Panel>
+
+      <Grid min={300}>
+        <Panel title="Характеристики" aside="StatLine · StatIcon">
+          <StatLine icon="IconCriticalDamage" label="Крит. урон" value="64,8%" main showLabel />
+          <StatLine icon="IconCriticalChance" label="Крит. шанс" value="9,7%" rolls={2} showLabel />
+          <StatLine icon="IconSpeed" label="Скорость" value="7,2" rolls={1} />
+          <StatLine icon="IconAttack" label="Сила атаки" value="16" />
+          <div className="ds-row">
+            {Object.keys(propertyIcons).map((name) => (
+              <StatIcon key={name} icon={name} size={22} title={name} />
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Текстовое поле" aside="TextArea">
+          <TextArea
+            label="Заметка"
+            value={note}
+            onChange={setNote}
+            maxLength={2000}
+            placeholder="Например: на Ахерон"
+            hint="Ctrl+Enter — сохранить"
+          />
+        </Panel>
+
+        <ItemCard
+          image={STAR_RAIL_RES + 'icon/relic/101_0.png'}
+          rarity={5}
+          title="Карточка предмета (ItemCard)"
+          meta="Голова · +15"
+          badges={<Lock size={14} />}
+          isNew
+          onClick={() => {}}
+          footer={<span className="text-gold">Подвал: владелец, заметка</span>}
+        >
+          <StatLine icon="IconMaxHP" label="НР" value="705" main showLabel />
+          <StatLine icon="IconCriticalChance" label="Крит. шанс" value="9,7%" rolls={2} />
+          <StatLine icon="IconCriticalDamage" label="Крит. урон" value="12,9%" rolls={1} />
+        </ItemCard>
       </Grid>
 
       <SectionTitle aside="Panel variant / compact / onClick">Панели</SectionTitle>

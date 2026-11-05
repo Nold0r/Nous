@@ -22,6 +22,30 @@
         "settings": "SettingsIcon"
       }
     },
+    "property": {
+      "path": "icon/property/{id}.png",
+      "content": 112,
+      "icons": {
+        "IconMaxHP": "IconMaxHP",
+        "IconAttack": "IconAttack",
+        "IconDefence": "IconDefence",
+        "IconSpeed": "IconSpeed",
+        "IconCriticalChance": "IconCriticalChance",
+        "IconCriticalDamage": "IconCriticalDamage",
+        "IconBreakUp": "IconBreakUp",
+        "IconHealRatio": "IconHealRatio",
+        "IconEnergyRecovery": "IconEnergyRecovery",
+        "IconStatusProbability": "IconStatusProbability",
+        "IconStatusResistance": "IconStatusResistance",
+        "IconPhysicalAddedRatio": "IconPhysicalAddedRatio",
+        "IconFireAddedRatio": "IconFireAddedRatio",
+        "IconIceAddedRatio": "IconIceAddedRatio",
+        "IconThunderAddedRatio": "IconThunderAddedRatio",
+        "IconWindAddedRatio": "IconWindAddedRatio",
+        "IconQuantumAddedRatio": "IconQuantumAddedRatio",
+        "IconImaginaryAddedRatio": "IconImaginaryAddedRatio"
+      }
+    },
     "avatar": {
       "path": "icon/avatar/{id}.png",
       "content": 128,

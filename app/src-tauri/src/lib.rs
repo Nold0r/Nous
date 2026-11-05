@@ -76,6 +76,8 @@ pub fn run() {
             ipc::get_gacha,
             ipc::get_snapshots,
             ipc::get_snapshot,
+            ipc::get_notes,
+            ipc::set_relic_note,
             ipc::import_gacha_history,
             ipc::get_snapshot_kinds,
             ipc::get_sniffer_status,

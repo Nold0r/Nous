@@ -5,6 +5,7 @@ use nous_core::{
     battles::Battle,
     gacha::Gacha,
     inventory::{Inventory, Relic},
+    notes::Notes,
     profile::PlayerProfile,
     snapshots::{Snapshot, Snapshots},
     world::World,
@@ -36,6 +37,18 @@ pub fn get_inventory(sdk: State<'_, Sdk>) -> Versioned<Inventory> {
 pub fn get_relics(sdk: State<'_, Sdk>) -> Versioned<Vec<Relic>> {
     sdk.client()
         .query(|a| a.inventory.relics.values().cloned().collect())
+}
+
+/// The player's notes of the current account (relic notes by relic uid).
+#[tauri::command]
+pub fn get_notes(sdk: State<'_, Sdk>) -> Versioned<Notes> {
+    sdk.client().query(|a| a.notes.clone())
+}
+
+/// Writes a relic's note; empty text deletes it. Emits `notes-changed`.
+#[tauri::command]
+pub fn set_relic_note(sdk: State<'_, Sdk>, uid: u32, text: String) -> Result<(), String> {
+    sdk.client().set_relic_note(uid, &text)
 }
 
 /// Location, position, opened chests and object states.

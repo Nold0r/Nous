@@ -294,3 +294,50 @@ fn a_multi_domain_command_is_one_revision_with_the_existing_event_envelopes() {
     assert_eq!(emitted[5].payload["data"], serde_json::Value::Null);
     assert_eq!(emitted[6].payload["data"], "GetDailyActiveInfoScRsp");
 }
+
+#[test]
+fn relic_notes_are_saved_with_the_account_and_published() {
+    let store = MemoryStore::default();
+    let client = Client::new(store.clone()).unwrap();
+    assert!(client.set_relic_note(10, "на Ахерон").is_err(), "no account yet");
+    client.handle(&login(7)).unwrap();
+    let events = client.subscribe();
+    client.set_relic_note(10, "  на Ахерон ").unwrap();
+    let event = events.try_recv().unwrap();
+    assert_eq!(event.name, "notes-changed");
+    assert_eq!(event.payload["data"]["relics"]["10"]["text"], "на Ахерон");
+    client.set_relic_note(10, "на Ахерон").unwrap();
+    assert!(events.try_recv().is_err(), "same text publishes nothing");
+    client.flush().unwrap();
+    assert_eq!(store.accounts.lock().unwrap()[&7].notes.relics[&10].text, "на Ахерон");
+    client.set_relic_note(10, "").unwrap();
+    assert!(client.read().data.notes.relics.is_empty());
+}
+
+#[test]
+fn first_import_is_not_new_later_drops_are() {
+    use nous_core::inventory::InventorySync;
+    let client = Client::new(MemoryStore::default()).unwrap();
+    client.handle(&login(7)).unwrap();
+    client.handle(&bag()).unwrap();
+    let first = client.read().data.inventory;
+    let imported = first.imported_at.expect("the first list marks what was already owned");
+    assert_eq!(first.relics[&10].first_seen, imported);
+
+    // a drop while playing reaches the UI right away and is newer than the import
+    let events = client.subscribe();
+    client
+        .handle(&Command {
+            inventory_sync: Some(InventorySync {
+                relics: vec![Relic { uid: 11, tid: 61012, ..Default::default() }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .unwrap();
+    let event = events.try_recv().unwrap();
+    assert_eq!(event.name, "inventory-changed");
+    assert_eq!(event.payload["data"]["relics"][0]["uid"], 11);
+    client.handle(&bag()).unwrap();
+    assert_eq!(client.read().data.inventory.imported_at, Some(imported), "later logins don't move it");
+}

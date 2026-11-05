@@ -17,7 +17,7 @@ test('all shipped manifests are valid', () => {
     ids.push(`${id}:${module.kind}`)
   }
   assert.ok(ids.includes('veritas:settings'), 'Veritas is a settings module')
-  assert.ok(ids.includes('relics:tab'))
+  assert.ok(ids.includes('inventory:tab'))
 })
 
 const tabToml = `

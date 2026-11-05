@@ -6,6 +6,7 @@ import { GameIcon, type IconSource } from './GameIcon'
  * - primary: warm-white pill, one main action per screen
  * - secondary: outlined pill (like "Подробнее" in the game)
  * - ghost: text only, for minor actions
+ * - danger: text only in red, for deleting
  */
 export function Button({
   variant = 'secondary',
@@ -15,7 +16,7 @@ export function Button({
   className,
   ...rest
 }: {
-  variant?: 'primary' | 'secondary' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
   size?: 'sm' | 'md'
   icon?: IconSource
   children?: ReactNode

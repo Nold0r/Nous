@@ -40,6 +40,15 @@ button {
   color: inherit;
 }
 
+/* The browser's square outline looks broken on pills: a ring instead, and
+   only for keyboard focus. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
 /* Acrylic surface: tint + blur of the backdrop + grain.
    Note: backdrop-filter makes the element the containing block of its
    position:fixed descendants, so popovers inside must be portalled. */

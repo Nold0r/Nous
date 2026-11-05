@@ -87,6 +87,20 @@ impl Client {
         ));
         Ok(added)
     }
+    /// Writes the player's note of a relic (blank text deletes it) and
+    /// publishes `notes-changed` with all notes. Needs a known account.
+    pub fn set_relic_note(&self, uid: u32, text: &str) -> Result<(), String> {
+        let mut game = self.owner.inner.game.lock().unwrap();
+        if game.account.uid.is_none() {
+            return Err("аккаунт ещё не определён: войдите в игру с запущенным Nous".into());
+        }
+        if !game.account.notes.set_relic(uid, text, crate::profile::now()) {
+            return Ok(());
+        }
+        game.mark_changed();
+        self.publish(Event::new("notes-changed", game.versioned(game.account.notes.clone())));
+        Ok(())
+    }
     /// Explicit persistence barrier. Errors are returned and also published.
     pub fn flush(&self) -> Result<(), String> {
         self.owner

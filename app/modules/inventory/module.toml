@@ -1,0 +1,11 @@
+# Инвентарь: реликвии, световые конусы, материалы и заметки к реликвиям.
+
+[module]
+id = "inventory"
+title = "Инвентарь"
+kind = "tab"
+
+[tab]
+icon = "inventory"
+category = "inventory"
+order = 1

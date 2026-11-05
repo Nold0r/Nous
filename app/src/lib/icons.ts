@@ -13,6 +13,8 @@ function byName(modules: Record<string, string>): UrlMap {
 export const itemIcons = byName(import.meta.glob<string>('../assets/icons/items/*.png', { eager: true, query: '?url', import: 'default' }))
 /** White monochrome UI icons from the game menu, tinted via CSS mask. */
 export const signIcons = byName(import.meta.glob<string>('../assets/icons/sign/*.png', { eager: true, query: '?url', import: 'default' }))
+/** White stat icons (HP, crit rate, …), keyed like IconMaxHP; tinted via CSS mask. */
+export const propertyIcons = byName(import.meta.glob<string>('../assets/icons/property/*.png', { eager: true, query: '?url', import: 'default' }))
 /** Round player avatars. */
 export const avatarIcons = byName(import.meta.glob<string>('../assets/icons/avatar/*.png', { eager: true, query: '?url', import: 'default' }))
 

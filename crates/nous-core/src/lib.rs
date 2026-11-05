@@ -5,6 +5,7 @@ mod events;
 pub mod gacha;
 pub mod game;
 pub mod inventory;
+pub mod notes;
 pub mod profile;
 mod sdk;
 pub mod snapshots;

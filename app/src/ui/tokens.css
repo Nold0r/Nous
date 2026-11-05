@@ -54,6 +54,9 @@
   --success: #8fd4a4;
   --warning: #f0c36d;
   --danger: #ec8a8a;
+  /* filter tags: white list / black list */
+  --include-bg: rgba(143, 212, 164, 0.14);
+  --exclude-bg: rgba(236, 138, 138, 0.14);
   --info: #8ec5ff;
 
   /* ---- rarity (stars), as in the game ---- */
@@ -95,6 +98,8 @@
   /* ---- shadows ---- */
   --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.55);
   --glow-select: 0 0 18px rgba(233, 228, 218, 0.18);
+  /* keyboard focus: a soft gold halo that follows the rounded shape */
+  --focus-ring: 0 0 0 3px rgba(216, 184, 117, 0.25);
 
   /* ---- layers ---- */
   --z-background: 0;

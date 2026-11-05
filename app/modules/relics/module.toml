@@ -1,9 +1,0 @@
-[module]
-id = "relics"
-title = "Реликвии"
-kind = "tab"
-
-[tab]
-icon = "inventory"
-category = "inventory"
-order = 1

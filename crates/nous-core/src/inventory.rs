@@ -131,6 +131,11 @@ pub struct Inventory {
     pub avatar_paths: BTreeMap<u32, AvatarPath>,
     /// Unix seconds of the last full list from the game (login).
     pub synced_at: Option<i64>,
+    /// Unix seconds of the first full list Nous saw for this account. Relics
+    /// first seen then were already owned, not new drops (UI "new" marks).
+    /// None in files from before it was added: their relics are all older.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub imported_at: Option<i64>,
 }
 
 /// What a command changed; sent to the UI as deltas.
@@ -204,6 +209,9 @@ impl Inventory {
 
         self.light_cones = bag.light_cones.iter().map(|p| (p.uid, p.clone())).collect();
         self.materials = bag.materials.iter().map(|m| (m.tid, m.clone())).collect();
+        if self.synced_at.is_none() {
+            self.imported_at = Some(now);
+        }
         self.synced_at = Some(now);
         report
     }

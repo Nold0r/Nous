@@ -20,7 +20,7 @@ if (connected) {
 }
 page.on('pageerror', (error) => errors.push(String(error)))
 page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
-const ids = ['overview', 'map', 'characters', 'relics', 'design-system']
+const ids = ['overview', 'map', 'characters', 'inventory', 'design-system']
 if (!connected) await page.goto(process.env.NOUS_UI_URL ?? 'http://localhost:5173/')
 await page.evaluate(() => { location.hash = '/settings' })
 if (process.env.NOUS_EXPECT_USER_MODE === 'true') {
@@ -41,7 +41,7 @@ if (process.env.NOUS_EXPECT_PERSISTED === 'true') {
   for (const id of ids) assert.equal(await page.locator(`a[href="#/${id}"]`).count(), 0)
   console.log('Persisted all-off selection survived application restart')
 }
-const title = { overview: 'Обзор', map: 'Карта', characters: 'Персонажи', relics: 'Реликвии', 'design-system': 'Дизайн-система' }
+const title = { overview: 'Обзор', map: 'Карта', characters: 'Персонажи', inventory: 'Инвентарь', 'design-system': 'Дизайн-система' }
 async function setModule(id, enabled) {
   const checkbox = page.getByRole('checkbox', { name: title[id], exact: true })
   if (await checkbox.isChecked() !== enabled) {
@@ -73,7 +73,7 @@ await page.waitForURL('**/#/settings')
 if (connected) {
   const invoke = (command) => page.evaluate((command) => window.__TAURI_INTERNALS__.invoke(command), command)
   await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('get_sniffer_status')).state === 'stopped')
-  for (const command of ['get_profile', 'get_inventory', 'get_relics', 'get_world', 'get_battles', 'get_gacha', 'get_snapshots']) {
+  for (const command of ['get_profile', 'get_inventory', 'get_relics', 'get_world', 'get_battles', 'get_gacha', 'get_snapshots', 'get_notes']) {
     const result = await invoke(command)
     assert.equal(typeof result.revision, 'number')
     assert.ok('data' in result)

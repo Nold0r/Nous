@@ -10,12 +10,18 @@ import { X } from 'lucide-react'
 export function Modal({
   open,
   title,
+  subtitle,
+  size = 'md',
   onClose,
   footer,
   children,
 }: {
   open: boolean
   title: ReactNode
+  /** Small line under the title. */
+  subtitle?: ReactNode
+  /** md: text dialogs; lg: wide, for two-column content (item details). */
+  size?: 'md' | 'lg'
   onClose: () => void
   /** Bottom row, e.g. actions. */
   footer?: ReactNode
@@ -31,9 +37,12 @@ export function Modal({
   if (!open) return null
   return createPortal(
     <div className="ui-modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="ui-modal__window acrylic" role="dialog" aria-modal="true">
+      <div className={`ui-modal__window ui-modal__window--${size} acrylic`} role="dialog" aria-modal="true">
         <div className="ui-modal__head">
-          <span className="ui-modal__title">{title}</span>
+          <span className="ui-modal__titles">
+            <span className="ui-modal__title">{title}</span>
+            {subtitle && <span className="ui-modal__subtitle">{subtitle}</span>}
+          </span>
           <button type="button" className="ui-modal__close" onClick={onClose} aria-label="Закрыть">
             <X size={18} />
           </button>
