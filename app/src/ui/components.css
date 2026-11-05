@@ -1202,13 +1202,10 @@ code {
   text-align: left;
 }
 
-/* rarity line along the top edge, fading out to the sides. Its thickness
-   is a border width (not a height): borders snap to whole device pixels,
-   so every card gets the same line at any display scale. */
-.ui-card {
-  border-top: 0;
-}
-
+/* rarity line inside the top edge, fading out to the sides; the card's
+   own 1px outline stays closed around it. Its thickness is a border width
+   (not a height): borders snap to whole device pixels, so every card gets
+   the same line at any display scale. */
 .ui-card::after {
   content: '';
   pointer-events: none;
@@ -1370,29 +1367,21 @@ code {
   aspect-ratio: 1;
   margin-bottom: var(--space-2);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: none;
   border-radius: var(--radius-lg);
   background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
   transition:
-    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
 
-/* rarity line along the bottom edge, fading out to the sides; its
-   thickness is a border width, so it snaps to whole device pixels */
+/* rarity line: the frame's own bottom edge (no other outline, as in the
+   game's character list), fading out to the sides. Being the frame's
+   border it always meets the edge exactly and snaps to whole pixels; the
+   transparent ends hide the square corners border-image draws. */
 .ui-portrait__frame {
-  border-bottom: 0;
-}
-
-.ui-portrait__frame::after {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  inset: auto 0 0;
-  z-index: 1;
-  height: 0;
   border-bottom: 3px solid transparent;
-  background: linear-gradient(90deg, transparent, var(--portrait-rarity, var(--line-strong)) 50%, transparent) border-box;
+  border-image: linear-gradient(90deg, transparent, var(--portrait-rarity, var(--line-strong)) 50%, transparent) 1;
 }
 
 .ui-portrait__frame--r5 {
@@ -1413,7 +1402,7 @@ code {
 
 .ui-portrait--interactive:hover .ui-portrait__frame,
 .ui-portrait--interactive:focus-visible .ui-portrait__frame {
-  border-color: var(--line-strong);
+  box-shadow: 0 0 0 1px var(--line-strong);
   transform: translateY(-2px);
 }
 
@@ -1448,7 +1437,7 @@ code {
 
 .ui-portrait__bottom {
   position: absolute;
-  inset: auto 0 3px;
+  inset: auto 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
