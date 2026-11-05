@@ -23,6 +23,10 @@ const MAX_DURATION: Duration = Duration::from_secs(60);
 pub struct Recorder {
     dir: Option<PathBuf>,
     current: Option<Recording>,
+    /// `NOUS_TRACE=1`: every command of the session, not only the login, to
+    /// `recordings/trace-<time>.jsonl`. For finding which commands an action
+    /// in the game sends.
+    trace: Option<BufWriter<File>>,
 }
 
 struct Recording {
@@ -38,20 +42,26 @@ impl Recorder {
         Self {
             dir: app_data.map(|d| d.join(DIR)),
             current: None,
+            trace: None,
         }
     }
 
     pub fn on_command(&mut self, command: &GameCommand) {
         if command.command_id == cmd::PlayerGetTokenScRsp {
             self.current = self.start();
+            self.trace = self.start_trace();
         }
-        let Some(rec) = &mut self.current else { return };
-
         let line = serde_json::json!({
             "id": command.command_id,
             "name": command.get_command_name(),
             "b64": base64::engine::general_purpose::STANDARD.encode(&command.proto_data),
         });
+        if let Some(trace) = &mut self.trace {
+            let timed = serde_json::json!({ "t": nous_core::profile::now(), "cmd": &line });
+            writeln!(trace, "{timed}").ok();
+            trace.flush().ok();
+        }
+        let Some(rec) = &mut self.current else { return };
         writeln!(rec.file, "{line}").ok();
 
         match command.command_id {
@@ -65,6 +75,14 @@ impl Recorder {
             log::info!("login recorded (complete: {})", rec.bag && rec.avatars);
             self.current = None;
         }
+    }
+
+    fn start_trace(&self) -> Option<BufWriter<File>> {
+        std::env::var_os("NOUS_TRACE")?;
+        let dir = self.dir.as_ref()?;
+        fs::create_dir_all(dir).ok()?;
+        let file = File::create(dir.join(format!("trace-{}.jsonl", chrono_like_now()))).ok()?;
+        Some(BufWriter::new(file))
     }
 
     fn start(&self) -> Option<Recording> {
@@ -92,6 +110,7 @@ fn prune(dir: &PathBuf) {
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.extension().is_some_and(|e| e == "jsonl"))
+        .filter(|p| !p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("trace-")))
         .collect();
     files.sort();
     let excess = (files.len() + 1).saturating_sub(KEEP);

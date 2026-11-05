@@ -27,6 +27,8 @@ const CREDITS: { title: string; url: string; text: string; license?: string }[] 
     license: 'spine-runtimes.txt',
   },
   { title: 'reliquary', url: 'https://github.com/IceDynamix/reliquary', text: 'разбор протокола игры' },
+  { title: 'TurnBasedGameData', url: 'https://gitlab.com/Dimbreath/turnbasedgamedata', text: 'данные карт и локаций' },
+  { title: 'AnimeStudio', url: 'https://github.com/Escartem/AnimeStudio', text: 'извлечение текстур карт из файлов игры' },
 ]
 
 /** "Правообладатели" in Settings: the notices and licenses, one line each. */

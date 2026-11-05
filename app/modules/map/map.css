@@ -1,0 +1,120 @@
+/* Map screen: the floor picture fills the screen under the title row. */
+
+.map-view {
+  position: relative;
+  height: calc(100vh - 190px);
+  min-height: 360px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--acrylic-strong);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.map-view:active {
+  cursor: grabbing;
+}
+
+.map-view__picture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.map-view__picture img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.map-view__status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  pointer-events: none;
+}
+
+/* the player: a gold arrow with a soft halo, pointing where they look */
+.map-player {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(216, 184, 117, 0.35), transparent 70%);
+  pointer-events: none;
+  transition:
+    left 0.1s linear,
+    top 0.1s linear;
+}
+
+.map-player path {
+  fill: var(--gold);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.map-controls {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  background: var(--acrylic);
+  backdrop-filter: var(--acrylic-blur);
+}
+
+.map-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.map-controls button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.map-controls button:focus-visible {
+  outline: 2px solid var(--gold-dim);
+  outline-offset: 1px;
+}
+
+.map-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.map-controls .map-controls__on {
+  color: var(--gold);
+}
+
+.map-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}

@@ -16,3 +16,5 @@ vendor/reliquary-archiver/
 
 # Obsidian per-user state
 docs/.obsidian/workspace.json
+
+__pycache__/
