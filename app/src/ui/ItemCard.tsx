@@ -53,7 +53,7 @@ export function ItemCard({
       {footer && <div className="ui-card__footer">{footer}</div>}
     </>
   )
-  const cls = `ui-card acrylic ui-edge-top ui-r${r}${onClick ? ' ui-lift' : ''}${isNew ? ' ui-card--new' : ''}`
+  const cls = `ui-card acrylic ui-edge ui-r${r}${onClick ? ' ui-lift' : ''}${isNew ? ' ui-card--new' : ''}`
   return onClick ? (
     <button type="button" className={cls} onClick={onClick}>
       {content}

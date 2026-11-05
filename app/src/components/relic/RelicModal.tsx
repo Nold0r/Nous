@@ -77,7 +77,7 @@ export function RelicModal({
     >
       <div className="relic-modal">
         <section className="relic-modal__relic">
-          <div className={`relic-modal__hero ui-edge-top ui-r${stars}`}>
+          <div className={`relic-modal__hero ui-edge ui-r${stars}`}>
             <span className={`relic-modal__tile ui-card__tile ui-rarity-tile ui-r${stars}`}>
               <img src={resUrl(relic.icon)} alt="" />
             </span>

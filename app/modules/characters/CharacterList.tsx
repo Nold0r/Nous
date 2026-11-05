@@ -176,7 +176,7 @@ export function CharacterList({
                 </Badge>
               )
             }
-            bottom={
+            footer={
               <>
                 <span>Ур. {c.avatar.level}</span>
                 {c.lightCone ? (

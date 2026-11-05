@@ -357,7 +357,7 @@ export function DesignSystemPage() {
         </div>
       </div>
 
-      <SectionTitle aside="ItemTile · ui-r5/4/3 · ui-edge-top/-bottom · ui-rarity-tile · ui-lift">Плитки предметов</SectionTitle>
+      <SectionTitle aside="ItemTile · ui-r5/4/3 · ui-edge · ui-rarity-tile · ui-lift">Плитки предметов</SectionTitle>
       <div className="ds-row">
         {[5, 4, 3, 2].map((r) => (
           <div key={r} style={{ width: 96 }}>
@@ -366,8 +366,7 @@ export function DesignSystemPage() {
         ))}
       </div>
       <span className="text-muted">
-        У всех карточек одна редкость: цвет из ui-r5/4/3, полоса вдоль края (сверху у ItemCard, снизу у PortraitCard, HeroArt
-        и ItemTile) с затуханием к бокам, фон под картинкой ui-rarity-tile, скругление var(--radius-lg) без отдельной рамки,
+        У всех карточек одна редкость: цвет из ui-r5/4/3, полоса редкости у верхнего края с затуханием к бокам, фон под картинкой ui-rarity-tile, скругление var(--radius-lg) без отдельной рамки,
         наведение ui-lift.
       </span>
 
@@ -379,7 +378,7 @@ export function DesignSystemPage() {
           title="Ахерон"
           subtitle="Небытие"
           topRight={<span className="ds-pill">E2</span>}
-          bottom={<span>Ур. 80</span>}
+          footer={<span>Ур. 80</span>}
           onClick={() => {}}
         />
         <PortraitCard
@@ -387,7 +386,7 @@ export function DesignSystemPage() {
           rarity={4}
           title="Приглушённая (dimmed)"
           subtitle="путь не выбран"
-          bottom={<span>Ур. 12</span>}
+          footer={<span>Ур. 12</span>}
           dimmed
           onClick={() => {}}
         />

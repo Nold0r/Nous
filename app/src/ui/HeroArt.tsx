@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 export function HeroArt({ art, rarity, children }: { art: ReactNode; rarity: number; children?: ReactNode }) {
   const r = Math.min(5, Math.max(1, rarity))
   return (
-    <div className={`ui-hero ui-edge-bottom ui-r${r}`}>
+    <div className={`ui-hero ui-edge ui-r${r}`}>
       <span className="ui-hero__art">{art}</span>
       {children && <div className="ui-hero__overlay">{children}</div>}
     </div>

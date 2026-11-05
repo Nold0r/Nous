@@ -1189,11 +1189,11 @@ code {
 }
 
 /* ---------- rarity: one look for every card ----------
-   ui-r5/4/3 sets --rarity; ui-edge-top/-bottom draws the rarity line along
-   that edge, fading out to the sides (border-image: always meets the edge,
-   whole device pixels at any display scale; clip-path rounds the corners,
-   line included, so these cards have no other outline); ui-rarity-tile is
-   the background under a picture; ui-lift is the hover of a clickable card. */
+   ui-r5/4/3 sets --rarity. ui-edge draws the rarity line inside the top
+   edge of a card, fading out to the sides: its thickness is a border width
+   (whole device pixels at any display scale) and the card's own rounded
+   clip trims its ends. ui-rarity-tile is the background under a picture;
+   ui-lift is the hover of a clickable card. */
 
 .ui-r5 {
   --rarity: var(--rarity-5);
@@ -1205,22 +1205,32 @@ code {
   --rarity: var(--rarity-3);
 }
 
-.ui-edge-top,
-.ui-edge-bottom {
-  border: 0 solid transparent;
-  border-image: linear-gradient(90deg, transparent, var(--rarity, var(--line-strong)) 50%, transparent) 1;
-  clip-path: inset(0 round var(--radius-lg));
+.ui-edge {
+  position: relative;
+  overflow: hidden;
 }
 
-.ui-edge-top {
-  border-top-width: 2px;
-}
-
-.ui-edge-bottom {
-  border-bottom-width: 3px;
+.ui-edge::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 0;
+  border-top: 2px solid transparent;
+  /* full colour over most of the width, fading only near the rounded corners */
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--rarity, var(--line-strong)) 18%,
+      var(--rarity, var(--line-strong)) 82%,
+      transparent
+    )
+    border-box;
 }
 
 .ui-rarity-tile {
+  border-radius: var(--radius);
   background: linear-gradient(
     160deg,
     color-mix(in srgb, var(--rarity, rgba(255, 255, 255, 0.2)) 50%, transparent),
@@ -1254,6 +1264,8 @@ code {
   gap: var(--space-3);
   padding: var(--space-3);
   overflow: hidden;
+  /* no outline: the rarity line marks the card (also resets <button>) */
+  border: none;
   border-radius: var(--radius-lg);
   color: var(--text);
   text-align: left;
@@ -1355,46 +1367,18 @@ code {
   font-size: var(--fs-sm);
 }
 
-/* ---------- portrait card (character list) ---------- */
+/* ---------- portrait card (character list): an ItemCard with a bust ---------- */
 
 .ui-portrait {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--text);
-  text-align: left;
-}
-
-.ui-portrait--interactive {
-  cursor: pointer;
-}
-
-.ui-portrait--interactive:hover .ui-portrait__frame {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
-}
-
-.ui-portrait--interactive:focus-visible {
-  box-shadow: none;
-  outline: 2px solid var(--gold-dim);
-  outline-offset: 3px;
-  border-radius: var(--radius-lg);
+  gap: var(--space-2);
+  padding: var(--space-2);
 }
 
 .ui-portrait__frame {
   position: relative;
   display: block;
   aspect-ratio: 1;
-  margin-bottom: var(--space-2);
   overflow: hidden;
-  border-radius: var(--radius-lg);
-  transition:
-    filter var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
 }
 
 .ui-portrait__frame > img {
@@ -1425,21 +1409,18 @@ code {
   right: var(--space-2);
 }
 
-.ui-portrait__bottom {
-  position: absolute;
-  inset: auto 0 0;
+.ui-portrait__titles {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-5) var(--space-2) var(--space-2);
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  font-size: var(--fs-sm);
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--space-1);
 }
 
 .ui-portrait__title {
   overflow: hidden;
   font-size: var(--fs-md);
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1450,6 +1431,12 @@ code {
   font-size: var(--fs-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ui-portrait .ui-card__footer {
+  justify-content: space-between;
+  margin: 0 var(--space-1);
+  padding-top: var(--space-2);
 }
 
 /* ---------- badge: solid ---------- */
