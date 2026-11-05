@@ -1369,12 +1369,10 @@ code {
     transform var(--dur-fast) var(--ease);
 }
 
-.ui-portrait__frame::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 3px;
-  background: var(--portrait-rarity, var(--line-strong));
+/* rarity line along the bottom edge: a border, so it is the same
+   whole-pixel thickness on every card at any display scale */
+.ui-portrait__frame {
+  border-bottom: 3px solid var(--portrait-rarity, var(--line-strong));
 }
 
 .ui-portrait__frame--r5 {
@@ -1397,6 +1395,7 @@ code {
 .ui-portrait--interactive:focus-visible .ui-portrait__frame {
   border-color: var(--line-strong);
   transform: translateY(-2px);
+  border-bottom-color: var(--portrait-rarity, var(--line-strong));
 }
 
 .ui-portrait--interactive:focus-visible {
@@ -1430,7 +1429,7 @@ code {
 
 .ui-portrait__bottom {
   position: absolute;
-  inset: auto 0 3px;
+  inset: auto 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
