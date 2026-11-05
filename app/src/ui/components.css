@@ -1202,10 +1202,21 @@ code {
   text-align: left;
 }
 
-/* rarity line along the top edge: a border, so every card gets the same
-   whole-pixel thickness and the same rounded ends at any display scale */
+/* rarity line along the top edge, fading out to the sides. Its thickness
+   is a border width (not a height): borders snap to whole device pixels,
+   so every card gets the same line at any display scale. */
 .ui-card {
-  border-top: 2px solid var(--card-rarity, var(--line-strong));
+  border-top: 0;
+}
+
+.ui-card::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0;
+  border-top: 2px solid transparent;
+  background: linear-gradient(90deg, transparent, var(--card-rarity, var(--line-strong)) 50%, transparent) border-box;
 }
 
 .ui-card--r5 {
@@ -1228,7 +1239,6 @@ code {
 
 .ui-card--interactive:hover {
   border-color: var(--line-strong);
-  border-top-color: var(--card-rarity, var(--line-strong));
   background-color: var(--hover);
   transform: translateY(-2px);
 }
@@ -1297,7 +1307,6 @@ code {
 /* recently obtained: gold edge, glow that settles after arriving */
 .ui-card--new {
   border-color: var(--gold-dim);
-  border-top-color: var(--card-rarity, var(--gold));
   box-shadow: 0 0 22px rgba(216, 184, 117, 0.16);
   animation: ui-card-arrive 1.2s var(--ease);
 }
@@ -1369,10 +1378,21 @@ code {
     transform var(--dur-fast) var(--ease);
 }
 
-/* rarity line along the bottom edge: a border, so it is the same
-   whole-pixel thickness on every card at any display scale */
+/* rarity line along the bottom edge, fading out to the sides; its
+   thickness is a border width, so it snaps to whole device pixels */
 .ui-portrait__frame {
-  border-bottom: 3px solid var(--portrait-rarity, var(--line-strong));
+  border-bottom: 0;
+}
+
+.ui-portrait__frame::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  height: 0;
+  border-bottom: 3px solid transparent;
+  background: linear-gradient(90deg, transparent, var(--portrait-rarity, var(--line-strong)) 50%, transparent) border-box;
 }
 
 .ui-portrait__frame--r5 {
@@ -1395,7 +1415,6 @@ code {
 .ui-portrait--interactive:focus-visible .ui-portrait__frame {
   border-color: var(--line-strong);
   transform: translateY(-2px);
-  border-bottom-color: var(--portrait-rarity, var(--line-strong));
 }
 
 .ui-portrait--interactive:focus-visible {
@@ -1429,7 +1448,7 @@ code {
 
 .ui-portrait__bottom {
   position: absolute;
-  inset: auto 0 0;
+  inset: auto 0 3px;
   display: flex;
   align-items: center;
   justify-content: space-between;
