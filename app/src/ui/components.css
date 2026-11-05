@@ -1371,17 +1371,19 @@ code {
   border-radius: var(--radius-lg);
   background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
   transition:
-    box-shadow var(--dur-fast) var(--ease),
+    filter var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
 
 /* rarity line: the frame's own bottom edge (no other outline, as in the
    game's character list), fading out to the sides. Being the frame's
-   border it always meets the edge exactly and snaps to whole pixels; the
-   transparent ends hide the square corners border-image draws. */
+   border it always meets the edge exactly and snaps to whole pixels.
+   border-image ignores border-radius, so clip-path rounds the whole frame,
+   line included. */
 .ui-portrait__frame {
   border-bottom: 3px solid transparent;
   border-image: linear-gradient(90deg, transparent, var(--portrait-rarity, var(--line-strong)) 50%, transparent) 1;
+  clip-path: inset(0 round var(--radius-lg));
 }
 
 .ui-portrait__frame--r5 {
@@ -1402,17 +1404,17 @@ code {
 
 .ui-portrait--interactive:hover .ui-portrait__frame,
 .ui-portrait--interactive:focus-visible .ui-portrait__frame {
-  box-shadow: 0 0 0 1px var(--line-strong);
   transform: translateY(-2px);
+  filter: brightness(1.08);
 }
 
 .ui-portrait--interactive:focus-visible {
   box-shadow: none;
+  outline: 2px solid var(--gold-dim);
+  outline-offset: 3px;
+  border-radius: var(--radius-lg);
 }
 
-.ui-portrait--interactive:focus-visible .ui-portrait__frame {
-  box-shadow: var(--focus-ring);
-}
 
 .ui-portrait--dimmed .ui-portrait__frame > img {
   opacity: 0.55;
