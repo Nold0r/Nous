@@ -53,9 +53,6 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(216, 184, 117, 0.35), transparent 70%);
   pointer-events: none;
-  transition:
-    left 0.1s linear,
-    top 0.1s linear;
 }
 
 .map-player path {

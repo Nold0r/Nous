@@ -7,6 +7,58 @@ const MIN_ZOOM = 0.05
 const MAX_ZOOM = 4
 /** screen px per meter when following the player */
 const FOLLOW_PX_PER_M = 4
+/** a glide between two positions lasts as long as the gap between them, within these ms */
+const MIN_GLIDE = 50
+const MAX_GLIDE = 400
+/** farther than this in meters is a teleport: jump */
+const TELEPORT_M = 20
+
+/** Where the arrow is on the picture and where it points. */
+interface Pose {
+  x: number
+  y: number
+  /** degrees clockwise from up, not wrapped */
+  h: number
+}
+
+/**
+ * The arrow glides from where it is to each new position over the time since
+ * the previous one: steady speed, at most one update behind. Turns take the
+ * short way round; teleports and floor changes jump.
+ */
+function useGlide(target: Pose | null, snapPx: number): Pose | null {
+  const [shown, setShown] = useState<Pose | null>(null)
+  const cur = useRef<Pose | null>(null)
+  const last = useRef(0)
+
+  useEffect(() => {
+    if (!target) {
+      cur.current = null
+      return
+    }
+    const t0 = performance.now()
+    const gap = t0 - last.current
+    last.current = t0
+    const from = cur.current
+    const far = !from || Math.hypot(target.x - from.x, target.y - from.y) > snapPx
+    const dur = far ? 0 : Math.min(MAX_GLIDE, Math.max(MIN_GLIDE, gap))
+    const start = from ?? target
+    const turn = ((((target.h - start.h) % 360) + 540) % 360) - 180
+    let raf = 0
+    const step = (t: number) => {
+      const k = dur ? Math.min(1, (t - t0) / dur) : 1
+      const p = { x: start.x + (target.x - start.x) * k, y: start.y + (target.y - start.y) * k, h: start.h + turn * k }
+      cur.current = p
+      setShown(p)
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.x, target?.y, target?.h, snapPx])
+
+  return target ? (shown ?? target) : null
+}
 
 interface View {
   zoom: number
@@ -27,7 +79,8 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
 
-  const at = player ? toPicture(map, player) : null
+  const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
+  const at = useGlide(target, TELEPORT_M * pxPerMeter(map))
   const followZoom = FOLLOW_PX_PER_M / pxPerMeter(map)
 
   useLayoutEffect(() => {
@@ -56,13 +109,16 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
 
   useEffect(() => setState('loading'), [layer.file])
 
-  // first view, and following the player
+  // first view: on the player, else the whole map
+  const hasPlayer = !!at
   useEffect(() => {
-    if (!size.w || !size.h) return
-    if (follow && at) setView((v) => centreOn(at, v?.zoom ?? followZoom))
-    else if (!view) setView(fitAll())
+    if (!size.w || !size.h || view) return
+    setView(follow && at ? centreOn(at, followZoom) : fitAll())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, follow, at?.x, at?.y, map])
+  }, [size, follow, hasPlayer, map, view])
+
+  // following moves the map with the arrow, every frame of its glide
+  const shown = view && follow && at ? centreOn(at, view.zoom) : view
 
   const zoomAround = (factor: number, cx = size.w / 2, cy = size.h / 2) =>
     setView((v) => {
@@ -80,9 +136,9 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0 || !view) return
+    if (e.button !== 0 || !shown) return
     ;(e.target as Element).setPointerCapture(e.pointerId)
-    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }
+    drag.current = { x: e.clientX, y: e.clientY, vx: shown.x, vy: shown.y }
   }
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current
@@ -111,10 +167,10 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
         setView(fitAll())
       }}
     >
-      {view && (
+      {shown && (
         <div
           className="map-view__picture"
-          style={{ width: map.width, height: map.height, transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
+          style={{ width: map.width, height: map.height, transform: `translate(${shown.x}px, ${shown.y}px) scale(${shown.zoom})` }}
         >
           {/* the game's way: the background, then the roads of the floor */}
           {map.background && <img src={mapUrl(map.background)} alt="" draggable={false} />}
@@ -129,13 +185,13 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
         </div>
       )}
 
-      {view && at && player && (
+      {shown && at && (
         <div
           className="map-player"
           style={{
-            left: view.x + at.x * view.zoom,
-            top: view.y + at.y * view.zoom,
-            transform: `translate(-50%, -50%) rotate(${headingOnScreen(map, player)}deg)`,
+            left: shown.x + at.x * shown.zoom,
+            top: shown.y + at.y * shown.zoom,
+            transform: `translate(-50%, -50%) rotate(${at.h}deg)`,
           }}
           aria-label="Вы здесь"
         >
