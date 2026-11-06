@@ -1,10 +1,10 @@
 import { Fragment, type ReactNode } from 'react'
-import { Anchor, Bird, BookOpen, Bug, Check, CircleDot, Ghost, Puzzle, Rabbit, Sparkles, Tent } from 'lucide-react'
-import type { MarkKind } from './maps'
+import { BookOpen, Check } from 'lucide-react'
+import { mapUrl, type MarkKind } from './maps'
 import { groupOf, isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
 
-// Chests and puzzles on the map. Puzzles are what the game marks with its
-// puzzle icon, and reward chests with no icon (see scripts/map-markers.py).
+// Chests, puzzles and collectibles on the map, drawn with the game's own map
+// icons. What each kind is in the game's data: scripts/map-markers.py.
 
 const TITLES: Record<MarkKind, string> = {
   basic: 'Обычный сундук',
@@ -51,42 +51,50 @@ const EXTRA: { group: keyof MarkFilter; kind: MarkKind; label: string }[] = [
   { group: 'outposts', kind: 'outpost', label: 'Места сдачи' },
 ]
 
-function MarkIcon({ kind, reward = false }: { kind: MarkKind; reward?: boolean }) {
-  if (kind === 'nymph') return <Bug size={12} strokeWidth={2.4} />
-  if (kind === 'origami') return <Bird size={12} strokeWidth={2.4} />
-  if (kind === 'wisp') return <Sparkles size={12} strokeWidth={2.4} />
-  if (kind === 'rabbit') return <Rabbit size={12} strokeWidth={2.4} />
-  if (kind === 'anchor') return <Anchor size={12} strokeWidth={2.4} />
-  if (kind === 'book') return <BookOpen size={12} strokeWidth={2.4} />
-  if (kind === 'bubble') return <CircleDot size={12} strokeWidth={2.4} />
-  if (kind === 'outpost') return <Tent size={12} strokeWidth={2.4} />
-  if (kind === 'spirithief') return <Ghost size={12} strokeWidth={2.4} />
-  if (kind === 'puzzle' && !reward) return <Puzzle size={12} strokeWidth={2.4} />
-  return <ChestIcon />
+/** The game's map icon for each kind (SpriteOutput/MapPics/NaviIcons, in public/maps/icons). */
+const GAME_ICONS: Record<Exclude<MarkKind, 'book'>, string> = {
+  basic: 'IconMapChest',
+  bountiful: 'IconMapChest',
+  precious: 'IconMapChest',
+  puzzle: 'IconMapPlay6',
+  nymph: 'IconMapSpecimenUnknown',
+  origami: 'IconMapOrigamiBird',
+  wisp: 'IconMapSticker',
+  rabbit: 'IconMapDustSpirit',
+  anchor: 'IconMapMazePortal2',
+  bubble: 'IconMapMemoryBubble',
+  outpost: 'IconMapToken',
+  spirithief: 'IconMapThiefElfControl',
 }
 
-function ChestIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden>
-      <path d="M2 6.5C2 4 4 2.5 8 2.5S14 4 14 6.5V7H2z" />
-      <path d="M2 8h12v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-      <rect x="7" y="7" width="2" height="3" rx="0.5" className="map-mark__lock" />
-    </svg>
-  )
+/** The game swaps these icons when done: a caught specimen, an active anchor. */
+const DONE_ICONS: Partial<Record<MarkKind, string>> = {
+  nymph: 'IconMapSpecimen',
+  anchor: 'IconMapMazePortal',
+}
+
+/** Kinds whose done icon says it all: not greyed, no tick. */
+const SHOWN_DONE: MarkKind[] = ['anchor']
+
+function MarkIcon({ kind, reward = false, done = false }: { kind: MarkKind; reward?: boolean; done?: boolean }) {
+  if (kind === 'book') return <BookOpen size={12} strokeWidth={2.4} />
+  const icon = reward ? 'IconMapBox' : (done && DONE_ICONS[kind]) || GAME_ICONS[kind]
+  return <img src={mapUrl(`icons/${icon}.webp`)} alt="" draggable={false} />
 }
 
 /** One mark, at screen px. */
 export function MarkPin({ mark, left, top, opened }: { mark: Mark; left: number; top: number; opened: boolean }) {
   const kind = mark.kind
   const title = mark.name || (mark.reward ? 'Награда головоломки' : mark.pair ? 'Головоломка: начало' : TITLES[kind])
+  const ticked = opened && !SHOWN_DONE.includes(kind)
   return (
     <div
-      className={`map-mark map-mark--${kind}${mark.reward ? ' map-mark--reward' : ''}${opened ? ' is-opened' : ''}`}
+      className={`map-mark map-mark--${kind}${mark.reward ? ' map-mark--reward' : ''}${ticked ? ' is-opened' : ''}`}
       style={{ left, top }}
       title={title + (opened ? ` — ${DONE[kind]}` : '')}
     >
-      <MarkIcon kind={kind} reward={mark.reward} />
-      {opened && <Check size={10} strokeWidth={3.5} className="map-mark__check" />}
+      <MarkIcon kind={kind} reward={mark.reward} done={opened} />
+      {ticked && <Check size={10} strokeWidth={3.5} className="map-mark__check" />}
     </div>
   )
 }
@@ -125,15 +133,15 @@ export function MarkLegend({
   )
   return (
     <div className="map-legend" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-      {toggle('chests', 'Сундуки', <span className="map-legend__icon map-mark--precious"><ChestIcon /></span>, count('chests'))}
-      {toggle('puzzles', 'Головоломки', <span className="map-legend__icon map-mark--puzzle"><Puzzle size={12} strokeWidth={2.4} /></span>, count('puzzles'))}
+      {toggle('chests', 'Сундуки', <span className="map-legend__icon"><MarkIcon kind="basic" /></span>, count('chests'))}
+      {toggle('puzzles', 'Головоломки', <span className="map-legend__icon"><MarkIcon kind="puzzle" /></span>, count('puzzles'))}
       {EXTRA.filter((e) => listOf(e.group).length > 0).map((e) => (
         <Fragment key={e.group}>
           {toggle(
             e.group,
             e.label,
-            <span className={`map-legend__icon map-mark--${e.kind}`}>
-              <MarkIcon kind={e.kind} />
+            <span className="map-legend__icon">
+              <MarkIcon kind={e.kind} done={e.kind === 'anchor'} />
             </span>,
             count(e.group),
           )}

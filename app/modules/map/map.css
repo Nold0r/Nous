@@ -144,114 +144,75 @@
   }
 }
 
-/* chests and puzzles: fixed size whatever the zoom, coloured by kind */
+/* marks: the game's own map icons (public/maps/icons), fixed size whatever
+   the zoom */
 .map-mark {
   position: absolute;
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  background: var(--acrylic-strong);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  /* the game's icons have wide margins: the picture is under half of it */
+  width: 40px;
+  height: 40px;
   transform: translate(-50%, -50%);
 }
 
-.map-mark svg path,
-.map-legend__icon svg path {
-  fill: currentColor;
+.map-mark img,
+.map-legend__icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
-.map-mark .map-mark__lock {
-  fill: var(--bg);
+/* chest tiers share the game's chest icon: a glow tells them apart */
+.map-mark--bountiful img {
+  filter: drop-shadow(0 0 3px var(--rarity-4)) drop-shadow(0 0 1px var(--rarity-4));
 }
 
-.map-mark--basic {
-  color: var(--rarity-3);
+.map-mark--precious img {
+  filter: drop-shadow(0 0 3px var(--rarity-5)) drop-shadow(0 0 1px var(--rarity-5));
 }
 
-.map-mark--bountiful {
-  color: var(--rarity-4);
-}
-
-.map-mark--precious {
-  color: var(--rarity-5);
-}
-
-.map-mark--puzzle {
-  color: var(--success);
-}
-
-.map-mark--nymph {
-  color: var(--danger);
-}
-
-.map-mark--spirithief {
-  color: var(--brand-cream);
-}
-
-.map-mark--origami {
-  color: var(--rarity-4);
-}
-
-.map-mark--rabbit {
-  color: var(--warning);
-}
-
-.map-mark--anchor {
-  color: var(--info);
-}
-
+/* books have no icon in the game: drawn in the same cream on dark */
 .map-mark--book {
-  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2b2226;
+  color: #f2e2c1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
-.map-mark--bubble {
-  color: var(--info);
+.map-mark.is-opened img {
+  filter: grayscale(1) brightness(0.8);
+  opacity: 0.6;
 }
 
-/* where collectibles are handed in: larger, gold, never ticked */
-.map-mark--outpost {
-  width: 24px;
-  height: 24px;
-  color: var(--gold);
-}
-
-.map-mark--wisp {
-  color: var(--crimson);
-}
-
-/* lucide icons are strokes, not fills */
-.map-mark--puzzle svg path,
-.map-mark--nymph svg path,
-.map-mark--spirithief svg path,
-.map-mark--origami svg path,
-.map-mark--wisp svg path,
-.map-mark--rabbit svg path,
-.map-mark--anchor svg path,
-.map-mark--book svg path,
-.map-mark--bubble svg path,
-.map-mark--outpost svg path,
-.map-legend__icon.map-mark--puzzle svg path,
-.map-legend__icon svg.lucide path {
-  fill: none;
-}
-
-.map-mark.is-opened {
-  color: var(--text-dim);
-  opacity: 0.75;
+.map-mark--book.is-opened {
+  opacity: 0.6;
 }
 
 .map-mark__check {
   position: absolute;
-  right: -5px;
-  bottom: -4px;
+  right: 6px;
+  bottom: 7px;
   padding: 1px;
   border-radius: 50%;
   background: var(--success);
   color: var(--bg);
+}
+
+/* where the puzzle ends (its reward): smaller than the puzzle's start */
+.map-mark--reward {
+  width: 30px;
+  height: 30px;
+}
+
+/* where collectibles are handed in: larger */
+.map-mark--outpost {
+  width: 50px;
+  height: 50px;
 }
 
 .map-legend {
@@ -309,6 +270,9 @@
 .map-legend__icon {
   display: grid;
   place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -6px -4px;
   color: var(--text-muted);
 }
 
@@ -323,21 +287,6 @@
   padding: 0 var(--space-2) var(--space-1);
   color: var(--text-dim);
   font-size: var(--fs-xs);
-}
-
-/* a puzzle's reward, where the puzzle ends: smaller than the puzzle's start */
-.map-mark--reward {
-  width: 16px;
-  height: 16px;
-}
-
-.map-mark--reward svg {
-  width: 10px;
-  height: 10px;
-}
-
-.map-mark--puzzle.map-mark--reward svg path {
-  fill: currentColor;
 }
 
 .map-links {
