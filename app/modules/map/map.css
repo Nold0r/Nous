@@ -204,6 +204,21 @@
   color: var(--info);
 }
 
+.map-mark--book {
+  color: var(--text-muted);
+}
+
+.map-mark--bubble {
+  color: var(--info);
+}
+
+/* where collectibles are handed in: larger, gold, never ticked */
+.map-mark--outpost {
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+}
+
 .map-mark--wisp {
   color: var(--crimson);
 }
@@ -216,6 +231,9 @@
 .map-mark--wisp svg path,
 .map-mark--rabbit svg path,
 .map-mark--anchor svg path,
+.map-mark--book svg path,
+.map-mark--bubble svg path,
+.map-mark--outpost svg path,
 .map-legend__icon.map-mark--puzzle svg path,
 .map-legend__icon svg.lucide path {
   fill: none;

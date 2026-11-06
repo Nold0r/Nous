@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
-import { Anchor, Bird, Bug, Check, Ghost, Puzzle, Rabbit, Sparkles } from 'lucide-react'
+import { Anchor, Bird, BookOpen, Bug, Check, CircleDot, Ghost, Puzzle, Rabbit, Sparkles, Tent } from 'lucide-react'
 import type { MarkKind } from './maps'
 import { groupOf, isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
 
@@ -16,6 +16,9 @@ const TITLES: Record<MarkKind, string> = {
   wisp: 'Безымянный эфемер',
   rabbit: 'Кролик звёздного пути',
   anchor: 'Пространственный якорь',
+  book: 'Книга или заметка',
+  bubble: 'Пузырь памяти',
+  outpost: 'Место сдачи',
   spirithief: 'Душекрад',
 }
 
@@ -29,17 +32,23 @@ const DONE: Record<MarkKind, string> = {
   wisp: 'найден',
   rabbit: 'найден',
   anchor: 'активирован',
+  book: 'прочитана',
+  bubble: 'просмотрен',
+  outpost: '',
   spirithief: 'пойман',
 }
 
 /** Toggles for what only some maps have, shown where there is any. */
 const EXTRA: { group: keyof MarkFilter; kind: MarkKind; label: string }[] = [
   { group: 'anchors', kind: 'anchor', label: 'Якоря' },
+  { group: 'books', kind: 'book', label: 'Книги' },
+  { group: 'bubbles', kind: 'bubble', label: 'Пузыри памяти' },
   { group: 'nymphs', kind: 'nymph', label: 'Нимфы' },
   { group: 'spirits', kind: 'spirithief', label: 'Душекрады' },
   { group: 'origami', kind: 'origami', label: 'Птицы-оригами' },
   { group: 'wisps', kind: 'wisp', label: 'Эфемеры' },
   { group: 'rabbits', kind: 'rabbit', label: 'Кролики' },
+  { group: 'outposts', kind: 'outpost', label: 'Места сдачи' },
 ]
 
 function MarkIcon({ kind, reward = false }: { kind: MarkKind; reward?: boolean }) {
@@ -48,6 +57,9 @@ function MarkIcon({ kind, reward = false }: { kind: MarkKind; reward?: boolean }
   if (kind === 'wisp') return <Sparkles size={12} strokeWidth={2.4} />
   if (kind === 'rabbit') return <Rabbit size={12} strokeWidth={2.4} />
   if (kind === 'anchor') return <Anchor size={12} strokeWidth={2.4} />
+  if (kind === 'book') return <BookOpen size={12} strokeWidth={2.4} />
+  if (kind === 'bubble') return <CircleDot size={12} strokeWidth={2.4} />
+  if (kind === 'outpost') return <Tent size={12} strokeWidth={2.4} />
   if (kind === 'spirithief') return <Ghost size={12} strokeWidth={2.4} />
   if (kind === 'puzzle' && !reward) return <Puzzle size={12} strokeWidth={2.4} />
   return <ChestIcon />
@@ -66,7 +78,7 @@ function ChestIcon() {
 /** One mark, at screen px. */
 export function MarkPin({ mark, left, top, opened }: { mark: Mark; left: number; top: number; opened: boolean }) {
   const kind = mark.kind
-  const title = mark.reward ? 'Награда головоломки' : mark.pair ? 'Головоломка: начало' : TITLES[kind]
+  const title = mark.name || (mark.reward ? 'Награда головоломки' : mark.pair ? 'Головоломка: начало' : TITLES[kind])
   return (
     <div
       className={`map-mark map-mark--${kind}${mark.reward ? ' map-mark--reward' : ''}${opened ? ' is-opened' : ''}`}

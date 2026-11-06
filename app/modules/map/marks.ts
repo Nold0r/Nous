@@ -13,6 +13,9 @@ export interface MarkFilter {
   wisps: boolean
   rabbits: boolean
   anchors: boolean
+  books: boolean
+  bubbles: boolean
+  outposts: boolean
   spirits: boolean
   opened: boolean
 }
@@ -25,6 +28,9 @@ const DEFAULT_FILTER: MarkFilter = {
   wisps: true,
   rabbits: true,
   anchors: true,
+  books: true,
+  bubbles: true,
+  outposts: true,
   spirits: true,
   opened: true,
 }
@@ -66,6 +72,8 @@ export interface Mark {
   reward: boolean
   /** the other point of such a puzzle */
   pair: string | null
+  /** the game's own name, when the kind is not enough (outposts) */
+  name?: string
   /** picture px */
   x: number
   y: number
@@ -94,8 +102,8 @@ export function useMarks(map: FloorMap): Mark[] {
           { ...puzzle, key: `r${prop}`, layer, reward: true, pair: `p${prop}`, ...at(x, z, layer) },
         ]
       }),
-      ...map.finds.map(([kind, prop, x, z, layer, found]) => ({
-        key: `f${prop}${x}`, kind, layer, chest: 0, prop: prop || null, hide: found, reward: false, pair: null, ...at(x, z, layer),
+      ...map.finds.map(([kind, prop, x, z, layer, found, name]) => ({
+        key: `f${kind}${prop}${x}`, kind, layer, chest: 0, prop: prop || null, hide: found, reward: false, pair: null, name, ...at(x, z, layer),
       })),
       ...map.spirithieves.map(([prop, x, z, layer, taken, chest]) => ({
         key: `s${prop}${x}`, kind: 'spirithief' as const, layer, chest, prop: prop || null, hide: taken, reward: false, pair: null, ...at(x, z, layer),
@@ -114,12 +122,15 @@ export function isDone(m: Mark, { opened, props }: Progress): boolean | null {
   return state == null ? null : m.hide.includes(state)
 }
 
+/** Kinds that sit in mission groups too, which the game may never load for this player. */
+const MAYBE_ABSENT: MarkKind[] = ['puzzle', 'book', 'bubble']
+
 /**
- * A puzzle with no reward chest is there only once the game has reported its
- * prop: many sit in mission groups the game never loads for this player.
+ * A puzzle with no reward chest, a book or a memory bubble is there only once
+ * the game has reported its prop.
  */
 export const isPresent = (m: Mark, { props }: Progress) =>
-  m.kind !== 'puzzle' || m.chest !== 0 || !m.prop || props?.[m.prop] != null
+  !MAYBE_ABSENT.includes(m.kind) || m.chest !== 0 || !m.prop || props?.[m.prop] != null
 
 const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
   basic: 'chests',
@@ -131,6 +142,9 @@ const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
   wisp: 'wisps',
   rabbit: 'rabbits',
   anchor: 'anchors',
+  book: 'books',
+  bubble: 'bubbles',
+  outpost: 'outposts',
   spirithief: 'spirits',
 }
 

@@ -12,7 +12,8 @@ Puzzle reward chests in groups with no icon stand for their puzzle
 
 Finds are collectibles scattered over the maps, each the game's own map
 icon over a creature or thing in the same group whose PropState goes
-EventClose -> EventOpen when it is collected (the group templates share one
+EventClose -> EventOpen when it is collected (books and notes, and the
+Herta Space Station's memory bubbles, go the same way when read) (the group templates share one
 scheme: Penacony's origami birds, Amphoreus' bugs -- nymphs --, the golden
 chenling stickers -- nameless wispae). Some butterflies end Closed instead.
 
@@ -51,6 +52,9 @@ ANCHOR_ON = [8]
 # star rabbits: a game console per group; Open until played (Closed after: a guess)
 RABBIT_GROUP = 'GoldenChenLing_GameBoy'
 RABBIT_DONE = [0]
+# where collected things are handed in (the game's map points of these types);
+# wispae go to the star rabbits, drawn already
+OUTPOST_TYPES = ('REWARD_COLLECTION', 'REWARD_COLLECTION_BUG')
 SPIRITHIEF_GROUP = 'QTEGotchard'
 SPIRITHIEF_REWARD = ('QTEGotchard_Reward', 'QTEGotchardReward')
 # a reward chest this close to a spirit is its reward
@@ -67,6 +71,17 @@ PROP_STATES = {
     'Hidden': 20, 'TeleportGate0': 21, 'TeleportGate1': 22, 'TeleportGate2': 23, 'TeleportGate3': 24,
     'Destructed': 25, **{f'CustomState0{i}': 100 + i for i in range(1, 10)},
 }
+
+
+RU = {}
+
+
+def textmap(tb, lang):
+    out = {}
+    for f in os.listdir(os.path.join(tb, 'TextMap')):
+        if re.fullmatch(rf'TextMap(Main)?{lang}(_\d+)?\.json', f):
+            out.update(json.load(open(os.path.join(tb, 'TextMap', f), encoding='utf-8')))
+    return out
 
 
 def kind_of(types):
@@ -92,11 +107,11 @@ def icon_states(rules, states):
     return sorted(PROP_STATES[s] for s, on in shown.items() if not on and s in PROP_STATES)
 
 
-def floor_marks(tb, plane, floor, types, props):
+def floor_marks(tb, plane, floor, types, props, mapping):
     """Chests [chest id, x, z, map layer (0 unknown), kind] and puzzles
     ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0,
     start [x, z, layer] or None] and finds [kind, "group:id" of the thing, x, z,
-    layer, collected PropStates]. The puzzle's own point is where it ends
+    layer, collected PropStates(, name)]. The puzzle's own point is where it ends
     (the reward), the start is the mechanism when it stands apart."""
     layer = {}
     baked = f'{tb}/Config/LevelOutput_Baked/Floor/P{plane}_F{floor}_Baked.json'
@@ -111,11 +126,20 @@ def floor_marks(tb, plane, floor, types, props):
     things = {}  # (group, kind) -> "group:id" of the thing collected
     extra = []  # anchors and star rabbits: the thing is its own mark
     anchor_spots = set()
+    spots = set()
     spirits, rewards = [], []
     icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
         gid = int(re.search(r'_G(\d+)(?:_D\d+)?\.json$', f)[1])
         group = json.load(open(f, encoding='utf-8'))
+        for o in (group.get('PropList') or []) + (group.get('NPCList') or []):
+            info = mapping.get(o.get('MappingInfoID'))
+            spot = ('outpost', round(o.get('PosX', 0) / 5), round(o.get('PosZ', 0) / 5))
+            if info and info.get('Type') in OUTPOST_TYPES and 'PosX' in o and spot not in spots:
+                spots.add(spot)
+                name = RU.get(str((info.get('Name') or {}).get('Hash')), '')
+                extra.append(['outpost', '', round(o['PosX'], 1), round(o.get('PosZ', 0.0), 1),
+                              layer.get((gid, o.get('ID')), 0), [], name])
         if group.get('GroupName') == SPIRITHIEF_GROUP:
             spirits.append(spirithief(gid, group, props, layer))
         if group.get('GroupName') in SPIRITHIEF_REWARD:
@@ -138,6 +162,16 @@ def floor_marks(tb, plane, floor, types, props):
                 continue
             if group.get('GroupName') == RABBIT_GROUP and 'GameConsole_' in (prop.get('JsonPath') or ''):
                 extra.append(['rabbit', key, *at, RABBIT_DONE])
+                continue
+            path = prop.get('JsonPath') or ''
+            # books and notes, memory bubbles: read once, EventClose -> EventOpen
+            kind = 'book' if 'Reading' in path else 'bubble' if (
+                'Chap00_Bubble_01' in path and group.get('GroupName', '').lower().startswith('memorybubble')) else None
+            if kind:
+                spot = (kind, round(at[0] / 2), round(at[1] / 2))
+                if spot not in spots:
+                    spots.add(spot)
+                    extra.append([kind, key, *at, FOUND])
                 continue
             find = next((FINDS[r['IconID']][0] for r in rules if r.get('IconID') in FINDS), None)
             if find:
@@ -203,6 +237,8 @@ def main():
     tb = ap.parse_args().tbgd
     types = {c['ID']: c.get('ChestType') or [] for c in json.load(open(f'{tb}/ExcelOutput/MazeChest.json', encoding='utf-8'))}
     props = {p['ID']: p for p in json.load(open(f'{tb}/ExcelOutput/MazeProp.json', encoding='utf-8'))}
+    mapping = {m['ID']: m for m in json.load(open(f'{tb}/ExcelOutput/MappingInfo.json', encoding='utf-8'))}
+    RU.update(textmap(tb, 'RU'))
     planes = {}
     for fn in os.listdir(f'{tb}/Config/LevelOutput/Map'):
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
@@ -211,7 +247,7 @@ def main():
     total = icons = spirits = 0
     found = collections.Counter()
     for floor, m in maps.items():
-        m['chests'], m['puzzles'], m['finds'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props)
+        m['chests'], m['puzzles'], m['finds'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props, mapping)
         m.pop('nymphs', None)
         found.update(f[0] for f in m['finds'])
         spirits += len(m['spirithieves'])
