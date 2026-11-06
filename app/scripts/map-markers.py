@@ -14,7 +14,7 @@ Finds are collectibles scattered over the maps, each the game's own map
 icon over a creature or thing in the same group whose PropState goes
 EventClose -> EventOpen when it is collected (the group templates share one
 scheme: Penacony's origami birds, Amphoreus' bugs -- nymphs --, the golden
-chenling stickers -- star rabbits). Some butterflies end Closed instead.
+chenling stickers -- nameless wispae). Some butterflies end Closed instead.
 
 Spirithieves are the groups named "QTEGotchard": the spirit (MascotMonster)
 and a chest with no MazeChest id. Once caught, the game loads a
@@ -41,7 +41,7 @@ PUZZLE_ICONS = {89, 402}
 FINDS = {
     276: ('nymph', '_Bug'),  # IconMapSpecimenUnknown
     158: ('origami', 'OrigamiBird'),  # IconMapOrigamiFur
-    396: ('rabbit', 'GCLSticker'),  # IconMapSticker
+    396: ('wisp', 'GCLSticker'),  # IconMapSticker: nameless wispae
 }
 # PropStates of a collected find
 FOUND = [19, 0]

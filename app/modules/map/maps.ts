@@ -33,8 +33,8 @@ interface Area {
 }
 
 export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
-/** Collectibles: Amphoreus bugs, Penacony origami birds, golden chenling stickers */
-export type FindKind = 'nymph' | 'origami' | 'rabbit'
+/** Collectibles: Amphoreus bugs, Penacony origami birds, nameless wispae (golden chenling stickers) */
+export type FindKind = 'nymph' | 'origami' | 'wisp'
 export type MarkKind = ChestKind | FindKind | 'spirithief'
 /** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards with no icon are 'puzzle' */
 export type Chest = [number, number, number, number, ChestKind]
