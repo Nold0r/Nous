@@ -45,6 +45,12 @@ FINDS = {
 }
 # PropStates of a collected find
 FOUND = [19, 0]
+# space anchors: the game's portal icon (IconMapMazePortal / 2); on when CheckPointEnable
+ANCHOR_ICONS = {8, 10}
+ANCHOR_ON = [8]
+# star rabbits: a game console per group; Open until played (Closed after: a guess)
+RABBIT_GROUP = 'GoldenChenLing_GameBoy'
+RABBIT_DONE = [0]
 SPIRITHIEF_GROUP = 'QTEGotchard'
 SPIRITHIEF_REWARD = ('QTEGotchard_Reward', 'QTEGotchardReward')
 # a reward chest this close to a spirit is its reward
@@ -103,6 +109,8 @@ def floor_marks(tb, plane, floor, types, props):
                         layer[(g['ID'], o['ID'])] = lid
     chests, group_chests, finds = {}, {}, {}
     things = {}  # (group, kind) -> "group:id" of the thing collected
+    extra = []  # anchors and star rabbits: the thing is its own mark
+    anchor_spots = set()
     spirits, rewards = [], []
     icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
@@ -120,6 +128,17 @@ def floor_marks(tb, plane, floor, types, props):
             at = [round(o['PosX'], 1), round(o.get('PosZ', 0.0), 1), layer.get((gid, o.get('ID')), 0)]
             prop = props.get(o.get('PropID'), {})
             rules = o.get('OverrideMapStateIcons') or prop.get('MiniMapStateIcons') or []
+            key = f'{gid}:{o["ID"]}'
+            if any(r.get('IconID') in ANCHOR_ICONS for r in rules):
+                # an anchor comes as several props on one spot
+                spot = (round(at[0] / 2), round(at[1] / 2))
+                if spot not in anchor_spots:
+                    anchor_spots.add(spot)
+                    extra.append(['anchor', key, *at, ANCHOR_ON])
+                continue
+            if group.get('GroupName') == RABBIT_GROUP and 'GameConsole_' in (prop.get('JsonPath') or ''):
+                extra.append(['rabbit', key, *at, RABBIT_DONE])
+                continue
             find = next((FINDS[r['IconID']][0] for r in rules if r.get('IconID') in FINDS), None)
             if find:
                 finds.setdefault((gid, find), at)
@@ -150,7 +169,7 @@ def floor_marks(tb, plane, floor, types, props):
         own = group_chests.get(gid, set())
         if len(own) == 1:
             p[5] = chests.pop(next(iter(own)))[0]
-    find_rows = [[kind, things.get((gid, kind), ''), *at, FOUND] for (gid, kind), at in finds.items()]
+    find_rows = [[kind, things.get((gid, kind), ''), *at, FOUND] for (gid, kind), at in finds.items()] + extra
     for sp in filter(None, spirits):
         near = min(rewards, key=lambda r: math.dist(r[1:3], sp[1:3]), default=None)
         if near and math.dist(near[1:3], sp[1:3]) <= REWARD_REACH_M:

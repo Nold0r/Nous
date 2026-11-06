@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
-import { Bird, Bug, Check, Ghost, Puzzle, Sparkles } from 'lucide-react'
+import { Anchor, Bird, Bug, Check, Ghost, Puzzle, Rabbit, Sparkles } from 'lucide-react'
 import type { MarkKind } from './maps'
 import { groupOf, isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
 
@@ -14,6 +14,8 @@ const TITLES: Record<MarkKind, string> = {
   nymph: 'Нимфа',
   origami: 'Птица-оригами',
   wisp: 'Безымянный эфемер',
+  rabbit: 'Кролик звёздного пути',
+  anchor: 'Пространственный якорь',
   spirithief: 'Душекрад',
 }
 
@@ -25,21 +27,27 @@ const DONE: Record<MarkKind, string> = {
   nymph: 'поймана',
   origami: 'поймана',
   wisp: 'найден',
+  rabbit: 'найден',
+  anchor: 'активирован',
   spirithief: 'пойман',
 }
 
 /** Toggles for what only some maps have, shown where there is any. */
 const EXTRA: { group: keyof MarkFilter; kind: MarkKind; label: string }[] = [
+  { group: 'anchors', kind: 'anchor', label: 'Якоря' },
   { group: 'nymphs', kind: 'nymph', label: 'Нимфы' },
   { group: 'spirits', kind: 'spirithief', label: 'Душекрады' },
   { group: 'origami', kind: 'origami', label: 'Птицы-оригами' },
   { group: 'wisps', kind: 'wisp', label: 'Эфемеры' },
+  { group: 'rabbits', kind: 'rabbit', label: 'Кролики' },
 ]
 
 function MarkIcon({ kind, reward = false }: { kind: MarkKind; reward?: boolean }) {
   if (kind === 'nymph') return <Bug size={12} strokeWidth={2.4} />
   if (kind === 'origami') return <Bird size={12} strokeWidth={2.4} />
   if (kind === 'wisp') return <Sparkles size={12} strokeWidth={2.4} />
+  if (kind === 'rabbit') return <Rabbit size={12} strokeWidth={2.4} />
+  if (kind === 'anchor') return <Anchor size={12} strokeWidth={2.4} />
   if (kind === 'spirithief') return <Ghost size={12} strokeWidth={2.4} />
   if (kind === 'puzzle' && !reward) return <Puzzle size={12} strokeWidth={2.4} />
   return <ChestIcon />

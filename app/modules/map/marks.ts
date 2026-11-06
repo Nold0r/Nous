@@ -11,6 +11,8 @@ export interface MarkFilter {
   nymphs: boolean
   origami: boolean
   wisps: boolean
+  rabbits: boolean
+  anchors: boolean
   spirits: boolean
   opened: boolean
 }
@@ -21,6 +23,8 @@ const DEFAULT_FILTER: MarkFilter = {
   nymphs: true,
   origami: true,
   wisps: true,
+  rabbits: true,
+  anchors: true,
   spirits: true,
   opened: true,
 }
@@ -125,6 +129,8 @@ const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
   nymph: 'nymphs',
   origami: 'origami',
   wisp: 'wisps',
+  rabbit: 'rabbits',
+  anchor: 'anchors',
   spirithief: 'spirits',
 }
 
