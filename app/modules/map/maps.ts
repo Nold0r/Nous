@@ -33,7 +33,9 @@ interface Area {
 }
 
 export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
-export type MarkKind = ChestKind | 'nymph' | 'spirithief'
+/** Collectibles: Amphoreus bugs, Penacony origami birds, golden chenling stickers */
+export type FindKind = 'nymph' | 'origami' | 'rabbit'
+export type MarkKind = ChestKind | FindKind | 'spirithief'
 /** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards with no icon are 'puzzle' */
 export type Chest = [number, number, number, number, ChestKind]
 /**
@@ -62,8 +64,8 @@ export interface FloorMap {
   /** from scripts/map-markers.py */
   chests: Chest[]
   puzzles: PuzzleIcon[]
-  /** Amphoreus bugs: ["group:id" of the bug, x, z, layer, its PropStates when caught] */
-  nymphs: [string, number, number, number, number[]][]
+  /** collectibles: [kind, "group:id" of the thing, x, z, layer, its PropStates when collected] */
+  finds: [FindKind, string, number, number, number, number[]][]
   /** Amphoreus spirithieves: ["group:id" of the reward chest prop, x, z, layer, its PropStates when taken, MazeChest id or 0] */
   spirithieves: [string, number, number, number, number[], number][]
 }

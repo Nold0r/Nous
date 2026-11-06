@@ -9,11 +9,21 @@ export interface MarkFilter {
   chests: boolean
   puzzles: boolean
   nymphs: boolean
+  origami: boolean
+  rabbits: boolean
   spirits: boolean
   opened: boolean
 }
 
-const DEFAULT_FILTER: MarkFilter = { chests: true, puzzles: true, nymphs: true, spirits: true, opened: true }
+const DEFAULT_FILTER: MarkFilter = {
+  chests: true,
+  puzzles: true,
+  nymphs: true,
+  origami: true,
+  rabbits: true,
+  spirits: true,
+  opened: true,
+}
 
 function savedFilter(): MarkFilter {
   try {
@@ -80,8 +90,8 @@ export function useMarks(map: FloorMap): Mark[] {
           { ...puzzle, key: `r${prop}`, layer, reward: true, pair: `p${prop}`, ...at(x, z, layer) },
         ]
       }),
-      ...map.nymphs.map(([prop, x, z, layer, caught]) => ({
-        key: `n${prop}${x}`, kind: 'nymph' as const, layer, chest: 0, prop: prop || null, hide: caught, reward: false, pair: null, ...at(x, z, layer),
+      ...map.finds.map(([kind, prop, x, z, layer, found]) => ({
+        key: `f${prop}${x}`, kind, layer, chest: 0, prop: prop || null, hide: found, reward: false, pair: null, ...at(x, z, layer),
       })),
       ...map.spirithieves.map(([prop, x, z, layer, taken, chest]) => ({
         key: `s${prop}${x}`, kind: 'spirithief' as const, layer, chest, prop: prop || null, hide: taken, reward: false, pair: null, ...at(x, z, layer),
@@ -108,7 +118,14 @@ export const isPresent = (m: Mark, { props }: Progress) =>
   m.kind !== 'puzzle' || m.chest !== 0 || !m.prop || props?.[m.prop] != null
 
 const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
-  basic: 'chests', bountiful: 'chests', precious: 'chests', puzzle: 'puzzles', nymph: 'nymphs', spirithief: 'spirits',
+  basic: 'chests',
+  bountiful: 'chests',
+  precious: 'chests',
+  puzzle: 'puzzles',
+  nymph: 'nymphs',
+  origami: 'origami',
+  rabbit: 'rabbits',
+  spirithief: 'spirits',
 }
 
 /** Which toggle a mark belongs to. */

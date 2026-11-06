@@ -192,10 +192,20 @@
   color: var(--brand-cream);
 }
 
+.map-mark--origami {
+  color: var(--rarity-4);
+}
+
+.map-mark--rabbit {
+  color: var(--crimson);
+}
+
 /* lucide icons are strokes, not fills */
 .map-mark--puzzle svg path,
 .map-mark--nymph svg path,
 .map-mark--spirithief svg path,
+.map-mark--origami svg path,
+.map-mark--rabbit svg path,
 .map-legend__icon.map-mark--puzzle svg path,
 .map-legend__icon svg.lucide path {
   fill: none;

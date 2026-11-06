@@ -1,8 +1,8 @@
 """Chests and puzzles on the map, for each floor in modules/map/maps.json,
 from the datamine.
 
-Puzzles are what the game marks with its puzzle icon (MiniMapIcon 89,
-IconMapPlay6), one per group. The icon may sit on the mechanism (the Golden
+Puzzles are what the game marks with its puzzle icon (MiniMapIcon 89 or
+402, IconMapPlay6), one per group. The icon may sit on the mechanism (the Golden
 Spear: where the puzzle starts) and on a placeholder where the reward
 appears (where it ends); both are kept. The group's only chest is the puzzle's
 reward: an opened one is a solved puzzle, and it is not drawn apart. The
@@ -10,9 +10,11 @@ icon also has rules per prop state; a state without it is solved too.
 Puzzle reward chests in groups with no icon stand for their puzzle
 (older regions).
 
-Nymphs (Amphoreus bugs) are the game's "unknown specimen" icon
-(MiniMapIcon 276) over a bug in the same group; the bug's PropState tells
-if it was caught (EventOpen, or Closed for some butterflies).
+Finds are collectibles scattered over the maps, each the game's own map
+icon over a creature or thing in the same group whose PropState goes
+EventClose -> EventOpen when it is collected (the group templates share one
+scheme: Penacony's origami birds, Amphoreus' bugs -- nymphs --, the golden
+chenling stickers -- star rabbits). Some butterflies end Closed instead.
 
 Spirithieves are the groups named "QTEGotchard": the spirit (MascotMonster)
 and a chest with no MazeChest id. Once caught, the game loads a
@@ -25,6 +27,7 @@ Run after map-textures.py (it fills maps.json, this adds `chests` to each
 floor). Docs: docs/Архитектура/Модуль карты.md.
 """
 import argparse
+import collections
 import glob
 import json
 import math
@@ -32,10 +35,16 @@ import os
 import re
 
 OUT_JSON = os.path.join(os.path.dirname(__file__), '..', 'modules', 'map', 'maps.json')
-PUZZLE_ICON = 89
-NYMPH_ICON = 276
-# bug PropStates of a caught nymph
-NYMPH_CAUGHT = [19, 0]
+# the game's puzzle icons (IconMapPlay6; 402 is the same picture on newer maps)
+PUZZLE_ICONS = {89, 402}
+# map icon -> kind, and what the collected thing's prop config is called
+FINDS = {
+    276: ('nymph', '_Bug'),  # IconMapSpecimenUnknown
+    158: ('origami', 'OrigamiBird'),  # IconMapOrigamiFur
+    396: ('rabbit', 'GCLSticker'),  # IconMapSticker
+}
+# PropStates of a collected find
+FOUND = [19, 0]
 SPIRITHIEF_GROUP = 'QTEGotchard'
 SPIRITHIEF_REWARD = ('QTEGotchard_Reward', 'QTEGotchardReward')
 # a reward chest this close to a spirit is its reward
@@ -71,8 +80,8 @@ def icon_states(rules, states):
     the default."""
     default = next((r.get('IconID') for r in rules if 'State' not in r), None)
     by_state = {r['State']: r.get('IconID') for r in rules if 'State' in r}
-    shown = {s: by_state.get(s, default) == PUZZLE_ICON for s in set(states) | set(by_state)}
-    if not any(shown.values()) and default != PUZZLE_ICON:
+    shown = {s: by_state.get(s, default) in PUZZLE_ICONS for s in set(states) | set(by_state)}
+    if not any(shown.values()) and default not in PUZZLE_ICONS:
         return None
     return sorted(PROP_STATES[s] for s, on in shown.items() if not on and s in PROP_STATES)
 
@@ -80,8 +89,8 @@ def icon_states(rules, states):
 def floor_marks(tb, plane, floor, types, props):
     """Chests [chest id, x, z, map layer (0 unknown), kind] and puzzles
     ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0,
-    start [x, z, layer] or None] and nymphs ["group:id" of the bug, x, z, layer,
-    caught PropStates]. The puzzle's own point is where it ends
+    start [x, z, layer] or None] and finds [kind, "group:id" of the thing, x, z,
+    layer, collected PropStates]. The puzzle's own point is where it ends
     (the reward), the start is the mechanism when it stands apart."""
     layer = {}
     baked = f'{tb}/Config/LevelOutput_Baked/Floor/P{plane}_F{floor}_Baked.json'
@@ -92,8 +101,8 @@ def floor_marks(tb, plane, floor, types, props):
                     lid = (o.get('NavMap') or {}).get('MapLayerID') or 0
                     if lid > 0:
                         layer[(g['ID'], o['ID'])] = lid
-    chests, group_chests, nymphs = {}, {}, {}
-    bugs = {}  # group -> "group:id" of its bug
+    chests, group_chests, finds = {}, {}, {}
+    things = {}  # (group, kind) -> "group:id" of the thing collected
     spirits, rewards = [], []
     icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
@@ -111,11 +120,13 @@ def floor_marks(tb, plane, floor, types, props):
             at = [round(o['PosX'], 1), round(o.get('PosZ', 0.0), 1), layer.get((gid, o.get('ID')), 0)]
             prop = props.get(o.get('PropID'), {})
             rules = o.get('OverrideMapStateIcons') or prop.get('MiniMapStateIcons') or []
-            if any(r.get('IconID') == NYMPH_ICON for r in rules):
-                nymphs.setdefault(gid, at)
+            find = next((FINDS[r['IconID']][0] for r in rules if r.get('IconID') in FINDS), None)
+            if find:
+                finds.setdefault((gid, find), at)
                 continue
-            if '_Bug' in (prop.get('JsonPath') or ''):
-                bugs.setdefault(gid, f'{gid}:{o["ID"]}')
+            for kind, config in FINDS.values():
+                if config in (prop.get('JsonPath') or ''):
+                    things.setdefault((gid, kind), f'{gid}:{o["ID"]}')
             hide = icon_states(rules, prop.get('PropStateList') or [])
             cid = o.get('ChestID')
             if cid:
@@ -139,7 +150,7 @@ def floor_marks(tb, plane, floor, types, props):
         own = group_chests.get(gid, set())
         if len(own) == 1:
             p[5] = chests.pop(next(iter(own)))[0]
-    nymph_rows = [[bugs.get(gid, ''), *at, NYMPH_CAUGHT] for gid, at in nymphs.items()]
+    find_rows = [[kind, things.get((gid, kind), ''), *at, FOUND] for (gid, kind), at in finds.items()]
     for sp in filter(None, spirits):
         near = min(rewards, key=lambda r: math.dist(r[1:3], sp[1:3]), default=None)
         if near and math.dist(near[1:3], sp[1:3]) <= REWARD_REACH_M:
@@ -147,7 +158,7 @@ def floor_marks(tb, plane, floor, types, props):
             # a reward that is a MazeChest tells caught by the opened list, and is not drawn apart
             if near[3] in chests:
                 sp[5] = chests.pop(near[3])[0]
-    return list(chests.values()), list(puzzles.values()), nymph_rows, [s for s in spirits if s]
+    return list(chests.values()), list(puzzles.values()), find_rows, [s for s in spirits if s]
 
 
 def spirithief(gid, group, props, layer):
@@ -178,16 +189,18 @@ def main():
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
         planes[m[2]] = int(m[1])
     maps = json.load(open(OUT_JSON, encoding='utf-8'))
-    total = icons = bugs = spirits = 0
+    total = icons = spirits = 0
+    found = collections.Counter()
     for floor, m in maps.items():
-        m['chests'], m['puzzles'], m['nymphs'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props)
-        bugs += len(m['nymphs'])
+        m['chests'], m['puzzles'], m['finds'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props)
+        m.pop('nymphs', None)
+        found.update(f[0] for f in m['finds'])
         spirits += len(m['spirithieves'])
         total += len(m['chests'])
         icons += len(m['puzzles'])
     with open(OUT_JSON, 'w', encoding='utf-8') as fp:
         json.dump(maps, fp, ensure_ascii=False, separators=(',', ':'))
-    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons, {bugs} nymphs, {spirits} spirithieves')
+    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons, {spirits} spirithieves, finds {dict(found)}')
 
 
 if __name__ == '__main__':
