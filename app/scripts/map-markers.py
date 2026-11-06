@@ -10,6 +10,10 @@ icon also has rules per prop state; a state without it is solved too.
 Puzzle reward chests in groups with no icon stand for their puzzle
 (older regions).
 
+Nymphs (Amphoreus bugs) are the game's "unknown specimen" icon
+(MiniMapIcon 276) over a bug in the same group; the bug's PropState tells
+if it was caught (EventOpen, or Closed for some butterflies).
+
     python scripts/map-markers.py <TurnBasedGameData clone>
 
 Run after map-textures.py (it fills maps.json, this adds `chests` to each
@@ -24,6 +28,9 @@ import re
 
 OUT_JSON = os.path.join(os.path.dirname(__file__), '..', 'modules', 'map', 'maps.json')
 PUZZLE_ICON = 89
+NYMPH_ICON = 276
+# bug PropStates of a caught nymph
+NYMPH_CAUGHT = [19, 0]
 # a mechanism this far from its reward gets its own mark
 START_APART_M = 3
 # the protocol's PropState numbers
@@ -63,7 +70,8 @@ def icon_states(rules, states):
 def floor_marks(tb, plane, floor, types, props):
     """Chests [chest id, x, z, map layer (0 unknown), kind] and puzzles
     ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0,
-    start [x, z, layer] or None]. The puzzle's own point is where it ends
+    start [x, z, layer] or None] and nymphs ["group:id" of the bug, x, z, layer,
+    caught PropStates]. The puzzle's own point is where it ends
     (the reward), the start is the mechanism when it stands apart."""
     layer = {}
     baked = f'{tb}/Config/LevelOutput_Baked/Floor/P{plane}_F{floor}_Baked.json'
@@ -74,7 +82,8 @@ def floor_marks(tb, plane, floor, types, props):
                     lid = (o.get('NavMap') or {}).get('MapLayerID') or 0
                     if lid > 0:
                         layer[(g['ID'], o['ID'])] = lid
-    chests, group_chests = {}, {}
+    chests, group_chests, nymphs = {}, {}, {}
+    bugs = {}  # group -> "group:id" of its bug
     icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
         gid = int(re.search(r'_G(\d+)(?:_D\d+)?\.json$', f)[1])
@@ -84,6 +93,11 @@ def floor_marks(tb, plane, floor, types, props):
             at = [round(o['PosX'], 1), round(o.get('PosZ', 0.0), 1), layer.get((gid, o.get('ID')), 0)]
             prop = props.get(o.get('PropID'), {})
             rules = o.get('OverrideMapStateIcons') or prop.get('MiniMapStateIcons') or []
+            if any(r.get('IconID') == NYMPH_ICON for r in rules):
+                nymphs.setdefault(gid, at)
+                continue
+            if '_Bug' in (prop.get('JsonPath') or ''):
+                bugs.setdefault(gid, f'{gid}:{o["ID"]}')
             hide = icon_states(rules, prop.get('PropStateList') or [])
             cid = o.get('ChestID')
             if cid:
@@ -107,7 +121,8 @@ def floor_marks(tb, plane, floor, types, props):
         own = group_chests.get(gid, set())
         if len(own) == 1:
             p[5] = chests.pop(next(iter(own)))[0]
-    return list(chests.values()), list(puzzles.values())
+    nymph_rows = [[bugs.get(gid, ''), *at, NYMPH_CAUGHT] for gid, at in nymphs.items()]
+    return list(chests.values()), list(puzzles.values()), nymph_rows
 
 
 def main():
@@ -121,14 +136,15 @@ def main():
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
         planes[m[2]] = int(m[1])
     maps = json.load(open(OUT_JSON, encoding='utf-8'))
-    total = icons = 0
+    total = icons = bugs = 0
     for floor, m in maps.items():
-        m['chests'], m['puzzles'] = floor_marks(tb, planes[floor], int(floor), types, props)
+        m['chests'], m['puzzles'], m['nymphs'] = floor_marks(tb, planes[floor], int(floor), types, props)
+        bugs += len(m['nymphs'])
         total += len(m['chests'])
         icons += len(m['puzzles'])
     with open(OUT_JSON, 'w', encoding='utf-8') as fp:
         json.dump(maps, fp, ensure_ascii=False, separators=(',', ':'))
-    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons')
+    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons, {bugs} nymphs')
 
 
 if __name__ == '__main__':

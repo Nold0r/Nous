@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { worldToPicture, type ChestKind, type FloorMap, type MapLayer } from './maps'
+import { worldToPicture, type FloorMap, type MarkKind, type MapLayer } from './maps'
 
 // Which chests and puzzles the map shows, and where. Drawn by MapMarks.tsx.
 
@@ -8,10 +8,11 @@ const SHOW_KEY = 'nous.map.marks'
 export interface MarkFilter {
   chests: boolean
   puzzles: boolean
+  nymphs: boolean
   opened: boolean
 }
 
-const DEFAULT_FILTER: MarkFilter = { chests: true, puzzles: true, opened: true }
+const DEFAULT_FILTER: MarkFilter = { chests: true, puzzles: true, nymphs: true, opened: true }
 
 function savedFilter(): MarkFilter {
   try {
@@ -37,14 +38,14 @@ export function useMarkFilter(): [MarkFilter, (f: MarkFilter) => void] {
 
 export interface Mark {
   key: string
-  kind: ChestKind
+  kind: MarkKind
   /** map layer, 0 unknown */
   layer: number
   /** MazeChest id: the chest, or the puzzle's reward; 0 none */
   chest: number
   /** "group:id" of the puzzle's icon prop */
   prop: string | null
-  /** its PropStates without the icon: solved */
+  /** PropStates of `prop` that mean done: a puzzle without its icon, a caught nymph */
   hide: number[]
   /** where a puzzle with its own start ends: its reward */
   reward: boolean
@@ -78,6 +79,9 @@ export function useMarks(map: FloorMap): Mark[] {
           { ...puzzle, key: `r${prop}`, layer, reward: true, pair: `p${prop}`, ...at(x, z, layer) },
         ]
       }),
+      ...map.nymphs.map(([prop, x, z, layer, caught]) => ({
+        key: `n${prop}${x}`, kind: 'nymph' as const, layer, chest: 0, prop: prop || null, hide: caught, reward: false, pair: null, ...at(x, z, layer),
+      })),
     ]
   }, [map])
 }
@@ -96,14 +100,22 @@ export function isDone(m: Mark, { opened, props }: Progress): boolean | null {
  * A puzzle with no reward chest is there only once the game has reported its
  * prop: many sit in mission groups the game never loads for this player.
  */
-export const isPresent = (m: Mark, { props }: Progress) => m.chest !== 0 || !m.prop || props?.[m.prop] != null
+export const isPresent = (m: Mark, { props }: Progress) =>
+  m.kind !== 'puzzle' || m.chest !== 0 || !m.prop || props?.[m.prop] != null
+
+const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
+  basic: 'chests', bountiful: 'chests', precious: 'chests', puzzle: 'puzzles', nymph: 'nymphs',
+}
+
+/** Which toggle a mark belongs to. */
+export const groupOf = (m: Mark) => SHOWN_BY[m.kind]
 
 /** Marks to draw: on the floor shown (or of unknown floor), as the filter says. */
 export function visibleMarks(marks: Mark[], map: FloorMap, layer: MapLayer, filter: MarkFilter, progress: Progress) {
   return marks.filter((m) => {
     if (!isPresent(m, progress)) return false
     if (map.layers.length > 1 && m.layer && m.layer !== layer.layer) return false
-    if (!(m.kind === 'puzzle' ? filter.puzzles : filter.chests)) return false
+    if (!filter[groupOf(m)]) return false
     return filter.opened || !isDone(m, progress)
   })
 }

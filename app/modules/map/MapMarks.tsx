@@ -1,16 +1,31 @@
 import type { ReactNode } from 'react'
-import { Check, Puzzle } from 'lucide-react'
-import type { ChestKind } from './maps'
-import { isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
+import { Bug, Check, Puzzle } from 'lucide-react'
+import type { MarkKind } from './maps'
+import { groupOf, isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
 
 // Chests and puzzles on the map. Puzzles are what the game marks with its
 // puzzle icon, and reward chests with no icon (see scripts/map-markers.py).
 
-const TITLES: Record<ChestKind, string> = {
+const TITLES: Record<MarkKind, string> = {
   basic: 'Обычный сундук',
   bountiful: 'Ценный сундук',
   precious: 'Драгоценный сундук',
   puzzle: 'Головоломка',
+  nymph: 'Нимфа',
+}
+
+const DONE: Record<MarkKind, string> = {
+  basic: 'открыт',
+  bountiful: 'открыт',
+  precious: 'открыт',
+  puzzle: 'решена',
+  nymph: 'поймана',
+}
+
+function MarkIcon({ mark }: { mark: Mark }) {
+  if (mark.kind === 'nymph') return <Bug size={12} strokeWidth={2.4} />
+  if (mark.kind === 'puzzle' && !mark.reward) return <Puzzle size={12} strokeWidth={2.4} />
+  return <ChestIcon />
 }
 
 function ChestIcon() {
@@ -31,9 +46,9 @@ export function MarkPin({ mark, left, top, opened }: { mark: Mark; left: number;
     <div
       className={`map-mark map-mark--${kind}${mark.reward ? ' map-mark--reward' : ''}${opened ? ' is-opened' : ''}`}
       style={{ left, top }}
-      title={title + (opened ? (kind === 'puzzle' ? ' — решена' : ' — открыт') : '')}
+      title={title + (opened ? ` — ${DONE[kind]}` : '')}
     >
-      {kind === 'puzzle' && !mark.reward ? <Puzzle size={12} strokeWidth={2.4} /> : <ChestIcon />}
+      <MarkIcon mark={mark} />
       {opened && <Check size={10} strokeWidth={3.5} className="map-mark__check" />}
     </div>
   )
@@ -51,11 +66,13 @@ export function MarkLegend({
   onChange: (f: MarkFilter) => void
   progress: Progress
 }) {
-  const count = (puzzle: boolean) => {
-    const list = marks.filter((m) => (m.kind === 'puzzle') === puzzle && !m.reward && isPresent(m, progress))
+  const listOf = (group: keyof MarkFilter) => marks.filter((m) => groupOf(m) === group && !m.reward && isPresent(m, progress))
+  const count = (group: keyof MarkFilter) => {
+    const list = listOf(group)
     const known = list.map((m) => isDone(m, progress)).filter((d) => d != null)
     return known.length ? `${known.filter(Boolean).length}/${list.length}` : `${list.length}`
   }
+  const hasNymphs = listOf('nymphs').length > 0
   if (!marks.length) return null
   const toggle = (key: keyof MarkFilter, label: string, icon: ReactNode, extra?: string) => (
     <button
@@ -71,8 +88,10 @@ export function MarkLegend({
   )
   return (
     <div className="map-legend" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-      {toggle('chests', 'Сундуки', <span className="map-legend__icon map-mark--precious"><ChestIcon /></span>, count(false))}
-      {toggle('puzzles', 'Головоломки', <span className="map-legend__icon map-mark--puzzle"><Puzzle size={12} strokeWidth={2.4} /></span>, count(true))}
+      {toggle('chests', 'Сундуки', <span className="map-legend__icon map-mark--precious"><ChestIcon /></span>, count('chests'))}
+      {toggle('puzzles', 'Головоломки', <span className="map-legend__icon map-mark--puzzle"><Puzzle size={12} strokeWidth={2.4} /></span>, count('puzzles'))}
+      {hasNymphs &&
+        toggle('nymphs', 'Нимфы', <span className="map-legend__icon map-mark--nymph"><Bug size={12} strokeWidth={2.4} /></span>, count('nymphs'))}
       {toggle('opened', 'Открытые', <span className="map-legend__icon"><Check size={12} strokeWidth={3} /></span>)}
       {!progress.opened && <p className="map-legend__hint">Откройте карту в игре, чтобы Nous узнал, что уже открыто</p>}
     </div>

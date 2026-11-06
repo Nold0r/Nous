@@ -33,6 +33,7 @@ interface Area {
 }
 
 export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
+export type MarkKind = ChestKind | 'nymph'
 /** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards with no icon are 'puzzle' */
 export type Chest = [number, number, number, number, ChestKind]
 /**
@@ -61,6 +62,8 @@ export interface FloorMap {
   /** from scripts/map-markers.py */
   chests: Chest[]
   puzzles: PuzzleIcon[]
+  /** Amphoreus bugs: ["group:id" of the bug, x, z, layer, its PropStates when caught] */
+  nymphs: [string, number, number, number, number[]][]
 }
 
 const MAPS = table as unknown as Record<string, FloorMap>

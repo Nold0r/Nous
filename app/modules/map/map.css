@@ -184,8 +184,13 @@
   color: var(--success);
 }
 
+.map-mark--nymph {
+  color: var(--danger);
+}
+
 /* lucide icons are strokes, not fills */
 .map-mark--puzzle svg path,
+.map-mark--nymph svg path,
 .map-legend__icon.map-mark--puzzle svg path,
 .map-legend__icon svg.lucide path {
   fill: none;
