@@ -55,6 +55,9 @@ RABBIT_DONE = [0]
 # where collected things are handed in (the game's map points of these types);
 # wispae go to the star rabbits, drawn already
 OUTPOST_TYPES = ('REWARD_COLLECTION', 'REWARD_COLLECTION_BUG')
+# books for the collection lie in groups named so; readables elsewhere are
+# things to inspect (InvestigativeProps) or mission props
+BOOK_GROUP = re.compile(r'(Book|Books|Reading|Readable)(_?\d+)?$', re.I)
 SPIRITHIEF_GROUP = 'QTEGotchard'
 SPIRITHIEF_REWARD = ('QTEGotchard_Reward', 'QTEGotchardReward')
 # a reward chest this close to a spirit is its reward
@@ -107,7 +110,7 @@ def icon_states(rules, states):
     return sorted(PROP_STATES[s] for s, on in shown.items() if not on and s in PROP_STATES)
 
 
-def floor_marks(tb, plane, floor, types, props, mapping):
+def floor_marks(tb, plane, floor, types, props, mapping, grouped):
     """Chests [chest id, x, z, map layer (0 unknown), kind] and puzzles
     ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0,
     start [x, z, layer] or None] and finds [kind, "group:id" of the thing, x, z,
@@ -123,6 +126,7 @@ def floor_marks(tb, plane, floor, types, props, mapping):
                     if lid > 0:
                         layer[(g['ID'], o['ID'])] = lid
     chests, group_chests, finds = {}, {}, {}
+    group_at = {}  # group -> [x, z, layer] of its first prop
     things = {}  # (group, kind) -> "group:id" of the thing collected
     extra = []  # anchors and star rabbits: the thing is its own mark
     anchor_spots = set()
@@ -132,6 +136,9 @@ def floor_marks(tb, plane, floor, types, props, mapping):
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
         gid = int(re.search(r'_G(\d+)(?:_D\d+)?\.json$', f)[1])
         group = json.load(open(f, encoding='utf-8'))
+        first = next((o for o in group.get('PropList') or [] if 'PosX' in o), None)
+        if first and gid not in group_at:
+            group_at[gid] = [round(first['PosX'], 1), round(first.get('PosZ', 0.0), 1), layer.get((gid, first['ID']), 0)]
         for o in (group.get('PropList') or []) + (group.get('NPCList') or []):
             info = mapping.get(o.get('MappingInfoID'))
             spot = ('outpost', round(o.get('PosX', 0) / 5), round(o.get('PosZ', 0) / 5))
@@ -165,7 +172,7 @@ def floor_marks(tb, plane, floor, types, props, mapping):
                 continue
             path = prop.get('JsonPath') or ''
             # books and notes, memory bubbles: read once, EventClose -> EventOpen
-            kind = 'book' if 'Reading' in path else 'bubble' if (
+            kind = 'book' if 'Reading' in path and BOOK_GROUP.match(group.get('GroupName', '')) else 'bubble' if (
                 'Chap00_Bubble_01' in path and group.get('GroupName', '').lower().startswith('memorybubble')) else None
             if kind:
                 spot = (kind, round(at[0] / 2), round(at[1] / 2))
@@ -199,6 +206,13 @@ def floor_marks(tb, plane, floor, types, props, mapping):
         end = (place or mech)[1]
         start = mech[1] if mech and place and math.dist(mech[1][:2], place[1][:2]) > START_APART_M else None
         puzzles[gid] = [key, *end, hide, 0, start]
+    # chests inside 2D puzzles (Planarcadia's five-dim areas) are not props
+    # of the map: ChestGroupProperty ties each to its area group, drawn there
+    for cid, gid in grouped.get(floor, []):
+        if cid in chests or gid not in group_at:
+            continue
+        chests[cid] = [cid, *group_at[gid], kind_of(types.get(cid, []))]
+        group_chests.setdefault(gid, set()).add(cid)
     for gid, p in puzzles.items():
         own = group_chests.get(gid, set())
         if len(own) == 1:
@@ -238,6 +252,9 @@ def main():
     types = {c['ID']: c.get('ChestType') or [] for c in json.load(open(f'{tb}/ExcelOutput/MazeChest.json', encoding='utf-8'))}
     props = {p['ID']: p for p in json.load(open(f'{tb}/ExcelOutput/MazeProp.json', encoding='utf-8'))}
     mapping = {m['ID']: m for m in json.load(open(f'{tb}/ExcelOutput/MappingInfo.json', encoding='utf-8'))}
+    grouped = {}  # floor -> [(chest, group)]
+    for g in json.load(open(f'{tb}/ExcelOutput/ChestGroupProperty.json', encoding='utf-8')):
+        grouped.setdefault(g['FloorID'], []).append((g['ChestID'], g['GroupID']))
     RU.update(textmap(tb, 'RU'))
     planes = {}
     for fn in os.listdir(f'{tb}/Config/LevelOutput/Map'):
@@ -247,7 +264,7 @@ def main():
     total = icons = spirits = 0
     found = collections.Counter()
     for floor, m in maps.items():
-        m['chests'], m['puzzles'], m['finds'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props, mapping)
+        m['chests'], m['puzzles'], m['finds'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props, mapping, grouped)
         m.pop('nymphs', None)
         found.update(f[0] for f in m['finds'])
         spirits += len(m['spirithieves'])
