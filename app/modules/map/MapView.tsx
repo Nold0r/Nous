@@ -107,6 +107,8 @@ export function MapView({
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
   const marks = useMarks(map)
   const [filter, setFilter] = useMarkFilter()
+  const visible = visibleMarks(marks, map, layer, filter, progress)
+  const byKey = new Map(visible.map((m) => [m.key, m]))
 
   const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
   const at = useGlide(target, TELEPORT_M * pxPerMeter(map))
@@ -229,8 +231,30 @@ export function MapView({
         </div>
       )}
 
+      {/* a puzzle's start and its reward, when both are on this floor */}
+      {shown && (
+        <svg className="map-links" aria-hidden>
+          {visible.map((m) => {
+            const end = m.pair && !m.reward ? byKey.get(m.pair) : undefined
+            if (!end) return null
+            const sx = (p: { x: number }) => shown.x + p.x * shown.zoom
+            const sy = (p: { y: number }) => shown.y + p.y * shown.zoom
+            return (
+              <line
+                key={m.key}
+                x1={sx(m)}
+                y1={sy(m)}
+                x2={sx(end)}
+                y2={sy(end)}
+                className={isDone(m, progress) ? 'is-opened' : undefined}
+              />
+            )
+          })}
+        </svg>
+      )}
+
       {shown &&
-        visibleMarks(marks, map, layer, filter, progress).map((m) => (
+        visible.map((m) => (
           <MarkPin
             key={m.key}
             mark={m}

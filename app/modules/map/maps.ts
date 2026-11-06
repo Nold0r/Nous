@@ -37,9 +37,11 @@ export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
 export type Chest = [number, number, number, number, ChestKind]
 /**
  * A puzzle the game marks with its puzzle icon: ["group:id", x, z, layer,
- * PropStates without the icon (solved), reward chest id or 0].
+ * PropStates without the icon (solved), reward chest id or 0, start]. The
+ * point is where it ends (the reward appears); start [x, z, layer] is its
+ * mechanism when that stands apart (the Golden Spear), else null.
  */
-export type PuzzleIcon = [string, number, number, number, number[], number]
+export type PuzzleIcon = [string, number, number, number, number[], number, [number, number, number] | null]
 
 export interface FloorMap {
   /** Russian location name */

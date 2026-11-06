@@ -46,6 +46,10 @@ export interface Mark {
   prop: string | null
   /** its PropStates without the icon: solved */
   hide: number[]
+  /** where a puzzle with its own start ends: its reward */
+  reward: boolean
+  /** the other point of such a puzzle */
+  pair: string | null
   /** picture px */
   x: number
   y: number
@@ -63,11 +67,17 @@ export function useMarks(map: FloorMap): Mark[] {
     const at = (x: number, z: number, layer: number) => worldToPicture(map, x, z, layer || null)
     return [
       ...map.chests.map(([id, x, z, layer, kind]) => ({
-        key: `c${id}`, kind, layer, chest: id, prop: null, hide: [], ...at(x, z, layer),
+        key: `c${id}`, kind, layer, chest: id, prop: null, hide: [], reward: false, pair: null, ...at(x, z, layer),
       })),
-      ...map.puzzles.map(([prop, x, z, layer, hide, chest]) => ({
-        key: `p${prop}`, kind: 'puzzle' as const, layer, chest, prop, hide, ...at(x, z, layer),
-      })),
+      ...map.puzzles.flatMap(([prop, x, z, layer, hide, chest, start]): Mark[] => {
+        const puzzle = { kind: 'puzzle' as const, chest, prop, hide }
+        if (!start) return [{ ...puzzle, key: `p${prop}`, layer, reward: false, pair: null, ...at(x, z, layer) }]
+        const [sx, sz, sl] = start
+        return [
+          { ...puzzle, key: `p${prop}`, layer: sl, reward: false, pair: `r${prop}`, ...at(sx, sz, sl) },
+          { ...puzzle, key: `r${prop}`, layer, reward: true, pair: `p${prop}`, ...at(x, z, layer) },
+        ]
+      }),
     ]
   }, [map])
 }

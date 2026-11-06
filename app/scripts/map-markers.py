@@ -2,7 +2,9 @@
 from the datamine.
 
 Puzzles are what the game marks with its puzzle icon (MiniMapIcon 89,
-IconMapPlay6), one per group. The group's only chest is the puzzle's
+IconMapPlay6), one per group. The icon may sit on the mechanism (the Golden
+Spear: where the puzzle starts) and on a placeholder where the reward
+appears (where it ends); both are kept. The group's only chest is the puzzle's
 reward: an opened one is a solved puzzle, and it is not drawn apart. The
 icon also has rules per prop state; a state without it is solved too.
 Puzzle reward chests in groups with no icon stand for their puzzle
@@ -16,11 +18,14 @@ floor). Docs: docs/Архитектура/Модуль карты.md.
 import argparse
 import glob
 import json
+import math
 import os
 import re
 
 OUT_JSON = os.path.join(os.path.dirname(__file__), '..', 'modules', 'map', 'maps.json')
 PUZZLE_ICON = 89
+# a mechanism this far from its reward gets its own mark
+START_APART_M = 3
 # the protocol's PropState numbers
 PROP_STATES = {
     'Closed': 0, 'Open': 1, 'Locked': 2, 'BridgeState1': 3, 'BridgeState2': 4, 'BridgeState3': 5,
@@ -57,7 +62,9 @@ def icon_states(rules, states):
 
 def floor_marks(tb, plane, floor, types, props):
     """Chests [chest id, x, z, map layer (0 unknown), kind] and puzzles
-    ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0]."""
+    ["group:id", x, z, layer, PropStates without the icon, reward chest id or 0,
+    start [x, z, layer] or None]. The puzzle's own point is where it ends
+    (the reward), the start is the mechanism when it stands apart."""
     layer = {}
     baked = f'{tb}/Config/LevelOutput_Baked/Floor/P{plane}_F{floor}_Baked.json'
     if os.path.exists(baked):
@@ -67,7 +74,8 @@ def floor_marks(tb, plane, floor, types, props):
                     lid = (o.get('NavMap') or {}).get('MapLayerID') or 0
                     if lid > 0:
                         layer[(g['ID'], o['ID'])] = lid
-    chests, puzzles, group_chests = {}, {}, {}
+    chests, group_chests = {}, {}
+    icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
         gid = int(re.search(r'_G(\d+)(?:_D\d+)?\.json$', f)[1])
         for o in json.load(open(f, encoding='utf-8')).get('PropList') or []:
@@ -84,9 +92,17 @@ def floor_marks(tb, plane, floor, types, props):
                 chests.setdefault(cid, [cid, *at, kind])
                 group_chests.setdefault(gid, set()).add(cid)
                 continue
-            # one per group; the placeholder icon over a mechanism wins
-            if hide is not None and (gid not in puzzles or prop.get('PropType') == 'PROP_ORDINARY'):
-                puzzles[gid] = [f'{gid}:{o["ID"]}', *at, hide, 0]
+            if hide is not None:
+                role = 'placeholder' if prop.get('PropType') == 'PROP_ORDINARY' else 'mechanism'
+                icons.setdefault(gid, {}).setdefault(role, [f'{gid}:{o["ID"]}', at, hide])
+    puzzles = {}
+    for gid, roles in icons.items():
+        mech, place = roles.get('mechanism'), roles.get('placeholder')
+        # the mechanism's state tells solved (the spear is Locked when broken)
+        key, _, hide = mech or place
+        end = (place or mech)[1]
+        start = mech[1] if mech and place and math.dist(mech[1][:2], place[1][:2]) > START_APART_M else None
+        puzzles[gid] = [key, *end, hide, 0, start]
     for gid, p in puzzles.items():
         own = group_chests.get(gid, set())
         if len(own) == 1:

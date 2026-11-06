@@ -26,13 +26,14 @@ function ChestIcon() {
 /** One mark, at screen px. */
 export function MarkPin({ mark, left, top, opened }: { mark: Mark; left: number; top: number; opened: boolean }) {
   const kind = mark.kind
+  const title = mark.reward ? 'Награда головоломки' : mark.pair ? 'Головоломка: начало' : TITLES[kind]
   return (
     <div
-      className={`map-mark map-mark--${kind}${opened ? ' is-opened' : ''}`}
+      className={`map-mark map-mark--${kind}${mark.reward ? ' map-mark--reward' : ''}${opened ? ' is-opened' : ''}`}
       style={{ left, top }}
-      title={TITLES[kind] + (opened ? kind === 'puzzle' ? ' — решена' : ' — открыт' : '')}
+      title={title + (opened ? (kind === 'puzzle' ? ' — решена' : ' — открыт') : '')}
     >
-      {kind === 'puzzle' ? <Puzzle size={12} strokeWidth={2.4} /> : <ChestIcon />}
+      {kind === 'puzzle' && !mark.reward ? <Puzzle size={12} strokeWidth={2.4} /> : <ChestIcon />}
       {opened && <Check size={10} strokeWidth={3.5} className="map-mark__check" />}
     </div>
   )
@@ -51,7 +52,7 @@ export function MarkLegend({
   progress: Progress
 }) {
   const count = (puzzle: boolean) => {
-    const list = marks.filter((m) => (m.kind === 'puzzle') === puzzle && isPresent(m, progress))
+    const list = marks.filter((m) => (m.kind === 'puzzle') === puzzle && !m.reward && isPresent(m, progress))
     const known = list.map((m) => isDone(m, progress)).filter((d) => d != null)
     return known.length ? `${known.filter(Boolean).length}/${list.length}` : `${list.length}`
   }
