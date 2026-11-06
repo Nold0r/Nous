@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Bug, Check, Puzzle } from 'lucide-react'
+import { Bug, Check, Ghost, Puzzle } from 'lucide-react'
 import type { MarkKind } from './maps'
 import { groupOf, isDone, isPresent, type Mark, type MarkFilter, type Progress } from './marks'
 
@@ -12,6 +12,7 @@ const TITLES: Record<MarkKind, string> = {
   precious: 'Драгоценный сундук',
   puzzle: 'Головоломка',
   nymph: 'Нимфа',
+  spirithief: 'Душекрад',
 }
 
 const DONE: Record<MarkKind, string> = {
@@ -20,10 +21,12 @@ const DONE: Record<MarkKind, string> = {
   precious: 'открыт',
   puzzle: 'решена',
   nymph: 'поймана',
+  spirithief: 'пойман',
 }
 
 function MarkIcon({ mark }: { mark: Mark }) {
   if (mark.kind === 'nymph') return <Bug size={12} strokeWidth={2.4} />
+  if (mark.kind === 'spirithief') return <Ghost size={12} strokeWidth={2.4} />
   if (mark.kind === 'puzzle' && !mark.reward) return <Puzzle size={12} strokeWidth={2.4} />
   return <ChestIcon />
 }
@@ -73,6 +76,7 @@ export function MarkLegend({
     return known.length ? `${known.filter(Boolean).length}/${list.length}` : `${list.length}`
   }
   const hasNymphs = listOf('nymphs').length > 0
+  const hasSpirits = listOf('spirits').length > 0
   if (!marks.length) return null
   const toggle = (key: keyof MarkFilter, label: string, icon: ReactNode, extra?: string) => (
     <button
@@ -92,6 +96,8 @@ export function MarkLegend({
       {toggle('puzzles', 'Головоломки', <span className="map-legend__icon map-mark--puzzle"><Puzzle size={12} strokeWidth={2.4} /></span>, count('puzzles'))}
       {hasNymphs &&
         toggle('nymphs', 'Нимфы', <span className="map-legend__icon map-mark--nymph"><Bug size={12} strokeWidth={2.4} /></span>, count('nymphs'))}
+      {hasSpirits &&
+        toggle('spirits', 'Душекрады', <span className="map-legend__icon map-mark--spirithief"><Ghost size={12} strokeWidth={2.4} /></span>, count('spirits'))}
       {toggle('opened', 'Открытые', <span className="map-legend__icon"><Check size={12} strokeWidth={3} /></span>)}
       {!progress.opened && <p className="map-legend__hint">Откройте карту в игре, чтобы Nous узнал, что уже открыто</p>}
     </div>

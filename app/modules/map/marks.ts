@@ -9,10 +9,11 @@ export interface MarkFilter {
   chests: boolean
   puzzles: boolean
   nymphs: boolean
+  spirits: boolean
   opened: boolean
 }
 
-const DEFAULT_FILTER: MarkFilter = { chests: true, puzzles: true, nymphs: true, opened: true }
+const DEFAULT_FILTER: MarkFilter = { chests: true, puzzles: true, nymphs: true, spirits: true, opened: true }
 
 function savedFilter(): MarkFilter {
   try {
@@ -82,6 +83,9 @@ export function useMarks(map: FloorMap): Mark[] {
       ...map.nymphs.map(([prop, x, z, layer, caught]) => ({
         key: `n${prop}${x}`, kind: 'nymph' as const, layer, chest: 0, prop: prop || null, hide: caught, reward: false, pair: null, ...at(x, z, layer),
       })),
+      ...map.spirithieves.map(([prop, x, z, layer, taken, chest]) => ({
+        key: `s${prop}${x}`, kind: 'spirithief' as const, layer, chest, prop: prop || null, hide: taken, reward: false, pair: null, ...at(x, z, layer),
+      })),
     ]
   }, [map])
 }
@@ -104,7 +108,7 @@ export const isPresent = (m: Mark, { props }: Progress) =>
   m.kind !== 'puzzle' || m.chest !== 0 || !m.prop || props?.[m.prop] != null
 
 const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
-  basic: 'chests', bountiful: 'chests', precious: 'chests', puzzle: 'puzzles', nymph: 'nymphs',
+  basic: 'chests', bountiful: 'chests', precious: 'chests', puzzle: 'puzzles', nymph: 'nymphs', spirithief: 'spirits',
 }
 
 /** Which toggle a mark belongs to. */

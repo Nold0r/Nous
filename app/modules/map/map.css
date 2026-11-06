@@ -188,9 +188,14 @@
   color: var(--danger);
 }
 
+.map-mark--spirithief {
+  color: var(--brand-cream);
+}
+
 /* lucide icons are strokes, not fills */
 .map-mark--puzzle svg path,
 .map-mark--nymph svg path,
+.map-mark--spirithief svg path,
 .map-legend__icon.map-mark--puzzle svg path,
 .map-legend__icon svg.lucide path {
   fill: none;

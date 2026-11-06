@@ -14,6 +14,11 @@ Nymphs (Amphoreus bugs) are the game's "unknown specimen" icon
 (MiniMapIcon 276) over a bug in the same group; the bug's PropState tells
 if it was caught (EventOpen, or Closed for some butterflies).
 
+Spirithieves are the groups named "QTEGotchard": the spirit (MascotMonster)
+and a chest with no MazeChest id. Once caught, the game loads a
+"QTEGotchard_Reward" group with a chest on the same spot; that chest is
+ChestUsed when taken (the spirit group's own chest stays ChestClosed).
+
     python scripts/map-markers.py <TurnBasedGameData clone>
 
 Run after map-textures.py (it fills maps.json, this adds `chests` to each
@@ -31,6 +36,11 @@ PUZZLE_ICON = 89
 NYMPH_ICON = 276
 # bug PropStates of a caught nymph
 NYMPH_CAUGHT = [19, 0]
+SPIRITHIEF_GROUP = 'QTEGotchard'
+SPIRITHIEF_REWARD = ('QTEGotchard_Reward', 'QTEGotchardReward')
+# a reward chest this close to a spirit is its reward
+REWARD_REACH_M = 10
+CHEST_USED = 13
 # a mechanism this far from its reward gets its own mark
 START_APART_M = 3
 # the protocol's PropState numbers
@@ -84,10 +94,18 @@ def floor_marks(tb, plane, floor, types, props):
                         layer[(g['ID'], o['ID'])] = lid
     chests, group_chests, nymphs = {}, {}, {}
     bugs = {}  # group -> "group:id" of its bug
+    spirits, rewards = [], []
     icons = {}  # group -> {'mechanism': [...], 'placeholder': [...]}
     for f in sorted(glob.glob(f'{tb}/Config/LevelOutput/SharedRuntimeGroup/Groups_P{plane}_F{floor}/*.json')):
         gid = int(re.search(r'_G(\d+)(?:_D\d+)?\.json$', f)[1])
-        for o in json.load(open(f, encoding='utf-8')).get('PropList') or []:
+        group = json.load(open(f, encoding='utf-8'))
+        if group.get('GroupName') == SPIRITHIEF_GROUP:
+            spirits.append(spirithief(gid, group, props, layer))
+        if group.get('GroupName') in SPIRITHIEF_REWARD:
+            rewards += [(f'{gid}:{o["ID"]}', o['PosX'], o.get('PosZ', 0.0), o.get('ChestID'))
+                        for o in group.get('PropList') or []
+                        if props.get(o.get('PropID'), {}).get('PropType') == 'PROP_TREASURE_CHEST' and 'PosX' in o]
+        for o in group.get('PropList') or []:
             if o.get('IsDelete') or 'PosX' not in o:
                 continue
             at = [round(o['PosX'], 1), round(o.get('PosZ', 0.0), 1), layer.get((gid, o.get('ID')), 0)]
@@ -122,7 +140,31 @@ def floor_marks(tb, plane, floor, types, props):
         if len(own) == 1:
             p[5] = chests.pop(next(iter(own)))[0]
     nymph_rows = [[bugs.get(gid, ''), *at, NYMPH_CAUGHT] for gid, at in nymphs.items()]
-    return list(chests.values()), list(puzzles.values()), nymph_rows
+    for sp in filter(None, spirits):
+        near = min(rewards, key=lambda r: math.dist(r[1:3], sp[1:3]), default=None)
+        if near and math.dist(near[1:3], sp[1:3]) <= REWARD_REACH_M:
+            sp[0] = near[0]
+            # a reward that is a MazeChest tells caught by the opened list, and is not drawn apart
+            if near[3] in chests:
+                sp[5] = chests.pop(near[3])[0]
+    return list(chests.values()), list(puzzles.values()), nymph_rows, [s for s in spirits if s]
+
+
+def spirithief(gid, group, props, layer):
+    """["group:id" of its chest, x, z, layer, [ChestUsed], MazeChest id or 0]
+    at the spirit; the chest is replaced by its reward group's one when there
+    is one."""
+    spirit = chest = None
+    for o in group.get('PropList') or []:
+        path = props.get(o.get('PropID'), {}).get('JsonPath') or ''
+        if 'MascotMonster' in path and 'PosX' in o:
+            spirit = o
+        elif props.get(o.get('PropID'), {}).get('PropType') == 'PROP_TREASURE_CHEST':
+            chest = o
+    if not spirit:
+        return None
+    at = [round(spirit['PosX'], 1), round(spirit.get('PosZ', 0.0), 1), layer.get((gid, spirit['ID']), 0)]
+    return [f'{gid}:{chest["ID"]}' if chest else '', *at, [CHEST_USED], chest.get('ChestID') or 0 if chest else 0]
 
 
 def main():
@@ -136,15 +178,16 @@ def main():
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
         planes[m[2]] = int(m[1])
     maps = json.load(open(OUT_JSON, encoding='utf-8'))
-    total = icons = bugs = 0
+    total = icons = bugs = spirits = 0
     for floor, m in maps.items():
-        m['chests'], m['puzzles'], m['nymphs'] = floor_marks(tb, planes[floor], int(floor), types, props)
+        m['chests'], m['puzzles'], m['nymphs'], m['spirithieves'] = floor_marks(tb, planes[floor], int(floor), types, props)
         bugs += len(m['nymphs'])
+        spirits += len(m['spirithieves'])
         total += len(m['chests'])
         icons += len(m['puzzles'])
     with open(OUT_JSON, 'w', encoding='utf-8') as fp:
         json.dump(maps, fp, ensure_ascii=False, separators=(',', ':'))
-    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons, {bugs} nymphs')
+    print(f'{len(maps)} floors, {total} chests, {icons} puzzle icons, {bugs} nymphs, {spirits} spirithieves')
 
 
 if __name__ == '__main__':

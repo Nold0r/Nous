@@ -33,7 +33,7 @@ interface Area {
 }
 
 export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
-export type MarkKind = ChestKind | 'nymph'
+export type MarkKind = ChestKind | 'nymph' | 'spirithief'
 /** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards with no icon are 'puzzle' */
 export type Chest = [number, number, number, number, ChestKind]
 /**
@@ -64,6 +64,8 @@ export interface FloorMap {
   puzzles: PuzzleIcon[]
   /** Amphoreus bugs: ["group:id" of the bug, x, z, layer, its PropStates when caught] */
   nymphs: [string, number, number, number, number[]][]
+  /** Amphoreus spirithieves: ["group:id" of the reward chest prop, x, z, layer, its PropStates when taken, MazeChest id or 0] */
+  spirithieves: [string, number, number, number, number[], number][]
 }
 
 const MAPS = table as unknown as Record<string, FloorMap>
