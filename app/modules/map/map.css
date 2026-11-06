@@ -165,15 +165,6 @@
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
-/* chest tiers share the game's chest icon: a glow tells them apart */
-.map-mark--bountiful img {
-  filter: drop-shadow(0 0 3px var(--rarity-4)) drop-shadow(0 0 1px var(--rarity-4));
-}
-
-.map-mark--precious img {
-  filter: drop-shadow(0 0 3px var(--rarity-5)) drop-shadow(0 0 1px var(--rarity-5));
-}
-
 /* books have no icon in the game: drawn in the same cream on dark */
 .map-mark--book {
   width: 20px;

@@ -53,9 +53,10 @@ const EXTRA: { group: keyof MarkFilter; kind: MarkKind; label: string }[] = [
 
 /** The game's map icon for each kind (SpriteOutput/MapPics/NaviIcons, in public/maps/icons). */
 const GAME_ICONS: Record<Exclude<MarkKind, 'book'>, string> = {
-  basic: 'IconMapChest',
-  bountiful: 'IconMapChest',
-  precious: 'IconMapChest',
+  // the game's chest icon, tinted by tier (blue, purple, gold)
+  basic: 'IconMapChest-basic',
+  bountiful: 'IconMapChest-bountiful',
+  precious: 'IconMapChest-precious',
   puzzle: 'IconMapPlay6',
   nymph: 'IconMapSpecimenUnknown',
   origami: 'IconMapOrigamiBird',
