@@ -143,3 +143,136 @@
     opacity: 0;
   }
 }
+
+/* chests and puzzles: fixed size whatever the zoom, coloured by kind */
+.map-mark {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: var(--acrylic-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+}
+
+.map-mark svg path,
+.map-legend__icon svg path {
+  fill: currentColor;
+}
+
+.map-mark .map-mark__lock {
+  fill: var(--bg);
+}
+
+.map-mark--basic {
+  color: var(--rarity-3);
+}
+
+.map-mark--bountiful {
+  color: var(--rarity-4);
+}
+
+.map-mark--precious {
+  color: var(--rarity-5);
+}
+
+.map-mark--puzzle {
+  color: var(--success);
+}
+
+/* lucide icons are strokes, not fills */
+.map-mark--puzzle svg path,
+.map-legend__icon.map-mark--puzzle svg path,
+.map-legend__icon svg.lucide path {
+  fill: none;
+}
+
+.map-mark.is-opened {
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+
+.map-mark__check {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  padding: 1px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--bg);
+}
+
+.map-legend {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - 2 * var(--space-3) - 48px);
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  background: var(--acrylic);
+  backdrop-filter: var(--acrylic-blur);
+  cursor: default;
+}
+
+.map-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.map-legend button:hover {
+  background: var(--hover);
+}
+
+.map-legend button.is-on {
+  color: var(--text);
+}
+
+.map-legend button:not(.is-on) .map-legend__icon {
+  opacity: 0.45;
+}
+
+.map-legend button:focus-visible {
+  outline: 2px solid var(--gold-dim);
+  outline-offset: 1px;
+}
+
+.map-legend__icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.map-legend__count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.map-legend__hint {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}

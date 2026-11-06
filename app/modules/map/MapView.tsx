@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { LocateFixed, Maximize, Minus, Plus } from 'lucide-react'
 import type { Position } from '@app/lib/game-data'
 import { headingOnScreen, mapUrl, pxPerMeter, toPicture, type FloorMap, type MapLayer } from './maps'
+import { MarkLegend, MarkPin } from './MapMarks'
+import { useChestMarks, useMarkFilter, visibleMarks } from './marks'
 
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 4
@@ -71,7 +73,18 @@ interface View {
  * The floor picture, dragged and zoomed like a map, with the player's arrow.
  * Following the player keeps them centred until the map is dragged.
  */
-export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer; player: Position | null }) {
+export function MapView({
+  map,
+  layer,
+  player,
+  opened,
+}: {
+  map: FloorMap
+  layer: MapLayer
+  player: Position | null
+  /** opened chest ids of this floor; null when the game hasn't said */
+  opened: Set<number> | null
+}) {
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View | null>(null)
@@ -92,6 +105,8 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
     if (roads.map !== map) setBgReady(null)
   }
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
+  const marks = useChestMarks(map)
+  const [filter, setFilter] = useMarkFilter()
 
   const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
   const at = useGlide(target, TELEPORT_M * pxPerMeter(map))
@@ -214,6 +229,17 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
         </div>
       )}
 
+      {shown &&
+        visibleMarks(marks, map, layer, filter, opened).map((m) => (
+          <MarkPin
+            key={m.chest[0]}
+            mark={m}
+            left={shown.x + m.x * shown.zoom}
+            top={shown.y + m.y * shown.zoom}
+            opened={!!opened?.has(m.chest[0])}
+          />
+        ))}
+
       {shown && at && (
         <div
           className="map-player"
@@ -235,6 +261,8 @@ export function MapView({ map, layer, player }: { map: FloorMap; layer: MapLayer
           {failed === layer.file ? 'Не удалось загрузить карту' : 'Загрузка карты…'}
         </div>
       )}
+
+      <MarkLegend map={map} filter={filter} onChange={setFilter} opened={opened} />
 
       <div className="map-controls" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <button type="button" title="Приблизить" onClick={() => zoomAround(1.4)}>

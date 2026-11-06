@@ -32,6 +32,10 @@ interface Area {
   layers: number[]
 }
 
+export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
+/** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards are 'puzzle' */
+export type Chest = [number, number, number, number, ChestKind]
+
 export interface FloorMap {
   /** Russian location name */
   name: string
@@ -47,6 +51,8 @@ export interface FloorMap {
   layers: MapLayer[]
   /** objects with a known layer: [x, y, z, layer] in meters */
   marks: [number, number, number, number][]
+  /** from scripts/map-markers.py */
+  chests: Chest[]
 }
 
 const MAPS = table as unknown as Record<string, FloorMap>
@@ -65,23 +71,24 @@ function areasOf(map: FloorMap): Area[] {
   return list
 }
 
+/** Player position (1/1000 m) -> picture px, on the player's floor. */
+export const toPicture = (map: FloorMap, p: Position) =>
+  worldToPicture(map, p.x / 1000, p.z / 1000, playerGameLayer(map, p))
+
 /**
- * Player position (1/1000 m) -> picture px. The point takes the smallest area
- * of the player's layer that holds it, else the largest of that layer. Same
- * as scripts/map-textures.py.
+ * World point (m) -> picture px. The point takes the smallest area of its
+ * map layer that holds it, else the largest of that layer. Same as
+ * scripts/map-textures.py.
  */
-export function toPicture(map: FloorMap, p: Position): { x: number; y: number } {
-  const x = p.x / 1000
-  const z = p.z / 1000
+export function worldToPicture(map: FloorMap, x: number, z: number, layer: number | null): { x: number; y: number } {
   const r = (map.rot * Math.PI) / 180
   const local = (a: Area) => {
     const dx = x - a.cx
     const dz = z - a.cz
     return { rx: dx * Math.cos(r) - dz * Math.sin(r), rz: dx * Math.sin(r) + dz * Math.cos(r) }
   }
-  const layer = playerGameLayer(map, p)
   const all = areasOf(map)
-  const own = all.filter((a) => layer != null && a.layers.includes(layer))
+  const own = all.filter((a) => layer && a.layers.includes(layer))
   const areas = own.length ? own : all
   const area =
     areas.find((a) => {

@@ -14,6 +14,7 @@
     "game-data": "node scripts/fetch-game-data.mjs",
     "spine-centers": "node scripts/fetch-spine-centers.mjs",
     "map-textures": "python scripts/map-textures.py",
+    "map-markers": "python scripts/map-markers.py",
     "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
     "test:ui": "node scripts/tests/ui-smoke.mjs",
     "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs scripts/tests/manifest.test.mjs",

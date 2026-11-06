@@ -6,8 +6,9 @@ import { MapView } from './MapView'
 import './map.css'
 
 /**
- * Map of the location the player is in, nothing else: the floor drawn like
- * the game's minimap (from the game's own textures) and the player's arrow.
+ * Map of the location the player is in: the floor drawn like the game's
+ * minimap (from the game's own textures), the player's arrow, chests and
+ * puzzles with what is already opened.
  */
 export function MapPage() {
   const world = useWorld()
@@ -37,6 +38,8 @@ export function MapPage() {
     )
   }
 
+  const openedList = world.openedChests[String(world.floorId)]
+  const opened = openedList ? new Set(openedList) : null
   const layer = (picked?.scope === scope && map.layers.find((l) => l.layer === picked.id)) || auto
   const floors = floorsLowToHigh(map.layers).reverse()
   return (
@@ -53,7 +56,7 @@ export function MapPage() {
         )
       }
     >
-      <MapView map={map} layer={layer} player={player} />
+      <MapView map={map} layer={layer} player={player} opened={opened} />
       <p className="map-hint">Колесо — масштаб, перетаскивание — сдвиг, двойной клик — вся карта</p>
     </Page>
   )
