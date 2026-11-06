@@ -33,8 +33,13 @@ interface Area {
 }
 
 export type ChestKind = 'basic' | 'bountiful' | 'precious' | 'puzzle'
-/** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards are 'puzzle' */
+/** A MazeChest: [id, x, z (m), map layer (0 unknown), kind]; puzzle rewards with no icon are 'puzzle' */
 export type Chest = [number, number, number, number, ChestKind]
+/**
+ * A puzzle the game marks with its puzzle icon: ["group:id", x, z, layer,
+ * PropStates without the icon (solved), reward chest id or 0].
+ */
+export type PuzzleIcon = [string, number, number, number, number[], number]
 
 export interface FloorMap {
   /** Russian location name */
@@ -53,6 +58,7 @@ export interface FloorMap {
   marks: [number, number, number, number][]
   /** from scripts/map-markers.py */
   chests: Chest[]
+  puzzles: PuzzleIcon[]
 }
 
 const MAPS = table as unknown as Record<string, FloorMap>

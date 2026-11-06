@@ -3,7 +3,7 @@ import { LocateFixed, Maximize, Minus, Plus } from 'lucide-react'
 import type { Position } from '@app/lib/game-data'
 import { headingOnScreen, mapUrl, pxPerMeter, toPicture, type FloorMap, type MapLayer } from './maps'
 import { MarkLegend, MarkPin } from './MapMarks'
-import { useChestMarks, useMarkFilter, visibleMarks } from './marks'
+import { isDone, useMarkFilter, useMarks, visibleMarks, type Progress } from './marks'
 
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 4
@@ -77,13 +77,13 @@ export function MapView({
   map,
   layer,
   player,
-  opened,
+  progress,
 }: {
   map: FloorMap
   layer: MapLayer
   player: Position | null
-  /** opened chest ids of this floor; null when the game hasn't said */
-  opened: Set<number> | null
+  /** what the game told about this floor's chests and puzzles */
+  progress: Progress
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -105,7 +105,7 @@ export function MapView({
     if (roads.map !== map) setBgReady(null)
   }
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
-  const marks = useChestMarks(map)
+  const marks = useMarks(map)
   const [filter, setFilter] = useMarkFilter()
 
   const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
@@ -230,13 +230,13 @@ export function MapView({
       )}
 
       {shown &&
-        visibleMarks(marks, map, layer, filter, opened).map((m) => (
+        visibleMarks(marks, map, layer, filter, progress).map((m) => (
           <MarkPin
-            key={m.chest[0]}
+            key={m.key}
             mark={m}
             left={shown.x + m.x * shown.zoom}
             top={shown.y + m.y * shown.zoom}
-            opened={!!opened?.has(m.chest[0])}
+            opened={!!isDone(m, progress)}
           />
         ))}
 
@@ -262,7 +262,7 @@ export function MapView({
         </div>
       )}
 
-      <MarkLegend map={map} filter={filter} onChange={setFilter} opened={opened} />
+      <MarkLegend marks={marks} filter={filter} onChange={setFilter} progress={progress} />
 
       <div className="map-controls" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <button type="button" title="Приблизить" onClick={() => zoomAround(1.4)}>

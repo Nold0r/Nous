@@ -39,7 +39,10 @@ export function MapPage() {
   }
 
   const openedList = world.openedChests[String(world.floorId)]
-  const opened = openedList ? new Set(openedList) : null
+  const progress = {
+    opened: openedList ? new Set(openedList) : null,
+    props: world.props[String(world.floorId)] ?? null,
+  }
   const layer = (picked?.scope === scope && map.layers.find((l) => l.layer === picked.id)) || auto
   const floors = floorsLowToHigh(map.layers).reverse()
   return (
@@ -56,7 +59,7 @@ export function MapPage() {
         )
       }
     >
-      <MapView map={map} layer={layer} player={player} opened={opened} />
+      <MapView map={map} layer={layer} player={player} progress={progress} />
       <p className="map-hint">Колесо — масштаб, перетаскивание — сдвиг, двойной клик — вся карта</p>
     </Page>
   )
