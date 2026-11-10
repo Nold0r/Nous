@@ -106,8 +106,13 @@ def check(floor, scan, m, dm, props):
         g, i = map(int, k.split(':'))
         icons = dm.get((g, i), (0, 0, set()))[2] or {r.get('IconID') for r in props.get(o['id'], {}).get('MiniMapStateIcons') or []} - {None}
         kinds = {ICON_KIND[c] for c in icons if c in ICON_KIND}
+        name = (props.get(o['id'], {}).get('JsonPath') or '').split('/')[-1]
+        if 'PlaceHolder' in name and o.get('state') in mk.PLACEHOLDER_HIDDEN:
+            continue  # the game shows no icon there now
+        prop = props.get(o['id'], {})
+        if o.get('state') in (mk.icon_states(prop.get('MiniMapStateIcons') or [], prop.get('PropStateList') or []) or []):
+            continue  # nor in this state (a broken spear)
         if kinds and not near(kinds, at[k]):
-            name = (props.get(o['id'], {}).get('JsonPath') or '').split('/')[-1]
             lines.append(f'  {"/".join(sorted(kinds))} в игре без метки: {k} {name} @ {at[k][0]:.0f},{at[k][1]:.0f} state {o.get("state")}')
 
     # our marks on objects that never came
@@ -115,8 +120,9 @@ def check(floor, scan, m, dm, props):
         if not key:
             continue
         g = int(key.split(':')[0])
-        if g in loaded and key not in seen:
-            lines.append(f'  {kind} без объекта в игре: {key} @ {x:.0f},{z:.0f} ({dm.get(tuple(map(int, key.split(":"))), (0, 0, 0, "?"))[3]})')
+        # a find names each variant of its thing: one is enough
+        if g in loaded and not any(k in seen for k in key.split()):
+            lines.append(f'  {kind} без объекта в игре: {key} @ {x:.0f},{z:.0f} ({dm.get(tuple(map(int, key.split()[0].split(":"))), (0, 0, 0, "?"))[3]})')
 
     # the in-game map's chest counts
     reply = scan.get('map')

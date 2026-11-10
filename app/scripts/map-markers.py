@@ -65,6 +65,8 @@ REWARD_REACH_M = 10
 CHEST_USED = 13
 # a mechanism this far from its reward gets its own mark
 START_APART_M = 3
+# a placeholder's icon is gone in this PropState (Open): solved, or not reached yet
+PLACEHOLDER_HIDDEN = [1]
 # the protocol's PropState numbers
 PROP_STATES = {
     'Closed': 0, 'Open': 1, 'Locked': 2, 'BridgeState1': 3, 'BridgeState2': 4, 'BridgeState3': 5,
@@ -127,6 +129,8 @@ def floor_marks(tb, plane, floor, types, props, mapping, grouped):
                         layer[(g['ID'], o['ID'])] = lid
     chests, group_chests, finds = {}, {}, {}
     group_at = {}  # group -> [x, z, layer] of its first prop
+    group_at_chest = {}  # group -> [x, z, layer] of its chest
+    icon_chest = {}  # group -> [x, z, layer] of its chest that has the puzzle icon
     things = {}  # (group, kind) -> "group:id" of the thing collected
     extra = []  # anchors and star rabbits: the thing is its own mark
     anchor_spots = set()
@@ -186,7 +190,8 @@ def floor_marks(tb, plane, floor, types, props, mapping, grouped):
                 continue
             for kind, config in FINDS.values():
                 if config in (prop.get('JsonPath') or ''):
-                    things.setdefault((gid, kind), f'{gid}:{o["ID"]}')
+                    # the group may hold variants of the thing; the game places one
+                    things.setdefault((gid, kind), []).append(f'{gid}:{o["ID"]}')
             hide = icon_states(rules, prop.get('PropStateList') or [])
             cid = o.get('ChestID')
             if cid:
@@ -194,17 +199,34 @@ def floor_marks(tb, plane, floor, types, props, mapping, grouped):
                 kind = 'puzzle' if hide is not None else kind_of(types.get(cid, []))
                 chests.setdefault(cid, [cid, *at, kind])
                 group_chests.setdefault(gid, set()).add(cid)
+                group_at_chest.setdefault(gid, at)
+                if hide is not None:
+                    icon_chest[gid] = at
                 continue
             if hide is not None:
-                role = 'placeholder' if prop.get('PropType') == 'PROP_ORDINARY' else 'mechanism'
-                icons.setdefault(gid, {}).setdefault(role, [f'{gid}:{o["ID"]}', at, hide])
+                if prop.get('PropType') == 'PROP_ORDINARY':
+                    # the game hides a placeholder's icon once it is Open
+                    icons.setdefault(gid, {}).setdefault('placeholders', []).append([key, at, hide or PLACEHOLDER_HIDDEN])
+                else:
+                    icons.setdefault(gid, {}).setdefault('mechanism', [key, at, hide])
     puzzles = {}
     for gid, roles in icons.items():
-        mech, place = roles.get('mechanism'), roles.get('placeholder')
+        mech, places = roles.get('mechanism'), roles.get('placeholders', [])
+        place = places[0] if places else None
+        reward = group_at_chest.get(gid)
+        if len(places) > 1 and reward and not mech:
+            # two placeholders: the far one is where the puzzle starts (shown
+            # until solved), the one at the reward is where it ends
+            places = sorted(places, key=lambda q: math.dist(q[1][:2], reward[:2]))
+            place, mech = places[0], places[-1]
         # the mechanism's state tells solved (the spear is Locked when broken)
         key, _, hide = mech or place
         end = (place or mech)[1]
         start = mech[1] if mech and place and math.dist(mech[1][:2], place[1][:2]) > START_APART_M else None
+        chest_at = icon_chest.get(gid)
+        if chest_at and not start and math.dist(chest_at[:2], end[:2]) > START_APART_M:
+            # the reward chest has the icon too, away from the puzzle (Xianzhou's compasses)
+            start, end = end, chest_at
         puzzles[gid] = [key, *end, hide, 0, start]
     # chests inside 2D puzzles (Planarcadia's five-dim areas) are not props
     # of the map: ChestGroupProperty ties each to its area group, drawn there
@@ -217,7 +239,7 @@ def floor_marks(tb, plane, floor, types, props, mapping, grouped):
         own = group_chests.get(gid, set())
         if len(own) == 1:
             p[5] = chests.pop(next(iter(own)))[0]
-    find_rows = [[kind, things.get((gid, kind), ''), *at, FOUND] for (gid, kind), at in finds.items()] + extra
+    find_rows = [[kind, ' '.join(things.get((gid, kind), [])), *at, FOUND] for (gid, kind), at in finds.items()] + extra
     for sp in filter(None, spirits):
         near = min(rewards, key=lambda r: math.dist(r[1:3], sp[1:3]), default=None)
         if near and math.dist(near[1:3], sp[1:3]) <= REWARD_REACH_M:

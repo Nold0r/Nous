@@ -64,7 +64,8 @@ export interface Mark {
   layer: number
   /** MazeChest id: the chest, or the puzzle's reward; 0 none */
   chest: number
-  /** "group:id" of the puzzle's icon prop */
+  /** "group:id" of the puzzle's icon prop; for a find, of each variant of the
+   * thing, space-separated (the game places one) */
   prop: string | null
   /** PropStates of `prop` that mean done: a puzzle without its icon, a caught nymph */
   hide: number[]
@@ -118,8 +119,17 @@ export function useMarks(map: FloorMap): Mark[] {
  */
 export function isDone(m: Mark, { opened, props }: Progress): boolean | null {
   if (m.chest && opened) return opened.has(m.chest)
-  const state = m.prop ? props?.[m.prop] : undefined
+  const state = propState(m, props)
   return state == null ? null : m.hide.includes(state)
+}
+
+/** The state of the mark's prop, or of the variant the game placed. */
+function propState(m: Mark, props: Progress['props']): number | undefined {
+  for (const key of m.prop?.split(' ') ?? []) {
+    const state = props?.[key]
+    if (state != null) return state
+  }
+  return undefined
 }
 
 /** Kinds that sit in mission groups too, which the game may never load for this player. */
@@ -130,7 +140,7 @@ const MAYBE_ABSENT: MarkKind[] = ['puzzle', 'book', 'bubble']
  * the game has reported its prop.
  */
 export const isPresent = (m: Mark, { props }: Progress) =>
-  !MAYBE_ABSENT.includes(m.kind) || m.chest !== 0 || !m.prop || props?.[m.prop] != null
+  !MAYBE_ABSENT.includes(m.kind) || m.chest !== 0 || !m.prop || propState(m, props) != null
 
 const SHOWN_BY: Record<MarkKind, keyof MarkFilter> = {
   basic: 'chests',
