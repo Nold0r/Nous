@@ -1,5 +1,5 @@
 //! Passive Windows PktMon adapter. It never opens the game process or sends packets.
-use crate::{SnifferStatus, recorder::Recorder};
+use crate::{SnifferStatus, mapscan::MapScan, recorder::Recorder};
 use futures::StreamExt;
 use nous_core::{Client, Event};
 use pktmon::filter::{PktMonFilter, TransportProtocol};
@@ -36,7 +36,8 @@ pub(crate) async fn run(
         .map_err(|e| format!("PktMon stream: {e}"))?;
     set_status(&client, &status, SnifferStatus::WaitingForLogin);
     let mut sniffer = GameSniffer::new();
-    let mut recorder = Recorder::new(data_dir);
+    let mut recorder = Recorder::new(data_dir.clone());
+    let mut map_scan = MapScan::new(data_dir);
     let mut component: Option<u16> = None;
     loop {
         let packet = tokio::select! {
@@ -70,6 +71,7 @@ pub(crate) async fn run(
                         set_status(&client, &status, SnifferStatus::Connected);
                     }
                     recorder.on_command(&command);
+                    map_scan.on_command(&command);
                     // Errors are already published as `sdk-error`; one failed
                     // command (e.g. a locked file on account switch) must not end
                     // the capture: the core retries and drops nothing silently.

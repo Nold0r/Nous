@@ -8,6 +8,7 @@ pub mod gacha;
 #[cfg(test)]
 mod game_tests;
 mod inventory;
+mod mapscan;
 mod recorder;
 #[cfg(test)]
 mod replay;
