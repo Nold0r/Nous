@@ -1,0 +1,46 @@
+[
+  {
+    "name": "snapshot_initially_null_never_refetches",
+    "status": "FAIL",
+    "message": "first snapshot event must read the newly available data\n\n1 !== 2\n"
+  },
+  {
+    "name": "failed_initial_read_buffers_forever",
+    "status": "FAIL",
+    "message": "a later full-state event should recover after failed initial read\n+ actual - expected\n\n+ undefined\n- 'fresh'\n"
+  },
+  {
+    "name": "account_switch_accepts_old_inflight_read",
+    "status": "FAIL",
+    "message": "a response started before account-changed must be discarded"
+  },
+  {
+    "name": "account_switch_leaves_old_account_visible",
+    "status": "FAIL",
+    "message": "old account data must be invalidated immediately"
+  },
+  {
+    "name": "failed_refetch_stops_further_updates",
+    "status": "FAIL",
+    "message": "a failed refetch must not buffer all future events forever\n\n1 !== 3\n"
+  },
+  {
+    "name": "normal_read_and_out_of_order_event_control",
+    "status": "PASS"
+  },
+  {
+    "name": "useGameStatus_old_read_must_not_overwrite_new_event",
+    "status": "FAIL",
+    "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"running\":false,\"path\":\"C:/test/StarRail.exe\"}'\n- '{\"running\":true,\"path\":\"C:/test/StarRail.exe\"}'\n"
+  },
+  {
+    "name": "useSnifferStatus_old_read_must_not_overwrite_new_event",
+    "status": "FAIL",
+    "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"state\":\"starting\"}'\n- '{\"state\":\"connected\"}'\n             ^\n"
+  },
+  {
+    "name": "useVeritasStatus_old_read_must_not_overwrite_new_event",
+    "status": "FAIL",
+    "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"enabled\":false,\"connected\":false}'\n- '{\"enabled\":true,\"connected\":true}'\n              ^\n"
+  }
+]

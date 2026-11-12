@@ -1,0 +1,97 @@
+app/src-tauri/src/account.rs:97: fn load(&self, uid: u32) -> Option<Account> {
+app/src-tauri/src/account.rs:117: pub fn save(&self, account: &Account) {
+app/src-tauri/src/account.rs:226: fn set_aside(path: &Path, why: &str) {
+app/src-tauri/src/account.rs:235: fn write_atomic(path: &Path, data: &[u8]) -> std::io::Result<()> {
+app/src-tauri/src/game.rs:92: pub fn take_unsaved(&mut self) -> Option<Account> {
+app/src-tauri/src/game.rs:101: pub fn flush(&mut self) {
+app/src-tauri/src/game.rs:116: cmd::PlayerGetTokenScRsp => {
+app/src-tauri/src/game.rs:137: cmd::PlayerSyncScNotify => {
+app/src-tauri/src/game.rs:167: cmd::GetBagScRsp => {
+app/src-tauri/src/game.rs:211: fn apply_basic_info(&mut self, info: &proto::PlayerBasicInfo::PlayerBasicInfo) {
+app/src-tauri/src/game.rs:238: command(cmd::PlayerGetTokenScRsp, &t)
+app/src-tauri/src/game.rs:248: command(cmd::GetBagScRsp, &b)
+app/src-tauri/src/lib.rs:26: fn spawn_saver(app: AppHandle) {
+app/src-tauri/src/lib.rs:64: sniffer::start(app.handle().clone());
+app/src-tauri/src/lib.rs:65: launch::setup(app.handle())?;
+app/src-tauri/src/lib.rs:95: if let RunEvent::Exit = event {
+app/src-tauri/src/sniffer.rs:83: let mut component: Option<u16> = None;
+app/src-tauri/src/sniffer.rs:86: if *component.get_or_insert(packet.component_id) != packet.component_id {
+app/src-tauri/src/sniffer.rs:95: let Ok(game_packets) = sniffer.receive_packet(data) else { continue };
+app/src-tauri/src/sniffer.rs:99: GamePacket::Connection(ConnectionPacket::Disconnected) => {
+app/src-tauri/src/sniffer.rs:102: GamePacket::Commands { result: Ok(command), .. } => {
+app/src-tauri/src/sniffer.rs:103: if command.command_id == cmd::PlayerGetTokenScRsp {
+app/src-tauri/src/sniffer.rs:106: recorder.on_command(&command);
+app/src-tauri/src/sniffer.rs:178: fn set_status(app: &AppHandle, status: SnifferStatus) {
+app/src-tauri/src/launch.rs:107: fn watch_game(app: AppHandle) {
+app/src-tauri/src/launch.rs:145: fn find_game(app: &AppHandle) -> Option<PathBuf> {
+app/src-tauri/src/launch.rs:197: fn powershell(script: &str, elevate: bool) -> Result<(), String> {
+app/src-tauri/src/launch.rs:235: pub fn shell_start(start_process: &str) -> Result<bool, String> {
+app/src-tauri/src/launch.rs:261: pub async fn launch_game(state: State<'_, LaunchState>) -> Result<bool, String> {
+app/src-tauri/src/launch.rs:273: pub fn get_autostart() -> bool {
+app/src-tauri/src/launch.rs:284: pub async fn set_autostart(enabled: bool) -> Result<bool, String> {
+app/src-tauri/src/veritas.rs:100: fn save(&self) {
+app/src-tauri/src/veritas.rs:110: fn status(&self, game_exe: Option<&str>) -> VeritasStatus {
+app/src-tauri/src/veritas.rs:129: async fn client_loop(app: AppHandle) {
+app/src-tauri/src/veritas.rs:201: fn fetch_release() -> Result<(String, Option<String>, Vec<u8>, String), String> {
+app/src-tauri/src/veritas.rs:247: fn in_range(version: &str, range: &str) -> Option<bool> {
+app/src-tauri/src/veritas.rs:270: pub async fn enable_veritas(app: AppHandle, accept_risk: bool) -> Result<VeritasStatus, String> {
+app/src-tauri/src/veritas.rs:281: let ours = state.settings.lock().unwrap().installed.as_ref().map(|i| i.sha256.clone());
+app/src-tauri/src/veritas.rs:288: let tmp = target.with_extension("dll.nous-tmp");
+app/src-tauri/src/veritas.rs:297: state.save();
+app/src-tauri/src/veritas.rs:305: pub fn disable_veritas(app: AppHandle) -> Result<VeritasStatus, String> {
+app/src-tauri/src/veritas.rs:326: state.save();
+app/src-tauri/src/gacha.rs:121: pub fn merge(&mut self, pulls: Vec<Pull>, now: i64) -> usize {
+app/src-tauri/src/gacha.rs:132: pub fn find_log_url(game_exe: &Path) -> Result<String, String> {
+app/src-tauri/src/gacha.rs:153: fn last_log_url(data: &[u8]) -> Option<String> {
+app/src-tauri/src/gacha.rs:188: pub fn download(log_url: &str, uid: u32, known: &BTreeMap<String, Pull>) -> Result<Vec<Pull>, String> {
+app/src-tauri/src/gacha.rs:205: let rsp: LogResponse = ureq::get(&url)
+app/src-tauri/src/gacha.rs:251: pub async fn import_gacha_history(app: AppHandle) -> Result<usize, String> {
+app/src-tauri/src/world.rs:82: cmd::SceneEntityMoveCsReq => {
+app/src-tauri/src/world.rs:104: cmd::InteractPropScRsp => {
+app/src-tauri/src/world.rs:116: cmd::SceneGroupRefreshScNotify => {
+app/src-tauri/src/world.rs:161: fn apply_scene(&mut self, scene: &proto::SceneInfo::SceneInfo) {
+app/src-tauri/src/world.rs:167: let layer = self.player.and_then(|p| p.layer);
+app/src-tauri/src/recorder.rs:41: pub fn on_command(&mut self, command: &GameCommand) {
+app/src-tauri/src/recorder.rs:67: fn start(&self) -> Option<Recording> {
+app/src-tauri/src/recorder.rs:72: let file = File::create(dir.join(format!("{name}.jsonl"))).ok()?;
+app/src-tauri/src/recorder.rs:78: fn prune(dir: &PathBuf) {
+app/src-tauri/src/replay.rs:92: fn check_session(s: &Session) -> Vec<String> {
+app/src-tauri/src/replay.rs:104: fail(s.had_bag && inv.relics.is_empty(), "bag has no relics".into());
+app/src-tauri/src/replay.rs:173: fn replay_login_recordings() {
+app/src-tauri/src/replay.rs:175: println!("no login recordings: log in to the game once with Nous running");
+app/src-tauri/src/replay.rs:186: println!("no login recordings in {}", dir.display());
+app/src/lib/live.ts:11: //   4. `account-changed` (another account logged in) reads everything again.
+app/src/lib/live.ts:36: const apply = (name: string, v: Versioned<unknown>) => {
+app/src/lib/live.ts:37: if (v.revision <= revision || current === null) return
+app/src/lib/live.ts:45: const sync = () => {
+app/src/lib/live.ts:47: read()
+app/src/lib/live.ts:59: .catch(console.error)
+app/src/lib/live.ts:70: listen('account-changed', () => {
+app/src/lib/live.ts:75: Promise.all(subscriptions).then(() => !cancelled && sync())
+app/src/lib/updater.ts:4: import { relaunch } from '@tauri-apps/plugin-process'
+app/src/lib/updater.ts:19: const [update, setUpdate] = useState<UpdateState>({ state: 'none' })
+app/src/lib/updater.ts:27: setUpdate({ state: 'available', version: u.version, notes: u.body ?? '' })
+app/src/lib/updater.ts:33: const install = useCallback(() => {
+app/src/lib/updater.ts:37: setUpdate({ state: 'installing', percent: null })
+app/src/lib/updater.ts:39: .downloadAndInstall((e) => {
+app/src/lib/updater.ts:43: setUpdate({ state: 'installing', percent: total ? Math.round((done / total) * 100) : null })
+app/src/lib/updater.ts:46: .then(() => relaunch())
+app/src/lib/updater.ts:47: .catch((e) => setUpdate({ state: 'error', message: String(e) }))
+app/src/lib/game-data.ts:114: export function useBattles(): Battle[] {
+app/src/lib/game-data.ts:192: export function useSnapshot(name: string): Snapshot | null {
+app/src/components/sidebar/ProfileCard.tsx:11: function fallbackAvatar(e: SyntheticEvent<HTMLImageElement>) {
+app/src/components/sidebar/ProfileCard.tsx:13: if (img.src !== avatarIcons[DEFAULT_AVATAR]) img.src = avatarIcons[DEFAULT_AVATAR]
+app/src/components/sidebar/ProfileCard.tsx:95: {p.source === 'cached' && p.updatedAt != null && (
+app/src/components/sidebar/ProfileCard.tsx:105: {p.source === 'none' && (
+app/src/components/sidebar/ProfileCard.tsx:157: <span className={`profile__status profile__status--${p.source}`}>
+app/src/components/sidebar/ProfileCard.tsx:158: {p.source === 'none' ? 'Аккаунт не привязан' : `UID ${p.uid}`}
+app/src/components/sidebar/UpdateNotice.tsx:32: {update.state === 'error' && (
+.github/workflows/release.yml:14: paths-ignore:
+.github/workflows/release.yml:21: permissions:
+.github/workflows/release.yml:25: concurrency:
+.github/workflows/release.yml:88: - name: Lint and type check
+.github/workflows/release.yml:91: npm run lint
+.github/workflows/release.yml:92: npx tsc -b
+.github/workflows/release.yml:94: - name: Rust tests
+.github/workflows/release.yml:109: releaseDraft: false
+.github/workflows/release.yml:129: git pull --rebase

@@ -1,0 +1,84 @@
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 44s
+     Running unittests src\lib.rs (target\debug\deps\nous_core-ceec757d86929bb1.exe)
+
+running 5 tests
+test account::tests::real_account_file ... ignored
+test account::tests::format_1_files_are_migrated ... ok
+test gacha::tests::merge_counts_new_pulls_only ... ok
+test account::tests::unreadable_file_is_kept_aside_not_overwritten ... ok
+test account::tests::save_and_load_round_trip ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\public_api.rs (target\debug\deps\public_api-0d56c9ca87d24fea.exe)
+
+running 7 tests
+test failed_load_does_not_destroy_the_current_account ... ok
+test snapshot_and_multiple_subscribers_observe_the_same_revision ... ok
+test a_multi_domain_command_is_one_revision_with_the_existing_event_envelopes ... ok
+test failed_save_is_reported_and_retried_before_switching_accounts ... ok
+test account_switches_and_shutdown_preserve_data_with_replaceable_storage ... ok
+test reads_and_packet_handling_continue_while_a_snapshot_is_being_saved ... ok
+test filesystem_account_can_be_loaded_after_sdk_shutdown ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src\lib.rs (target\debug\deps\nous_hsr-553e82af0916db95.exe)
+
+running 13 tests
+test gacha::tests::live_history ... ignored
+test gacha::tests::finds_the_last_history_url_in_the_cache ... ok
+test inventory::tests::identical_sync_is_not_a_change_and_delete_removes ... ok
+test battles::tests::reads_the_client_battle_report ... ok
+test game_tests::tests::handling_marks_unsaved_instead_of_writing ... ok
+test inventory::tests::level_up_and_reroll_update_in_place ... ok
+test inventory::tests::login_list_replaces_and_reports ... ok
+test inventory::tests::reassigned_id_is_reported ... ok
+test replay::a_new_account_may_have_no_relics_but_must_have_a_complete_login ... ok
+test replay::replay_login_recordings ... ok
+test recorder::tests::file_name_is_a_utc_timestamp ... ok
+test recorder::tests::records_from_token_to_login_finish ... ok
+test game_tests::tests::switching_account_replaces_everything_and_keeps_the_old_one ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\public_api.rs (target\debug\deps\public_api-83d50a12155a9253.exe)
+
+running 1 test
+test standalone_instance_can_read_subscribe_start_stop_and_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\nous_veritas-07b110e129146dc5.exe)
+
+running 26 tests
+test tests::begin_and_lineup_merge_in_both_orders_without_losing_metadata ... ok
+test tests::disconnect_finalizes_active_state_even_without_preceding_connection_notification ... ok
+test tests::exports_namespaced_capture_completeness_without_changing_source_fields ... ok
+test tests::connection_notification_after_first_battle_packets_does_not_reopen_duplicate_final ... ok
+test tests::disconnect_archives_interrupted_battle_only_once ... ok
+test tests::final_summary_on_new_connection_recovers_partial_battle_but_ignores_same_connection_repeat ... ok
+test tests::current_properties_and_enemy_formation_are_preserved ... ok
+test tests::entity_defeat_preserves_both_player_and_enemy_killer_ids_in_export ... ok
+test tests::late_join_is_marked_partial_and_end_recovers_avatar_totals ... ok
+test tests::exports_source_json_names_and_complete_csv_rows_with_escaping ... ok
+test tests::damage_aggregates_live_skills_overkill_and_equal_av_turns ... ok
+test tests::exports_observed_property_changes_at_their_entity_turn_indices ... ok
+test tests::battle_end_retains_live_details_and_nonzero_stage_without_duplicate_history ... ok
+test tests::malformed_event_is_atomic_and_unknown_event_does_not_change_revision ... ok
+test tests::missing_damage_is_detected_at_turn_end_and_repairs_live_totals ... ok
+test tests::old_persisted_entities_deserialize_without_inventing_killer_or_stat_history ... ok
+test tests::only_fully_eligible_overlay_is_visible ... ok
+test tests::protocol_connection_errors_and_cycle_updates_reach_snapshot ... ok
+test tests::recognizes_actual_wire_events_but_ignores_unknown_names ... ok
+test tests::new_connection_after_restore_accepts_mid_battle_data_as_a_new_partial_battle ... ok
+test tests::restoring_history_exposes_latest_battle_without_resuming_it ... ok
+test tests::source_json_uses_tracked_stat_subset_and_omits_empty_stat_history ... ok
+test tests::new_battle_interrupts_prior_battle_and_retention_restores_ids ... ok
+test tests::reconnect_records_interrupted_battle_remainder_without_dropping_packets ... ok
+test tests::per_entity_stat_history_is_bounded_and_retains_latest_observation ... ok
+test tests::retained_details_are_bounded_and_truncation_marks_partial ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+

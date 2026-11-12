@@ -1,0 +1,93 @@
+crates/nous-core/src/sdk.rs:52: pub fn subscribe(&self) -> mpsc::Receiver<Event> {
+crates/nous-core/src/sdk.rs:65: pub fn handle(&self, command: &Command) -> Result<u64, String> {
+crates/nous-core/src/sdk.rs:91: pub fn flush(&self) -> Result<(), String> {
+crates/nous-core/src/sdk.rs:98: pub fn publish(&self, event: Event) {
+crates/nous-core/src/sdk.rs:103: fn publish(&self, event: Event) {
+crates/nous-core/src/sdk.rs:109: fn flush(&self) -> Result<(), String> {
+crates/nous-core/src/sdk.rs:125: impl Drop for Owner {
+crates/nous-core/src/game.rs:106: pub fn take_unsaved(&mut self) -> Option<Account> {
+crates/nous-core/src/game.rs:123: pub(crate) fn acknowledge(&mut self, pending: &PendingSave, revision: u64) {
+crates/nous-core/src/game.rs:135: pub fn flush(&mut self) -> Result<(), String> {
+crates/nous-core/src/game.rs:145: pub fn import_pulls(&mut self, uid: u32, pulls: Vec<Pull>, now: i64) -> Result<usize, String> {
+crates/nous-core/src/game.rs:153: pub fn handle(&mut self, command: &Command) -> Result<Changes, String> {
+crates/nous-core/src/game.rs:270: pub fn write(&self) -> Result<(), String> {
+crates/nous-core/src/account.rs:117: fn load_current(&self) -> Result<Account, String>;
+crates/nous-core/src/account.rs:119: fn save(&self, account: &Account) -> Result<(), String>;
+crates/nous-core/src/account.rs:148: fn load_current(&self) -> Result<Account, String> {
+crates/nous-core/src/account.rs:161: fn save(&self, account: &Account) -> Result<(), String> {
+crates/nous-core/src/account.rs:227: fn write_atomic(path: &Path, data: &[u8]) -> std::io::Result<()> {
+crates/nous-hsr/src/decode.rs:6: pub fn decode(command: &GameCommand) -> Command {
+crates/nous-hsr/src/decode.rs:9: cmd::PlayerGetTokenScRsp => {
+crates/nous-hsr/src/decode.rs:48: cmd::GetBagScRsp => {
+crates/nous-hsr/src/sniffer.rs:40: let mut component: Option<u16> = None;
+crates/nous-hsr/src/sniffer.rs:47: if *component.get_or_insert(packet.component_id) != packet.component_id {
+crates/nous-hsr/src/sniffer.rs:55: let Ok(game_packets) = sniffer.receive_packet(data) else {
+crates/nous-hsr/src/sniffer.rs:67: if command.command_id == cmd::PlayerGetTokenScRsp {
+crates/nous-hsr/src/sniffer.rs:71: client.handle(&crate::decode(&command))?;
+crates/nous-hsr/src/lib.rs:75: pub fn start_capture(&self) -> Result<(), String> {
+crates/nous-hsr/src/lib.rs:77: if worker.as_ref().is_some_and(|w| !w.thread.is_finished()) {
+crates/nous-hsr/src/lib.rs:81: let _ = w.thread.join();
+crates/nous-hsr/src/lib.rs:99: if let Err(message) = runtime.block_on(sniffer::run(
+crates/nous-hsr/src/lib.rs:114: pub fn stop_capture(&self) -> Result<(), String> {
+crates/nous-hsr/src/lib.rs:118: w.thread
+crates/nous-core/src/world.rs:114: let layer = self.player.and_then(|p| p.layer);
+crates/nous-core/src/world.rs:126: WorldCommand::Move(entities) => {
+crates/nous-core/src/world.rs:130: .or(entities.first())
+crates/nous-core/src/world.rs:154: WorldCommand::Refresh { floor, entities } => {
+crates/nous-hsr/src/gacha.rs:59: pub fn find_log_url(game_exe: &Path) -> Result<String, String> {
+crates/nous-hsr/src/gacha.rs:90: fn last_log_url(data: &[u8]) -> Option<String> {
+crates/nous-hsr/src/gacha.rs:127: pub fn download(
+crates/nous-hsr/src/gacha.rs:153: let rsp: LogResponse = ureq::get(&url)
+crates/nous-veritas/src/lib.rs:34: pub fn apply(&mut self, name: &str, data: serde_json::Value) -> Result<bool, String> {
+crates/nous-veritas/src/lib.rs:142: OnDamage {
+crates/nous-veritas/src/lib.rs:148: if attacker.team != Team::Player {
+crates/nous-veritas/src/lib.rs:152: avatar.damage += damage;
+crates/nous-veritas/src/lib.rs:381: fn ensure_battle(&mut self, partial: bool) {
+crates/nous-veritas/src/export.rs:190: fn write_row(output: &mut String, values: &[String]) {
+app/src-tauri/src/veritas.rs:125: fn save(&self) {
+app/src-tauri/src/veritas.rs:300: fn in_range(version: &str, range: &str) -> Option<bool> {
+app/src-tauri/src/veritas.rs:337: pub async fn enable_veritas(
+app/src-tauri/src/veritas.rs:417: state.save();
+app/src-tauri/src/veritas.rs:425: pub fn disable_veritas(app: AppHandle) -> Result<VeritasStatus, String> {
+app/src-tauri/src/veritas.rs:436: let path = PathBuf::from(&i.path);
+app/src-tauri/src/veritas.rs:451: state.save();
+app/src-tauri/src/veritas/overlay_host.rs:103: const BRIDGE: &str = r#"(() => {
+app/src-tauri/src/veritas/overlay_host.rs:402: webview.add_NavigationStarting(
+app/src-tauri/src/veritas/overlay_host.rs:407: if !take_pwstr(uri).starts_with(&allowed) {
+app/src-tauri/src/veritas/overlay_host.rs:446: webview.add_WebMessageReceived(
+app/src-tauri/src/veritas/overlay_host.rs:503: fn answer(app: &AppHandle, widget: &str, webview: &ICoreWebView2, message: Value) {
+app/src-tauri/src/lib.rs:33: let sdk = nous_hsr::Sdk::new(Some(app.path().app_data_dir()?))
+app/src-tauri/src/lib.rs:97: .expect("error while building tauri application")
+app/src-tauri/src/launch.rs:171: fn find_game(app: &AppHandle) -> Option<PathBuf> {
+app/src-tauri/src/launch.rs:227: fn powershell(script: &str, elevate: bool) -> Result<(), String> {
+app/src-tauri/src/launch.rs:298: pub async fn launch_game(app: AppHandle, state: State<'_, LaunchState>) -> Result<bool, String> {
+app/src/features/module-runtime.ts:26: update(modules: readonly ModuleDef[], settings: Record<string, ModuleSettings> = {}): Promise<void> {
+app/src/features/module-runtime.ts:42: await this.setServices(required)
+app/src/features/module-runtime.ts:46: for (const module of this.desired) {
+app/src/features/module-runtime.ts:52: this.running.set(module.id, { controller, stop: stop || undefined, settings: this.settings[module.id] })
+app/src/features/ModuleProvider.tsx:39: const next = saved ?? load()
+app/src/features/ModuleProvider.tsx:43: }).catch(() => {
+app/src/features/ModuleProvider.tsx:58: const save = async (next: Configuration) => {
+app/src/features/ModuleProvider.tsx:59: if (pending.current) return
+app/src/features/ModuleProvider.tsx:60: pending.current = true
+app/src/features/ModuleProvider.tsx:68: finally { pending.current = false; setSaving(false) }
+app/src/lib/live.ts:36: const apply = (name: string, v: Versioned<unknown>) => {
+app/src/lib/live.ts:37: if (v.revision <= revision || current === null) return
+app/src/lib/live.ts:45: const sync = () => {
+app/src/lib/live.ts:47: read()
+app/src/lib/live.ts:59: .catch(console.error)
+app/src/lib/live.ts:70: listen('account-changed', () => {
+app/src/lib/game.ts:18: invoke<GameStatus>('get_game_status').then(setStatus).catch(console.error)
+app/src/lib/sniffer.ts:20: invoke<SnifferStatus>('get_sniffer_status').then(setStatus).catch(console.error)
+app/src/lib/veritas.ts:45: const refetch = () => getVeritasStatus().then(setStatus).catch(console.error)
+.github/workflows/release.yml:14: paths-ignore:
+.github/workflows/release.yml:25: concurrency:
+.github/workflows/release.yml:91: npm run lint
+.github/workflows/release.yml:92: npx tsc -b
+.github/workflows/release.yml:93: npm run test:modules
+.github/workflows/release.yml:109: releaseDraft: false
+.github/workflows/release.yml:129: git pull --rebase
+crates/nous-hsr/src/recorder.rs:44: pub fn on_command(&mut self, command: &GameCommand) {
+crates/nous-hsr/src/recorder.rs:75: let file = File::create(dir.join(format!("{name}.jsonl"))).ok()?;
+crates/nous-hsr/src/replay.rs:215: println!("no login recordings: log in to the game once with Nous running");
+crates/nous-hsr/src/replay.rs:226: println!("no login recordings in {}", dir.display());

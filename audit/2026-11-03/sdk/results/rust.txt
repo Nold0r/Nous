@@ -1,0 +1,179 @@
+   Compiling nous-sdk-audit v0.0.0 (D:\Documents\ClodeCode\Nous\audit\2026-11-03\sdk\rust)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.51s
+     Running unittests src\lib.rs (D:\Documents\ClodeCode\Nous-sdk\target\debug\deps\nous_sdk_audit-bece53bd520970b1.exe)
+
+running 25 tests
+test audit_tests::account_file_uid_must_match_requested_uid ... ok
+test audit_tests::changing_floor_must_not_reuse_previous_floor_layer ... FAILED
+test audit_tests::failed_bag_response_must_not_erase_inventory ... FAILED
+test audit_tests::failed_prop_interaction_must_not_change_saved_prop_state ... FAILED
+test audit_tests::failed_token_response_must_not_switch_to_uid_zero ... FAILED
+test audit_tests::import_must_reconcile_live_pulls_already_in_history ... FAILED
+test audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url ... FAILED
+test audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking ... FAILED
+test audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity ... FAILED
+test audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable ... FAILED
+test audit_tests::normal_gacha_merge_control ... ok
+test audit_tests::normal_store_roundtrip_control ... ok
+test audit_tests::packets_before_new_token_must_not_mutate_cached_account ... FAILED
+test audit_tests::player_in_grouped_scene_entities_must_be_located ... ok
+test audit_tests::short_kcp_command_must_return_error_instead_of_panicking ... FAILED
+test audit_tests::short_udp_handshake_must_return_error_instead_of_panicking ... FAILED
+test sdk_specific::changed_snapshot_content_must_advance_revision_even_when_movement_is_throttled ... FAILED
+test sdk_specific::csv_export_must_not_emit_formula_as_untrusted_character_name ... FAILED
+test sdk_specific::failed_write_is_retried_control ... ok
+test sdk_specific::finite_damage_must_not_overflow_to_nonfinite_persistent_state ... FAILED
+test sdk_specific::malformed_current_pointer_should_not_prevent_opening_the_application ... FAILED
+test sdk_specific::no_change_result_from_veritas_must_not_mutate_state ... FAILED
+test sdk_specific::normal_veritas_event_roundtrip_control ... ok
+test sdk_specific::retry_after_partial_log_write_must_not_duplicate_already_written_entries ... FAILED
+test sdk_specific::veritas_must_not_accept_negative_damage ... FAILED
+
+failures:
+
+---- audit_tests::changing_floor_must_not_reuse_previous_floor_layer stdout ----
+
+thread 'audit_tests::changing_floor_must_not_reuse_previous_floor_layer' (104276) panicked at src\audit_tests.rs:342:5:
+assertion `left == right` failed: old floor's map layer leaked into a different floor
+  left: Some(9)
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- audit_tests::failed_bag_response_must_not_erase_inventory stdout ----
+
+thread 'audit_tests::failed_bag_response_must_not_erase_inventory' (39224) panicked at src\audit_tests.rs:79:5:
+assertion `left == right` failed: failed response erased a valid bag
+  left: 0
+ right: 1
+
+---- audit_tests::failed_prop_interaction_must_not_change_saved_prop_state stdout ----
+
+thread 'audit_tests::failed_prop_interaction_must_not_change_saved_prop_state' (31948) panicked at src\audit_tests.rs:395:5:
+assertion `left == right` failed: failed interaction changed prop state to the default 0
+  left: 0
+ right: 12
+
+---- audit_tests::failed_token_response_must_not_switch_to_uid_zero stdout ----
+
+thread 'audit_tests::failed_token_response_must_not_switch_to_uid_zero' (104044) panicked at src\audit_tests.rs:94:5:
+assertion `left == right` failed: rejected authentication replaced the account with UID 0
+  left: Some(0)
+ right: Some(111)
+
+---- audit_tests::import_must_reconcile_live_pulls_already_in_history stdout ----
+
+thread 'audit_tests::import_must_reconcile_live_pulls_already_in_history' (24708) panicked at src\audit_tests.rs:179:5:
+live pull still counted separately after official history import
+
+---- audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url stdout ----
+
+thread 'audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url' (88224) panicked at src\audit_tests.rs:154:5:
+rfind selects a non-history URL and never checks older matches
+
+---- audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking' (80800) panicked at D:\Documents\ClodeCode\Nous-sdk\vendor\reliquary\src\network\mod.rs:216:78:
+called `Result::unwrap()` on an `Err` value: Error(WireError(UnexpectedEof))
+
+thread 'audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking' (80800) panicked at src\audit_tests.rs:246:5:
+token protobuf parse unwrap kills capture task
+
+---- audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity stdout ----
+
+thread 'audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity' (12992) panicked at src\audit_tests.rs:367:5:
+assertion `left == right` failed: first mover fallback overwrote the known player's position
+  left: 999
+ right: 123
+
+---- audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable stdout ----
+
+thread 'audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable' (13552) panicked at src\audit_tests.rs:140:5:
+assertion `left == right` failed: NaN serialized to null and made all account data unreadable
+  left: 0
+ right: 1
+
+---- audit_tests::packets_before_new_token_must_not_mutate_cached_account stdout ----
+
+thread 'audit_tests::packets_before_new_token_must_not_mutate_cached_account' (24644) panicked at src\audit_tests.rs:109:5:
+unattributed packets mutated the last account
+
+---- audit_tests::short_kcp_command_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::short_kcp_command_must_return_error_instead_of_panicking' (42412) panicked at D:\Documents\ClodeCode\Nous-sdk\vendor\reliquary\src\network\crypto.rs:21:29:
+range end index 4 out of range for slice of length 1
+
+thread 'audit_tests::short_kcp_command_must_return_error_instead_of_panicking' (42412) panicked at src\audit_tests.rs:226:5:
+1-byte reassembled command panics in get_game_version
+
+---- audit_tests::short_udp_handshake_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::short_udp_handshake_must_return_error_instead_of_panicking' (45116) panicked at D:\Documents\ClodeCode\Nous-sdk\vendor\reliquary\src\network\connection.rs:33:57:
+range end index 8 out of range for slice of length 4
+
+thread 'audit_tests::short_udp_handshake_must_return_error_instead_of_panicking' (45116) panicked at src\audit_tests.rs:216:9:
+a 4-byte UDP payload panics and kills the capture task
+
+---- sdk_specific::changed_snapshot_content_must_advance_revision_even_when_movement_is_throttled stdout ----
+
+thread 'sdk_specific::changed_snapshot_content_must_advance_revision_even_when_movement_is_throttled' (106600) panicked at src\sdk_specific.rs:181:5:
+snapshot content changed while its published revision stayed the same
+
+---- sdk_specific::csv_export_must_not_emit_formula_as_untrusted_character_name stdout ----
+
+thread 'sdk_specific::csv_export_must_not_emit_formula_as_untrusted_character_name' (97684) panicked at src\sdk_specific.rs:140:5:
+CSV formula is exported without neutralization
+
+---- sdk_specific::finite_damage_must_not_overflow_to_nonfinite_persistent_state stdout ----
+
+thread 'sdk_specific::finite_damage_must_not_overflow_to_nonfinite_persistent_state' (52980) panicked at src\sdk_specific.rs:127:5:
+finite inputs summed to infinity; JSON null cannot be read back as f64
+
+---- sdk_specific::malformed_current_pointer_should_not_prevent_opening_the_application stdout ----
+
+thread 'sdk_specific::malformed_current_pointer_should_not_prevent_opening_the_application' (51620) panicked at src\sdk_specific.rs:42:5:
+a bad current pointer aborts SDK construction and Tauri setup
+
+---- sdk_specific::no_change_result_from_veritas_must_not_mutate_state stdout ----
+
+thread 'sdk_specific::no_change_result_from_veritas_must_not_mutate_state' (64808) panicked at src\sdk_specific.rs:103:5:
+assertion `left == right` failed: ignored enemy damage created a hidden active battle without a revision
+  left: Object {"active": Bool(true), "battle": Object {"actionValue": Number(0.0), "avHistory": Array [], "avatars": Array [], "cycle": Number(0), "endedAt": Null, "enemies": Array [], "entityTurnOffset": Number(0), "entityTurns": Array [], "id": Number(1793667905997), "interrupted": Bool(false), "maxCycles": Number(0), "maxWaves": Number(0), "partial": Bool(true), "skills": Array [], "stageId": Number(0), "startedAt": Number(1793667905997), "totalDamage": Number(0.0), "turnHistory": Array [], "wave": Number(0)}, "connected": Bool(false), "diagnostics": Array [], "history": Array [], "revision": Number(0)}
+ right: Object {"active": Bool(false), "battle": Null, "connected": Bool(false), "diagnostics": Array [], "history": Array [], "revision": Number(0)}
+
+---- sdk_specific::retry_after_partial_log_write_must_not_duplicate_already_written_entries stdout ----
+
+thread 'sdk_specific::retry_after_partial_log_write_must_not_duplicate_already_written_entries' (55412) panicked at src\sdk_specific.rs:91:5:
+assertion `left == right` failed: the first successful append was replayed after failure of the second
+  left: 3
+ right: 2
+
+---- sdk_specific::veritas_must_not_accept_negative_damage stdout ----
+
+thread 'sdk_specific::veritas_must_not_accept_negative_damage' (40380) panicked at src\sdk_specific.rs:114:5:
+negative network input becomes negative total damage
+
+
+failures:
+    audit_tests::changing_floor_must_not_reuse_previous_floor_layer
+    audit_tests::failed_bag_response_must_not_erase_inventory
+    audit_tests::failed_prop_interaction_must_not_change_saved_prop_state
+    audit_tests::failed_token_response_must_not_switch_to_uid_zero
+    audit_tests::import_must_reconcile_live_pulls_already_in_history
+    audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url
+    audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking
+    audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity
+    audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable
+    audit_tests::packets_before_new_token_must_not_mutate_cached_account
+    audit_tests::short_kcp_command_must_return_error_instead_of_panicking
+    audit_tests::short_udp_handshake_must_return_error_instead_of_panicking
+    sdk_specific::changed_snapshot_content_must_advance_revision_even_when_movement_is_throttled
+    sdk_specific::csv_export_must_not_emit_formula_as_untrusted_character_name
+    sdk_specific::finite_damage_must_not_overflow_to_nonfinite_persistent_state
+    sdk_specific::malformed_current_pointer_should_not_prevent_opening_the_application
+    sdk_specific::no_change_result_from_veritas_must_not_mutate_state
+    sdk_specific::retry_after_partial_log_write_must_not_duplicate_already_written_entries
+    sdk_specific::veritas_must_not_accept_negative_damage
+
+test result: FAILED. 6 passed; 19 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--lib`

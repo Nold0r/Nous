@@ -1,0 +1,85 @@
+{
+  "target": {
+    "path": "D:/Documents/ClodeCode/Nous-sdk",
+    "branch": "codex/sdk",
+    "commit": "9d49f65"
+  },
+  "rust_audit": "test result: FAILED. 6 passed; 19 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+  "frontend_audit": [
+    {
+      "name": "snapshot_initially_null_never_refetches",
+      "status": "FAIL",
+      "message": "first snapshot event must read the newly available data\n\n1 !== 2\n"
+    },
+    {
+      "name": "failed_initial_read_buffers_forever",
+      "status": "FAIL",
+      "message": "a later full-state event should recover after failed initial read\n+ actual - expected\n\n+ undefined\n- 'fresh'\n"
+    },
+    {
+      "name": "account_switch_accepts_old_inflight_read",
+      "status": "FAIL",
+      "message": "a response started before account-changed must be discarded"
+    },
+    {
+      "name": "account_switch_leaves_old_account_visible",
+      "status": "FAIL",
+      "message": "old account data must be invalidated immediately"
+    },
+    {
+      "name": "failed_refetch_stops_further_updates",
+      "status": "FAIL",
+      "message": "a failed refetch must not buffer all future events forever\n\n1 !== 3\n"
+    },
+    {
+      "name": "normal_read_and_out_of_order_event_control",
+      "status": "PASS"
+    },
+    {
+      "name": "useGameStatus_old_read_must_not_overwrite_new_event",
+      "status": "FAIL",
+      "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"running\":false,\"path\":\"C:/test/StarRail.exe\"}'\n- '{\"running\":true,\"path\":\"C:/test/StarRail.exe\"}'\n"
+    },
+    {
+      "name": "useSnifferStatus_old_read_must_not_overwrite_new_event",
+      "status": "FAIL",
+      "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"state\":\"starting\"}'\n- '{\"state\":\"connected\"}'\n             ^\n"
+    },
+    {
+      "name": "useVeritasStatus_old_read_must_not_overwrite_new_event",
+      "status": "FAIL",
+      "message": "a late initial read rolled the state back\n+ actual - expected\n\n+ '{\"enabled\":false,\"connected\":false}'\n- '{\"enabled\":true,\"connected\":true}'\n              ^\n"
+    }
+  ],
+  "modules_audit": [
+    {
+      "name": "unavailable_hsr_should_not_block_independent_module",
+      "status": "FAIL",
+      "message": "a failure of HSR prevented a module with no service dependencies from starting\n\nfalse !== true\n"
+    },
+    {
+      "name": "reentrant_disable_during_start_must_stop_started_module",
+      "status": "FAIL",
+      "message": "update([]) during start missed the not-yet-registered module\n\nfalse !== true\n"
+    },
+    {
+      "name": "navigation_allowlist_must_compare_origins_control_and_attack",
+      "status": "FAIL",
+      "message": "native starts_with accepts a different hostname as trusted\n\ntrue !== false\n"
+    },
+    {
+      "name": "ordinary_module_lifecycle_control",
+      "status": "PASS"
+    }
+  ],
+  "baseline": {
+    "cargo_check": "PASS",
+    "rust_passed": 50,
+    "rust_ignored": 2,
+    "modules_passed": 3,
+    "veritas_js_passed": 13,
+    "browser_smoke": "PASS",
+    "npm_known_vulnerabilities": 0
+  },
+  "application_sources_changed": false
+}

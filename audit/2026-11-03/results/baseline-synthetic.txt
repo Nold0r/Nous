@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src\lib.rs (target\debug\deps\nous_lib-57581cfbdc433165.exe)
+
+running 20 tests
+test account::tests::real_account_file ... ignored
+test gacha::tests::live_history ... ignored
+test gacha::tests::finds_the_last_history_url_in_the_cache ... ok
+test gacha::tests::merge_counts_new_pulls_only ... ok
+test account::tests::format_1_files_are_migrated ... ok
+test inventory::tests::level_up_and_reroll_update_in_place ... ok
+test inventory::tests::identical_sync_is_not_a_change_and_delete_removes ... ok
+test inventory::tests::login_list_replaces_and_reports ... ok
+test battles::tests::reads_the_client_battle_report ... ok
+test inventory::tests::reassigned_id_is_reported ... ok
+test veritas::tests::live_release ... ignored
+test replay::replay_login_recordings ... ok
+test recorder::tests::file_name_is_a_utc_timestamp ... ok
+test veritas::tests::reads_the_supported_game_range ... ok
+test account::tests::save_and_load_round_trip ... ok
+test game::tests::handling_marks_unsaved_instead_of_writing ... ok
+test recorder::tests::records_from_token_to_login_finish ... ok
+test account::tests::unreadable_file_is_kept_aside_not_overwritten ... ok
+test game::tests::switching_account_replaces_everything_and_keeps_the_old_one ... ok
+test launch::tests::shell_start_reports_start_and_readable_errors ... ok
+
+test result: ok. 17 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.85s
+

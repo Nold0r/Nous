@@ -1,0 +1,165 @@
+   Compiling nous-audit v0.0.0 (D:\Documents\ClodeCode\Nous\audit\2026-11-03\rust)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.02s
+     Running unittests src\lib.rs (app\src-tauri\target\debug\deps\nous_audit-0504502bf048bc1d.exe)
+
+running 19 tests
+test audit_tests::account_file_uid_must_match_requested_uid ... FAILED
+test audit_tests::changing_floor_must_not_reuse_previous_floor_layer ... FAILED
+test audit_tests::delayed_old_account_write_must_not_change_current_account ... FAILED
+test audit_tests::failed_bag_response_must_not_erase_inventory ... FAILED
+test audit_tests::failed_prop_interaction_must_not_change_saved_prop_state ... FAILED
+test audit_tests::failed_save_must_remain_dirty_for_retry ... FAILED
+test audit_tests::failed_token_response_must_not_switch_to_uid_zero ... FAILED
+test audit_tests::import_must_reconcile_live_pulls_already_in_history ... FAILED
+test audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url ... FAILED
+test audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking ... FAILED
+test audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity ... FAILED
+test audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable ... FAILED
+test audit_tests::normal_gacha_merge_control ... ok
+test audit_tests::normal_store_roundtrip_control ... ok
+test audit_tests::older_background_snapshot_must_not_overwrite_newer_flush ... FAILED
+test audit_tests::packets_before_new_token_must_not_mutate_cached_account ... FAILED
+test audit_tests::player_in_grouped_scene_entities_must_be_located ... FAILED
+test audit_tests::short_kcp_command_must_return_error_instead_of_panicking ... FAILED
+test audit_tests::short_udp_handshake_must_return_error_instead_of_panicking ... FAILED
+
+failures:
+
+---- audit_tests::account_file_uid_must_match_requested_uid stdout ----
+
+thread 'audit_tests::account_file_uid_must_match_requested_uid' (99500) panicked at src\audit_tests.rs:93:5:
+assertion `left == right` failed: filename UID and embedded UID are not checked
+  left: Some(222)
+ right: Some(111)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- audit_tests::changing_floor_must_not_reuse_previous_floor_layer stdout ----
+
+thread 'audit_tests::changing_floor_must_not_reuse_previous_floor_layer' (84132) panicked at src\audit_tests.rs:206:5:
+assertion `left == right` failed: old floor's map layer leaked into a different floor
+  left: Some(9)
+ right: None
+
+---- audit_tests::delayed_old_account_write_must_not_change_current_account stdout ----
+
+thread 'audit_tests::delayed_old_account_write_must_not_change_current_account' (17324) panicked at src\audit_tests.rs:75:5:
+assertion `left == right` failed: delayed save changed current back to the old account
+  left: Some(111)
+ right: Some(222)
+
+---- audit_tests::failed_bag_response_must_not_erase_inventory stdout ----
+
+thread 'audit_tests::failed_bag_response_must_not_erase_inventory' (65940) panicked at src\audit_tests.rs:38:5:
+assertion `left == right` failed: failed response erased a valid bag
+  left: 0
+ right: 1
+
+---- audit_tests::failed_prop_interaction_must_not_change_saved_prop_state stdout ----
+
+thread 'audit_tests::failed_prop_interaction_must_not_change_saved_prop_state' (43820) panicked at src\audit_tests.rs:229:5:
+assertion `left == right` failed: failed interaction changed prop state to the default 0
+  left: 0
+ right: 12
+
+---- audit_tests::failed_save_must_remain_dirty_for_retry stdout ----
+
+thread 'audit_tests::failed_save_must_remain_dirty_for_retry' (100160) panicked at src\audit_tests.rs:85:5:
+save failed but the only retry marker was already cleared
+
+---- audit_tests::failed_token_response_must_not_switch_to_uid_zero stdout ----
+
+thread 'audit_tests::failed_token_response_must_not_switch_to_uid_zero' (89064) panicked at src\audit_tests.rs:47:5:
+assertion `left == right` failed: rejected authentication replaced the account with UID 0
+  left: Some(0)
+ right: Some(111)
+
+---- audit_tests::import_must_reconcile_live_pulls_already_in_history stdout ----
+
+thread 'audit_tests::import_must_reconcile_live_pulls_already_in_history' (69320) panicked at src\audit_tests.rs:121:5:
+live pull still counted separately after official history import
+
+---- audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url stdout ----
+
+thread 'audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url' (15532) panicked at src\audit_tests.rs:112:5:
+rfind selects a non-history URL and never checks older matches
+
+---- audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking' (75444) panicked at D:\Documents\ClodeCode\Nous\vendor\reliquary\src\network\mod.rs:216:78:
+called `Result::unwrap()` on an `Err` value: Error(WireError(UnexpectedEof))
+
+thread 'audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking' (75444) panicked at src\audit_tests.rs:162:5:
+token protobuf parse unwrap kills capture task
+
+---- audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity stdout ----
+
+thread 'audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity' (71244) panicked at src\audit_tests.rs:217:5:
+assertion `left == right` failed: first mover fallback overwrote the known player's position
+  left: 999
+ right: 123
+
+---- audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable stdout ----
+
+thread 'audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable' (40176) panicked at src\audit_tests.rs:103:5:
+assertion `left == right` failed: NaN serialized to null and made all account data unreadable
+  left: 0
+ right: 1
+
+---- audit_tests::older_background_snapshot_must_not_overwrite_newer_flush stdout ----
+
+thread 'audit_tests::older_background_snapshot_must_not_overwrite_newer_flush' (35072) panicked at src\audit_tests.rs:66:5:
+assertion `left == right` failed: older saver snapshot overwrote newer flush
+  left: 0
+ right: 1
+
+---- audit_tests::packets_before_new_token_must_not_mutate_cached_account stdout ----
+
+thread 'audit_tests::packets_before_new_token_must_not_mutate_cached_account' (85428) panicked at src\audit_tests.rs:56:5:
+unattributed packets mutated the last account
+
+---- audit_tests::player_in_grouped_scene_entities_must_be_located stdout ----
+
+thread 'audit_tests::player_in_grouped_scene_entities_must_be_located' (88804) panicked at src\audit_tests.rs:197:5:
+assertion `left == right` failed: player lookup only checks flat entity_list
+  left: None
+ right: Some(123)
+
+---- audit_tests::short_kcp_command_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::short_kcp_command_must_return_error_instead_of_panicking' (33236) panicked at D:\Documents\ClodeCode\Nous\vendor\reliquary\src\network\crypto.rs:21:29:
+range end index 4 out of range for slice of length 1
+
+thread 'audit_tests::short_kcp_command_must_return_error_instead_of_panicking' (33236) panicked at src\audit_tests.rs:152:5:
+1-byte reassembled command panics in get_game_version
+
+---- audit_tests::short_udp_handshake_must_return_error_instead_of_panicking stdout ----
+
+thread 'audit_tests::short_udp_handshake_must_return_error_instead_of_panicking' (102128) panicked at D:\Documents\ClodeCode\Nous\vendor\reliquary\src\network\connection.rs:33:57:
+range end index 8 out of range for slice of length 4
+
+thread 'audit_tests::short_udp_handshake_must_return_error_instead_of_panicking' (102128) panicked at src\audit_tests.rs:145:9:
+a 4-byte UDP payload panics and kills the capture task
+
+
+failures:
+    audit_tests::account_file_uid_must_match_requested_uid
+    audit_tests::changing_floor_must_not_reuse_previous_floor_layer
+    audit_tests::delayed_old_account_write_must_not_change_current_account
+    audit_tests::failed_bag_response_must_not_erase_inventory
+    audit_tests::failed_prop_interaction_must_not_change_saved_prop_state
+    audit_tests::failed_save_must_remain_dirty_for_retry
+    audit_tests::failed_token_response_must_not_switch_to_uid_zero
+    audit_tests::import_must_reconcile_live_pulls_already_in_history
+    audit_tests::last_unrelated_cache_url_must_not_hide_valid_history_url
+    audit_tests::malformed_token_protobuf_must_return_error_instead_of_panicking
+    audit_tests::movement_without_known_leader_must_not_move_player_to_other_entity
+    audit_tests::nonfinite_battle_stat_must_not_make_entire_account_unreadable
+    audit_tests::older_background_snapshot_must_not_overwrite_newer_flush
+    audit_tests::packets_before_new_token_must_not_mutate_cached_account
+    audit_tests::player_in_grouped_scene_entities_must_be_located
+    audit_tests::short_kcp_command_must_return_error_instead_of_panicking
+    audit_tests::short_udp_handshake_must_return_error_instead_of_panicking
+
+test result: FAILED. 2 passed; 17 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--lib`

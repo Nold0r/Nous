@@ -1,0 +1,21 @@
+[package]
+name = "hsr-session-sdk"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+reliquary = { path = "../../vendor/reliquary" }
+protobuf = "=3.7.1"
+pktmon = { version = "0.6.2", features = ["tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+futures = "0.3"
+serde_json = "1"
+base64 = "0.22"
+etherparse = "0.17"
+
+[profile.dev]
+overflow-checks = false
+
+[profile.release]
+overflow-checks = false

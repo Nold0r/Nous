@@ -1,0 +1,17 @@
+[package]
+name="nous-sdk-audit"
+version="0.0.0"
+edition="2024"
+publish=false
+
+[dependencies]
+nous-core={path="../../../../../Nous-sdk/crates/nous-core"}
+nous-hsr={path="../../../../../Nous-sdk/crates/nous-hsr"}
+nous-veritas={path="../../../../../Nous-sdk/crates/nous-veritas"}
+reliquary={path="../../../../../Nous-sdk/vendor/reliquary"}
+protobuf="=3.7.1"
+serde_json="1"
+serde={version="1",features=["derive"]}
+
+[profile.dev]
+overflow-checks=false

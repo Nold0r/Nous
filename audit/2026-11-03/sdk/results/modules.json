@@ -1,0 +1,21 @@
+[
+  {
+    "name": "unavailable_hsr_should_not_block_independent_module",
+    "status": "FAIL",
+    "message": "a failure of HSR prevented a module with no service dependencies from starting\n\nfalse !== true\n"
+  },
+  {
+    "name": "reentrant_disable_during_start_must_stop_started_module",
+    "status": "FAIL",
+    "message": "update([]) during start missed the not-yet-registered module\n\nfalse !== true\n"
+  },
+  {
+    "name": "navigation_allowlist_must_compare_origins_control_and_attack",
+    "status": "FAIL",
+    "message": "native starts_with accepts a different hostname as trusted\n\ntrue !== false\n"
+  },
+  {
+    "name": "ordinary_module_lifecycle_control",
+    "status": "PASS"
+  }
+]

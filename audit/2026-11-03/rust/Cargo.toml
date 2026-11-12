@@ -1,0 +1,34 @@
+[package]
+name = "nous-audit"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.5", features = ["tray-icon"] }
+tauri-plugin-log = "2"
+# game traffic: local clone of https://github.com/IceDynamix/reliquary (tag v24.0.0 = game 4.6)
+reliquary = { path = "../../../vendor/reliquary" }
+protobuf = "=3.7.1" # must match reliquary's generated code
+protobuf-json-mapping = "=3.7.1" # raw snapshots (snapshots.rs)
+pktmon = { version = "0.6.2", features = ["tokio"] }
+futures = "0.3"
+# warp history from the official API (gacha.rs)
+ureq = { version = "3", features = ["json"] }
+# login recordings (recorder.rs)
+base64 = "0.22"
+is_elevated = "0.1.2"
+tauri-plugin-single-instance = "2"
+sysinfo = "0.38.4"
+winreg = "0.56.0"
+rust_socketio = { version = "0.6.0", features = ["async"] }
+sha2 = "0.11.1"
+tokio = { version = "1.54.1", features = ["time"] }
+tauri-plugin-opener = "2"
+
+
+[profile.dev]
+overflow-checks = false
