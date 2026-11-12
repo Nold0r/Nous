@@ -12,7 +12,9 @@ rust-version = "1.90"
 
 [lib]
 name = "nous_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Windows desktop only. The template's "staticlib" and "cdylib" are for mobile
+# targets; here they made every rebuild write a 4 GB static library nobody links.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
@@ -41,6 +43,7 @@ ureq = { version = "3", features = ["json"] }
 
 tauri-plugin-single-instance = "2"
 is_elevated = "0.1.2"
+base64 = "0.22"
 sysinfo = "0.38.4"
 winreg = "0.56.0"
 rust_socketio = { version = "0.6.0", features = ["async"] }

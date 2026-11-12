@@ -113,11 +113,13 @@ impl World {
                 leader,
                 entities,
             } => {
+                // the map layer belongs to the floor: another floor starts without one
+                let same_floor = self.floor_id == Some(*floor);
+                let layer = self.player.and_then(|p| p.layer).filter(|_| same_floor);
                 self.plane_id = Some(*plane);
                 self.floor_id = Some(*floor);
                 self.entry_id = Some(*entry);
                 self.leader_entity_id = Some(*leader);
-                let layer = self.player.and_then(|p| p.layer);
                 self.player = entities
                     .iter()
                     .find(|e| e.id == *leader)
@@ -131,11 +133,13 @@ impl World {
                 WorldChange::Changed
             }
             WorldCommand::Move(entities) => {
-                let Some((_, pos)) = entities
-                    .iter()
-                    .find(|(id, _)| Some(*id) == self.leader_entity_id)
-                    .or(entities.first())
-                else {
+                // Until a scene names the leader (Nous started mid-session) the
+                // first mover is taken; once it is known, others are not the player.
+                let mover = match self.leader_entity_id {
+                    Some(leader) => entities.iter().find(|(id, _)| *id == leader),
+                    None => entities.first(),
+                };
+                let Some((_, pos)) = mover else {
                     return WorldChange::None;
                 };
                 self.player = Some(*pos);
@@ -329,6 +333,22 @@ mod tests {
         let interact = WorldCommand::Interact { entity: 1, state: 13 };
         assert_eq!(world.handle(&interact), WorldChange::Changed);
         assert_eq!(world.handle(&interact), WorldChange::None);
+    }
+
+    #[test]
+    fn another_floor_does_not_inherit_the_layer_and_strangers_do_not_move_the_player() {
+        let leader = |layer| Entity { id: 100, group: 0, config: 0, prop_state: None, position: Some(Position { layer, ..at(5) }) };
+        let mut world = World::default();
+        world.handle(&scene(10, vec![leader(None)]));
+        world.handle(&WorldCommand::Move(vec![(100, Position { layer: Some(3), ..at(6) })]));
+        world.handle(&scene(10, vec![leader(None)]));
+        assert_eq!(world.player.unwrap().layer, Some(3), "the same floor keeps the layer");
+        world.handle(&scene(20, vec![leader(None)]));
+        assert_eq!(world.player.unwrap().layer, None, "another floor starts without it");
+
+        let before = world.player;
+        assert_eq!(world.handle(&WorldCommand::Move(vec![(777, at(999))])), WorldChange::None);
+        assert_eq!(world.player, before, "an entity that is not the leader is not the player");
     }
 
     #[test]

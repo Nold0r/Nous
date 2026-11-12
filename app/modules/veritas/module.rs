@@ -133,11 +133,21 @@ impl VeritasState {
     }
     fn save(&self) {
         let Some(file) = &self.file else { return };
-        if let Some(dir) = file.parent() {
-            fs::create_dir_all(dir).ok();
-        }
-        if let Ok(json) = serde_json::to_string_pretty(&*self.settings.lock().unwrap()) {
-            fs::write(file, json).ok();
+        // These settings hold the player's consent and what Nous put into the
+        // game folder: a failed write must at least be visible in the log.
+        let written = serde_json::to_string_pretty(&*self.settings.lock().unwrap())
+            .map_err(std::io::Error::other)
+            .and_then(|json| {
+                if let Some(dir) = file.parent() {
+                    fs::create_dir_all(dir)?;
+                }
+                // temp file and rename: a crash never leaves half a file
+                let tmp = file.with_extension("json.tmp");
+                fs::write(&tmp, json)?;
+                fs::rename(tmp, file)
+            });
+        if let Err(e) = written {
+            log::error!("Veritas settings were not saved to {}: {e}", file.display());
         }
     }
 

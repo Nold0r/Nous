@@ -33,7 +33,7 @@ tags: [nous, архитектура, rust, данные]
 |---|---|---|---|---|
 | Профиль | `get_profile` | `profile-changed` | `useProfile` | вход, синхронизация |
 | Инвентарь: реликвии, конусы, материалы, персонажи | `get_inventory`, `get_relics` | `inventory-changed` | `useInventory` | вход, синхронизация, см. [[Данные аккаунта]] |
-| Мир: локация, позиция, сундуки, объекты | `get_world` | `world-changed`, `player-moved` | `useWorld` | вход в сцену, движение, карта в игре, открытие сундуков |
+| Мир: локация, позиция, сундуки, объекты | `get_world` | `world-changed` (только изменившиеся этажи), `player-moved` | `useWorld` | вход в сцену, движение, карта в игре, открытие сундуков |
 | Бои | `get_battles` | `battle-finished` | `useBattles` | `PVEBattleResultCsReq` в конце каждого боя |
 | Прыжки | `get_gacha`, `import_gacha_history` | `gacha-changed` | `useGacha`, `importGachaHistory` | баннеры при входе, крутки вживую, история из официального API |
 | Снимки (всё остальное) | `get_snapshots`, `get_snapshot(name)`, `get_snapshot_kinds` | `snapshot-changed` | `useSnapshot(name)` | последние ответы игры, см. ниже |

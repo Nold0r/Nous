@@ -238,16 +238,7 @@ fn powershell(script: &str, elevate: bool) -> Result<(), String> {
     cmd.creation_flags(CREATE_NO_WINDOW)
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass"]);
     if elevate && !is_elevated::is_elevated() {
-        let file = std::env::temp_dir().join("nous-task.ps1");
-        fs::write(&file, script).map_err(|e| e.to_string())?;
-        cmd.args([
-            "-Command",
-            &format!(
-                "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList \
-                 '-NoProfile','-ExecutionPolicy','Bypass','-File','\"{}\"'",
-                file.display()
-            ),
-        ]);
+        cmd.args(["-Command", &elevated_command(script)]);
     } else {
         cmd.args(["-Command", script]);
     }
@@ -258,6 +249,23 @@ fn powershell(script: &str, elevate: bool) -> Result<(), String> {
         // declined UAC prompt and script errors land here
         Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
     }
+}
+
+/// The command that runs `script` elevated. The script travels on the command
+/// line (-EncodedCommand: base64 of UTF-16LE), not in a file: a script file
+/// with a known name in %TEMP% could be replaced by any program of the user
+/// between writing it and the administrator running it.
+fn elevated_command(script: &str) -> String {
+    format!(
+        "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList \
+         '-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','{}'",
+        encoded_script(script)
+    )
+}
+fn encoded_script(script: &str) -> String {
+    use base64::Engine;
+    let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    base64::engine::general_purpose::STANDARD.encode(utf16)
 }
 
 pub fn ps_quote(s: &str) -> String {
@@ -323,14 +331,22 @@ pub async fn launch_game(app: AppHandle, state: State<'_, LaunchState>) -> Resul
         .map_err(|e| format!("Не удалось запустить игру: {e}"))
 }
 
-/// Whether the autostart task exists.
-#[tauri::command]
-pub fn get_autostart() -> bool {
+/// Whether the autostart task exists. Starts a process (40–80 ms): never call
+/// it from the main thread.
+fn autostart_exists() -> bool {
     Command::new("schtasks")
         .creation_flags(CREATE_NO_WINDOW)
         .args(["/Query", "/TN", TASK_NAME])
         .output()
         .is_ok_and(|o| o.status.success())
+}
+
+/// Whether the autostart task exists.
+#[tauri::command]
+pub async fn get_autostart() -> bool {
+    tauri::async_runtime::spawn_blocking(autostart_exists)
+        .await
+        .unwrap_or(false)
 }
 
 /// Creates or removes the logon task that starts Nous in the tray with the
@@ -355,10 +371,9 @@ Register-ScheduledTask -TaskName {task} -Action $action -Trigger $trigger -Princ
             ps_quote(TASK_NAME)
         )
     };
-    tauri::async_runtime::spawn_blocking(move || powershell(&script, true))
+    tauri::async_runtime::spawn_blocking(move || powershell(&script, true).map(|()| autostart_exists()))
         .await
-        .map_err(|e| e.to_string())??;
-    Ok(get_autostart())
+        .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
@@ -377,5 +392,18 @@ mod tests {
             "readable message: {err}"
         );
         println!("error text: {err}");
+    }
+
+    /// The elevated script is passed on the command line, not through a file.
+    #[test]
+    fn an_encoded_script_runs_as_written() {
+        let script = "$name = 'Нус \"1\"'\n[Console]::OutputEncoding = [Text.Encoding]::UTF8\nWrite-Output \"ok: $name\"";
+        assert!(!elevated_command(script).contains(".ps1"));
+        let out = Command::new("powershell")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["-NoProfile", "-EncodedCommand", &encoded_script(script)])
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "ok: Нус \"1\"");
     }
 }

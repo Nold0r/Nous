@@ -84,16 +84,25 @@ jobs:
         working-directory: app
         run: npm ci
 
-      # nothing is published unless the checks pass
-      - name: Lint and type check
+      # Nothing is published unless the checks pass. One command per step: in a
+      # multi-line pwsh step only the last command's exit code fails the step,
+      # so a failed lint or type check used to pass unnoticed.
+      - name: Lint
         working-directory: app
-        run: |
-          npm run lint
-          npx tsc -b
-          npm run test:modules
+        run: npm run lint
 
+      - name: Type check
+        working-directory: app
+        run: npx tsc -b
+
+      - name: Frontend tests
+        working-directory: app
+        run: npm run test:modules
+
+      # --release: the dependencies (reliquary above all) are compiled once and
+      # reused by the release build below instead of once per profile
       - name: Rust workspace tests
-        run: cargo test --workspace --all-targets
+        run: cargo test --workspace --all-targets --release
 
       - uses: tauri-apps/tauri-action@v0
         env:

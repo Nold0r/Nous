@@ -301,3 +301,21 @@
   stroke: var(--text-dim);
   opacity: 0.5;
 }
+
+/* all marks as one layer, moved with the map by a single transform */
+.map-pins {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+}
+
+.map-pins .map-links {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+}

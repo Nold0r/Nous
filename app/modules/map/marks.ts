@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { worldToPicture, type FloorMap, type MarkKind, type MapLayer } from './maps'
 
 // Which chests and puzzles the map shows, and where. Drawn by MapMarks.tsx.
@@ -46,14 +46,14 @@ function savedFilter(): MarkFilter {
 /** The filter, remembered between visits. */
 export function useMarkFilter(): [MarkFilter, (f: MarkFilter) => void] {
   const [filter, setFilter] = useState(savedFilter)
-  const save = (f: MarkFilter) => {
+  const save = useCallback((f: MarkFilter) => {
     setFilter(f)
     try {
       localStorage.setItem(SHOW_KEY, JSON.stringify(f))
     } catch {
       // the choice just won't be remembered
     }
-  }
+  }, [])
   return [filter, save]
 }
 

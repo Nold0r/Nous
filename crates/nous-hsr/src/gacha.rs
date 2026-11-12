@@ -215,7 +215,13 @@ pub fn download(
                     time: e.time.clone(),
                 });
             }
-            end_id = list.last().map(|e| e.id.clone()).unwrap_or_default();
+            // a server that keeps answering with the same page must not hold
+            // the import forever
+            let next = list.last().map(|e| e.id.clone()).unwrap_or_default();
+            if next == end_id {
+                return Err("сервер повторяет одну страницу истории, попробуйте позже".into());
+            }
+            end_id = next;
             std::thread::sleep(PAGE_DELAY);
         }
     }

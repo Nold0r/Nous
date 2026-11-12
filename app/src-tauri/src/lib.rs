@@ -10,6 +10,18 @@ struct Bridge {
     thread: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
+/// Stops the modules and the capture and writes what isn't on disk yet. Runs
+/// at exit and before an update is installed: the Windows updater ends the
+/// process without the exit event. Safe to call twice.
+pub(crate) fn save_everything(app: &tauri::AppHandle) {
+    modules::shutdown(app);
+    if let Some(sdk) = app.try_state::<nous_hsr::Sdk>() {
+        if let Err(e) = sdk.stop_capture() {
+            log::error!("SDK shutdown: {e}");
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     sniffer::wait_for_previous();
@@ -31,8 +43,16 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            let sdk = nous_hsr::Sdk::new(Some(app.path().app_data_dir()?))
-                .map_err(std::io::Error::other)?;
+            // Unreadable account storage must not keep the application from
+            // starting. Without storage nothing is read and nothing is written,
+            // so whatever is on disk stays untouched for a later repair.
+            let sdk = match nous_hsr::Sdk::new(Some(app.path().app_data_dir()?)) {
+                Ok(sdk) => sdk,
+                Err(e) => {
+                    log::error!("account storage is unavailable, running without it: {e}");
+                    nous_hsr::Sdk::new(None).map_err(std::io::Error::other)?
+                }
+            };
             let events = sdk.subscribe();
             let handle = app.handle().clone();
             let (stop, stopped) = std::sync::mpsc::channel();
@@ -82,6 +102,7 @@ pub fn run() {
             ipc::import_gacha_history,
             ipc::get_snapshot_kinds,
             ipc::get_sniffer_status,
+            ipc::prepare_update,
             sniffer::restart_as_admin,
             launch::get_game_status,
             launch::launch_game,
@@ -93,12 +114,7 @@ pub fn run() {
         .run(|app, event| {
             // whatever the saver thread hasn't written yet
             if let RunEvent::Exit = event {
-                modules::shutdown(app);
-                if let Some(sdk) = app.try_state::<nous_hsr::Sdk>() {
-                    if let Err(e) = sdk.stop_capture() {
-                        log::error!("SDK shutdown: {e}");
-                    }
-                }
+                save_everything(app);
                 if let Some(bridge) = app.try_state::<Bridge>() {
                     bridge.stop.send(()).ok();
                     if let Some(thread) = bridge.thread.lock().unwrap().take() {

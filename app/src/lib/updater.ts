@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { isTauri } from '@tauri-apps/api/core'
+import { invoke, isTauri } from '@tauri-apps/api/core'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { isDevLaunch } from '../features/registry'
@@ -36,13 +36,17 @@ export function useUpdater(): { update: UpdateState; install: () => void } {
     let done = 0
     setUpdate({ state: 'installing', percent: null })
     found
-      .downloadAndInstall((e) => {
+      .download((e) => {
         if (e.event === 'Started') total = e.data.contentLength ?? 0
         if (e.event === 'Progress') {
           done += e.data.chunkLength
           setUpdate({ state: 'installing', percent: total ? Math.round((done / total) * 100) : null })
         }
       })
+      // the installer ends the process at once, without the normal exit:
+      // write the account and stop the modules first
+      .then(() => invoke('prepare_update'))
+      .then(() => found.install())
       .then(() => relaunch())
       .catch((e) => setUpdate({ state: 'error', message: String(e) }))
   }, [found])

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { LocateFixed, Maximize, Minus, Plus } from 'lucide-react'
 import type { Position } from '@app/lib/game-data'
 import { headingOnScreen, mapUrl, pxPerMeter, toPicture, type FloorMap, type MapLayer } from './maps'
 import { MarkLegend, MarkPin } from './MapMarks'
-import { isDone, useMarkFilter, useMarks, visibleMarks, type Progress } from './marks'
+import { isDone, useMarkFilter, useMarks, visibleMarks, type Mark, type Progress } from './marks'
 
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 4
@@ -62,6 +62,36 @@ function useGlide(target: Pose | null, snapPx: number): Pose | null {
   return target ? (shown ?? target) : null
 }
 
+const Legend = memo(MarkLegend)
+
+/** The marks and the lines between a puzzle's start and its reward, in picture px times zoom. */
+const Pins = memo(function Pins({ marks, zoom, progress }: { marks: Mark[]; zoom: number; progress: Progress }) {
+  const byKey = new Map(marks.map((m) => [m.key, m]))
+  return (
+    <>
+      <svg className="map-links" aria-hidden>
+        {marks.map((m) => {
+          const end = m.pair && !m.reward ? byKey.get(m.pair) : undefined
+          if (!end) return null
+          return (
+            <line
+              key={m.key}
+              x1={m.x * zoom}
+              y1={m.y * zoom}
+              x2={end.x * zoom}
+              y2={end.y * zoom}
+              className={isDone(m, progress) ? 'is-opened' : undefined}
+            />
+          )
+        })}
+      </svg>
+      {marks.map((m) => (
+        <MarkPin key={m.key} mark={m} left={m.x * zoom} top={m.y * zoom} opened={!!isDone(m, progress)} />
+      ))}
+    </>
+  )
+})
+
 interface View {
   zoom: number
   /** screen px of the picture's top-left corner */
@@ -107,8 +137,7 @@ export function MapView({
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null)
   const marks = useMarks(map)
   const [filter, setFilter] = useMarkFilter()
-  const visible = visibleMarks(marks, map, layer, filter, progress)
-  const byKey = new Map(visible.map((m) => [m.key, m]))
+  const visible = useMemo(() => visibleMarks(marks, map, layer, filter, progress), [marks, map, layer, filter, progress])
 
   const target = player ? { ...toPicture(map, player), h: headingOnScreen(map, player) } : null
   const at = useGlide(target, TELEPORT_M * pxPerMeter(map))
@@ -231,38 +260,14 @@ export function MapView({
         </div>
       )}
 
-      {/* a puzzle's start and its reward, when both are on this floor */}
+      {/* Marks move with the map as one layer: while the map follows the
+          player it shifts every frame, and only this one transform changes,
+          not the position of every mark. */}
       {shown && (
-        <svg className="map-links" aria-hidden>
-          {visible.map((m) => {
-            const end = m.pair && !m.reward ? byKey.get(m.pair) : undefined
-            if (!end) return null
-            const sx = (p: { x: number }) => shown.x + p.x * shown.zoom
-            const sy = (p: { y: number }) => shown.y + p.y * shown.zoom
-            return (
-              <line
-                key={m.key}
-                x1={sx(m)}
-                y1={sy(m)}
-                x2={sx(end)}
-                y2={sy(end)}
-                className={isDone(m, progress) ? 'is-opened' : undefined}
-              />
-            )
-          })}
-        </svg>
+        <div className="map-pins" style={{ transform: `translate(${shown.x}px, ${shown.y}px)` }}>
+          <Pins marks={visible} zoom={shown.zoom} progress={progress} />
+        </div>
       )}
-
-      {shown &&
-        visible.map((m) => (
-          <MarkPin
-            key={m.key}
-            mark={m}
-            left={shown.x + m.x * shown.zoom}
-            top={shown.y + m.y * shown.zoom}
-            opened={!!isDone(m, progress)}
-          />
-        ))}
 
       {shown && at && (
         <div
@@ -286,7 +291,7 @@ export function MapView({
         </div>
       )}
 
-      <MarkLegend marks={marks} filter={filter} onChange={setFilter} progress={progress} />
+      <Legend marks={marks} filter={filter} onChange={setFilter} progress={progress} />
 
       <div className="map-controls" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <button type="button" title="Приблизить" onClick={() => zoomAround(1.4)}>

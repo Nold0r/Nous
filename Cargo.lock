@@ -2537,6 +2537,7 @@ dependencies = [
 name = "nous"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "futures",
  "is_elevated",
  "log",

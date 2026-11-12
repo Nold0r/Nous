@@ -430,4 +430,3 @@ export function DesignSystemPage() {
 }
 
 export default DesignSystemPage
-export { Palette as icon } from 'lucide-react'

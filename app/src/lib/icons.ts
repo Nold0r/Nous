@@ -1,4 +1,4 @@
-// Game icons downloaded by `npm run icons` (see scripts/icons.json), keyed by file name.
+// Game icons downloaded by `npm run assets` (scripts/fetch-assets.mjs), keyed by file name.
 
 type UrlMap = Record<string, string>
 

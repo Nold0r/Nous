@@ -404,7 +404,7 @@ unsafe fn setup_webview(
                 if let Some(args) = args {
                     let mut uri = PWSTR::null();
                     args.Uri(&mut uri)?;
-                    if !take_pwstr(uri).starts_with(&allowed) {
+                    if !same_origin(&take_pwstr(uri), &allowed) {
                         args.SetCancel(true)?;
                     }
                 }
@@ -464,6 +464,39 @@ unsafe fn setup_webview(
         )?;
         webview.Navigate(&HSTRING::from(format!("{origin}{ROUTE}{id}")))?;
         Ok(webview)
+    }
+}
+
+/// True if `uri` is a page of `origin`. A plain prefix check also let through
+/// `http://tauri.localhost.example.com` and `http://tauri.localhost@example.com`,
+/// pages that would get the overlay's bridge to the application.
+fn same_origin(uri: &str, origin: &str) -> bool {
+    uri.strip_prefix(origin)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '?', '#']))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_origin;
+
+    #[test]
+    fn only_pages_of_the_application_may_load_in_the_overlay() {
+        let origin = "http://tauri.localhost";
+        for ok in [origin, "http://tauri.localhost/", "http://tauri.localhost/index.html#/overlay/veritas", "http://tauri.localhost?x=1"] {
+            assert!(same_origin(ok, origin), "{ok}");
+        }
+        for foreign in [
+            "http://tauri.localhost.example.com/",
+            "http://tauri.localhost@example.com/",
+            "http://tauri.localhost:8080/",
+            "http://tauri.localhostx/",
+            "https://tauri.localhost/",
+            "http://example.com/http://tauri.localhost/",
+        ] {
+            assert!(!same_origin(foreign, origin), "{foreign}");
+        }
+        assert!(same_origin("http://localhost:1420/index.html", "http://localhost:1420"));
+        assert!(!same_origin("http://localhost:14200/", "http://localhost:1420"));
     }
 }
 

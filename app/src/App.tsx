@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SpaceBackground } from './components/background/SpaceBackground'
 import './components/background/space.css'
@@ -31,7 +32,10 @@ function Shell() {
                 element={
                   // one broken screen doesn't take the shell down
                   <ErrorBoundary name={f.title}>
-                    <f.component />
+                    {/* module screens are separate chunks, loaded when first opened */}
+                    <Suspense fallback={null}>
+                      <f.component />
+                    </Suspense>
                   </ErrorBoundary>
                 }
               />

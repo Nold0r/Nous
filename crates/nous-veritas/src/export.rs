@@ -192,13 +192,36 @@ fn write_row(output: &mut String, values: &[String]) {
         if index > 0 {
             output.push(',');
         }
+        // A spreadsheet runs a text cell that starts like a formula. Names come
+        // from the local event stream, which anything on this PC can write to:
+        // such text gets a leading apostrophe. Numbers ("-5.5") stay numbers.
+        let formula = value.starts_with(['=', '+', '-', '@', '\t', '\r'])
+            && value.parse::<f64>().is_err();
+        let value = if formula {
+            std::borrow::Cow::Owned(format!("'{value}"))
+        } else {
+            std::borrow::Cow::Borrowed(value.as_str())
+        };
         if value.contains([',', '"', '\n', '\r']) {
             output.push('"');
             output.push_str(&value.replace('"', "\"\""));
             output.push('"');
         } else {
-            output.push_str(value);
+            output.push_str(&value);
         }
     }
     output.push('\n');
+}
+
+#[cfg(test)]
+mod csv_tests {
+    use super::write_row;
+
+    #[test]
+    fn text_that_looks_like_a_formula_is_not_run_by_a_spreadsheet() {
+        let mut out = String::new();
+        let row = ["=1+1", "@SUM(A1)", "+cmd|' /C calc'!A0", "-5.5", "-2+3", "Ахерон", "a,b"];
+        write_row(&mut out, &row.map(String::from));
+        assert_eq!(out, "'=1+1,'@SUM(A1),'+cmd|' /C calc'!A0,-5.5,'-2+3,Ахерон,\"a,b\"\n");
+    }
 }

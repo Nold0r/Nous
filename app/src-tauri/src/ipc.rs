@@ -21,6 +21,13 @@ pub fn get_profile(sdk: State<'_, Sdk>) -> Versioned<PlayerProfile> {
 pub fn get_sniffer_status(sdk: State<'_, Sdk>) -> SnifferStatus {
     sdk.status()
 }
+/// Called right before the downloaded update is installed, see `save_everything`.
+#[tauri::command]
+pub async fn prepare_update(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::save_everything(&app))
+        .await
+        .map_err(|e| e.to_string())
+}
 #[tauri::command]
 pub fn get_snapshot_kinds() -> Vec<(&'static str, &'static str)> {
     nous_core::snapshots::KINDS.to_vec()
