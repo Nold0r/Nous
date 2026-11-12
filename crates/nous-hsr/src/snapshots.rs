@@ -2,10 +2,14 @@ use nous_core::snapshots::{Snapshot, Snapshots};
 use reliquary::network::command::{GameCommand, command_id as cmd, proto};
 /// Stores the command if it's one of KINDS; true if it was.
 pub fn handle(snapshots: &mut Snapshots, command: &GameCommand, now: i64) -> bool {
+    // A refused answer (retcode != 0) is empty: it must not replace the last good one.
     macro_rules! keep {
+        (@parse ExpeditionDataChangeScNotify) => { command.parse_proto::<proto::ExpeditionDataChangeScNotify::ExpeditionDataChangeScNotify>().ok() };
+        (@parse BattlePassInfoNotify) => { command.parse_proto::<proto::BattlePassInfoNotify::BattlePassInfoNotify>().ok() };
+        (@parse $ty:ident) => { rsp!(command, $ty) };
         ($($ty:ident),+ $(,)?) => {
             match command.command_id {
-                $(cmd::$ty => command.parse_proto::<proto::$ty::$ty>().ok().and_then(|m| to_json(&m)),)+
+                $(cmd::$ty => keep!(@parse $ty).and_then(|m| to_json(&m)),)+
                 _ => return false,
             }
         };

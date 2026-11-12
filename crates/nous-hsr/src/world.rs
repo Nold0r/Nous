@@ -11,9 +11,7 @@ pub fn decode(command: &GameCommand) -> Option<WorldCommand> {
                 .as_ref()?,
         )?,
         cmd::GetCurSceneInfoScRsp => scene(
-            command
-                .parse_proto::<proto::GetCurSceneInfoScRsp::GetCurSceneInfoScRsp>()
-                .ok()?
+            rsp!(command, GetCurSceneInfoScRsp)?
                 .scene
                 .as_ref()?,
         )?,
@@ -37,9 +35,7 @@ pub fn decode(command: &GameCommand) -> Option<WorldCommand> {
             )
         }
         cmd::InteractPropScRsp => {
-            let r = command
-                .parse_proto::<proto::InteractPropScRsp::InteractPropScRsp>()
-                .ok()?;
+            let r = rsp!(command, InteractPropScRsp)?;
             WorldCommand::Interact {
                 entity: r.prop_entity_id,
                 state: r.prop_state,
@@ -64,9 +60,7 @@ pub fn decode(command: &GameCommand) -> Option<WorldCommand> {
             }
         }
         cmd::GetSceneMapInfoScRsp => {
-            let r = command
-                .parse_proto::<proto::GetSceneMapInfoScRsp::GetSceneMapInfoScRsp>()
-                .ok()?;
+            let r = rsp!(command, GetSceneMapInfoScRsp)?;
             WorldCommand::Map(
                 r.scene_map_info
                     .iter()

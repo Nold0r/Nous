@@ -1,11 +1,13 @@
 use nous_core::gacha::*;
-use reliquary::network::command::{GameCommand, command_id as cmd, proto};
+use reliquary::network::command::{GameCommand, command_id as cmd};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-const LOG_API: &str =
-    "https://public-operation-hkrpg-sg.hoyoverse.com/common/hkrpg_gacha_record/api/getGachaLog";
+const LOG_HOST_PREFIX: &str = "https://public-operation-hkrpg";
+const LOG_DOMAINS: [&str; 2] = [".hoyoverse.com", ".mihoyo.com"];
+/// A stalled connection must not leave the import button busy forever.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// Standard, Departure, character event, light cone event, collab character, collab light cone.
 const GACHA_TYPES: [u32; 6] = [1, 2, 11, 12, 21, 22];
 /// Pause between pages, like a person paging the in-game history.
@@ -17,9 +19,7 @@ pub(crate) enum Update {
 pub(crate) fn decode(command: &GameCommand, now: i64) -> Option<Update> {
     match command.command_id {
         cmd::GetGachaInfoScRsp => {
-            let r = command
-                .parse_proto::<proto::GetGachaInfoScRsp::GetGachaInfoScRsp>()
-                .ok()?;
+            let r = rsp!(command, GetGachaInfoScRsp)?;
             Some(Update::Banners(
                 r.gacha_info_list
                     .iter()
@@ -34,9 +34,7 @@ pub(crate) fn decode(command: &GameCommand, now: i64) -> Option<Update> {
             ))
         }
         cmd::DoGachaScRsp => {
-            let r = command
-                .parse_proto::<proto::DoGachaScRsp::DoGachaScRsp>()
-                .ok()?;
+            let r = rsp!(command, DoGachaScRsp)?;
             Some(Update::Pulls(
                 r.gacha_item_list
                     .iter()
@@ -87,15 +85,36 @@ pub fn find_log_url(game_exe: &Path) -> Result<String, String> {
     Err("в веб-кеше нет ссылки на историю: откройте историю прыжков в игре".into())
 }
 
+/// The newest history link in the cache. Other pages of the same server opened
+/// later (banner details) sit after it, so every link is looked at, last first.
 fn last_log_url(data: &[u8]) -> Option<String> {
     let text = String::from_utf8_lossy(data);
-    let start = text.rfind("https://public-operation-hkrpg")?;
-    let tail = &text[start..];
-    let end = tail
-        .find(|c: char| c == '\0' || c.is_whitespace() || c == '"')
-        .unwrap_or(tail.len());
-    let url = &tail[..end];
-    (url.contains("getGachaLog") && url.contains("authkey=")).then(|| url.to_string())
+    text.rmatch_indices(LOG_HOST_PREFIX).find_map(|(start, _)| {
+        let tail = &text[start..];
+        let end = tail
+            .find(|c: char| c == '\0' || c.is_whitespace() || c == '"')
+            .unwrap_or(tail.len());
+        let url = &tail[..end];
+        (url.contains("getGachaLog") && url.contains("authkey=")).then(|| url.to_string())
+    })
+}
+
+/// The API address without the query, on the server the game itself used
+/// (global and Chinese accounts live on different hosts). The key is sent only
+/// to the publisher's own domains.
+fn api_base(log_url: &str) -> Result<String, String> {
+    let address = log_url.split(['?', '#']).next().unwrap_or_default();
+    let host = address
+        .strip_prefix("https://")
+        .and_then(|rest| rest.split('/').next())
+        .unwrap_or_default();
+    let trusted = host.starts_with("public-operation-hkrpg")
+        && LOG_DOMAINS.iter().any(|domain| host.ends_with(domain));
+    if trusted && address.ends_with("/getGachaLog") {
+        Ok(address.to_string())
+    } else {
+        Err("ссылка на историю ведёт не на сервер игры".into())
+    }
 }
 
 #[derive(Deserialize)]
@@ -142,15 +161,21 @@ pub fn download(
         })
         .collect();
 
+    let api = api_base(log_url)?;
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(REQUEST_TIMEOUT))
+        .build()
+        .into();
     let mut pulls = Vec::new();
     for gacha_type in GACHA_TYPES {
         let mut end_id = "0".to_string();
         'pages: loop {
-            let mut url = format!("{LOG_API}?gacha_type={gacha_type}&size=20&end_id={end_id}");
+            let mut url = format!("{api}?gacha_type={gacha_type}&size=20&end_id={end_id}");
             for (k, v) in &base {
                 url.push_str(&format!("&{k}={v}"));
             }
-            let rsp: LogResponse = ureq::get(&url)
+            let rsp: LogResponse = agent
+                .get(&url)
                 .call()
                 .map_err(|e| format!("сеть: {e}"))?
                 .body_mut()
@@ -229,5 +254,25 @@ mod tests {
         let url = last_log_url(&data).unwrap();
         assert!(url.ends_with("authkey=NEW&lang=ru"));
         assert!(last_log_url(b"nothing here").is_none());
+    }
+
+    #[test]
+    fn another_page_opened_after_the_history_does_not_hide_it() {
+        let data = b"\0https://public-operation-hkrpg.mihoyo.com/common/hkrpg_gacha_record/api/getGachaLog?authkey=KEY&lang=ru\0https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_info/api/unrelated\0";
+        let url = last_log_url(data).expect("the history link is still found");
+        assert!(url.ends_with("authkey=KEY&lang=ru"));
+    }
+
+    #[test]
+    fn the_history_is_asked_from_the_server_the_game_used() {
+        assert_eq!(
+            api_base("https://public-operation-hkrpg.mihoyo.com/common/hkrpg_gacha_record/api/getGachaLog?authkey=KEY").unwrap(),
+            "https://public-operation-hkrpg.mihoyo.com/common/hkrpg_gacha_record/api/getGachaLog"
+        );
+        assert_eq!(api_base("https://public-operation-hkrpg-sg.hoyoverse.com/x/getGachaLog?a=1").unwrap(), "https://public-operation-hkrpg-sg.hoyoverse.com/x/getGachaLog");
+        // the key must never be sent anywhere but the publisher's servers
+        assert!(api_base("https://public-operation-hkrpg.evil.example/getGachaLog?authkey=KEY").is_err());
+        assert!(api_base("https://public-operation-hkrpg-sg.hoyoverse.com.evil.example/getGachaLog?authkey=KEY").is_err());
+        assert!(api_base("http://public-operation-hkrpg-sg.hoyoverse.com/getGachaLog?authkey=KEY").is_err());
     }
 }
