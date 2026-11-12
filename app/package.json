@@ -17,7 +17,7 @@
     "map-markers": "python scripts/map-markers.py",
     "tauri:user": "cross-env VITE_USER_MODE=true tauri dev",
     "test:ui": "node scripts/tests/ui-smoke.mjs",
-    "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs scripts/tests/manifest.test.mjs",
+    "test:modules": "node --experimental-strip-types --test scripts/tests/modules.test.mjs scripts/tests/manifest.test.mjs scripts/tests/live.test.mjs scripts/tests/format-stat.test.mjs",
     "test:data": "cargo test -p nous-hsr --lib replay -- --include-ignored --nocapture"
   },
   "dependencies": {

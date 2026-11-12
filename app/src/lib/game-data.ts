@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useLive, type Versioned } from './live'
+import { mergeWorld, type Position, type World } from './world-patch'
 
 // Game data beyond the inventory (see lib/inventory.ts): world, battles,
 // warps, raw snapshots. Mirrors world.rs, battles.rs, gacha.rs, snapshots.rs.
@@ -8,34 +9,14 @@ import { useLive, type Versioned } from './live'
 
 // ---------- world ----------
 
-/** 1/1000 m; heading in 1/1000 degree */
-export interface Position {
-  x: number
-  y: number
-  z: number
-  rotY: number
-  layer: number | null
-}
-
-export interface World {
-  planeId: number | null
-  floorId: number | null
-  entryId: number | null
-  player: Position | null
-  /** floor id -> opened MazeChest ids */
-  openedChests: Record<string, number[]>
-  /** floor id -> chest id -> where the player stood when opening it */
-  openedAt: Record<string, Record<string, Position>>
-  /** floor id -> "group:config" -> PropState (8 anchor on, 12/13 chest closed/used, …) */
-  props: Record<string, Record<string, number>>
-}
+export type { Position, World } from './world-patch'
 
 const readWorld = () => invoke<Versioned<World>>('get_world')
 
 /** Location and world progress; the player position updates live. */
 export function useWorld(): World | null {
   return useLive(readWorld, {
-    'world-changed': (_: World, next: World) => next,
+    'world-changed': mergeWorld,
     'player-moved': (w: World, player: Position | null) => ({ ...w, player }),
   })
 }

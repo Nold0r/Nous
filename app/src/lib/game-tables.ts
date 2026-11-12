@@ -143,12 +143,7 @@ export interface Stat {
   rolls?: number
 }
 
-/** Stat value as the game shows it: "6,9%", "135", "2,6" for speed. */
-export function formatStat(stat: Stat): string {
-  if (stat.percent) return `${(Math.floor(stat.value * 1000) / 10).toLocaleString('ru-RU')}%`
-  if (stat.property.startsWith('Speed')) return (Math.floor(stat.value * 10) / 10).toLocaleString('ru-RU')
-  return String(Math.floor(stat.value))
-}
+export { formatStat } from './format-stat'
 
 function stat(t: GameTables, def: AffixDef | undefined, value: (d: AffixDef) => number): Stat | null {
   if (!def) return null
