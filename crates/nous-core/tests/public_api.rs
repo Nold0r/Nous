@@ -344,3 +344,64 @@ fn first_import_is_not_new_later_drops_are() {
     client.handle(&bag()).unwrap();
     assert_eq!(client.read().data.inventory.imported_at, Some(imported), "later logins don't move it");
 }
+
+fn prop(id: u32, state: u32) -> nous_core::world::Entity {
+    nous_core::world::Entity { id, group: 5, config: id, prop_state: Some(state), position: None }
+}
+fn world(command: nous_core::world::WorldCommand) -> Command {
+    Command { world: Some(command), ..Default::default() }
+}
+
+#[test]
+fn world_changed_carries_only_the_floors_that_changed() {
+    use nous_core::world::{FloorMap, WorldCommand};
+    let client = Client::new(MemoryStore::default()).unwrap();
+    client.handle(&login(7)).unwrap();
+    client
+        .handle(&world(WorldCommand::Map(vec![FloorMap {
+            floor: 20,
+            chests: [1, 2].into(),
+            props: vec![(5, 9, 8)],
+        }])))
+        .unwrap();
+    let events = client.subscribe();
+    let scene = WorldCommand::Scene { plane: 1, floor: 10, entry: 3, leader: 4, entities: vec![prop(1, 12)] };
+    let revision = client.handle(&world(scene)).unwrap();
+    let event = events.try_recv().unwrap();
+    assert_eq!(event.name, "world-changed");
+    assert_eq!(event.payload["revision"], revision);
+    let data = &event.payload["data"];
+    assert_eq!(data["floorId"], 10);
+    assert_eq!(data["planeId"], 1);
+    assert_eq!(
+        data["floors"],
+        serde_json::json!({ "10": { "openedChests": [], "openedAt": {}, "props": { "5:1": 12 } } }),
+        "floor 20 did not change and is not sent again"
+    );
+
+    // the game repeats what Nous already knows: no event, no new revision
+    let same = WorldCommand::Refresh { floor: 10, entities: vec![prop(1, 12)] };
+    assert_eq!(client.handle(&world(same)).unwrap(), revision);
+    assert!(events.try_recv().is_err());
+}
+
+#[test]
+fn the_place_where_the_player_stopped_is_delivered() {
+    use nous_core::world::{Position, WorldCommand};
+    let at = |x| Position { x, y: 0, z: 0, rot_y: 0, layer: Some(0) };
+    let client = Client::new(MemoryStore::default()).unwrap();
+    client.handle(&login(7)).unwrap();
+    let events = client.subscribe();
+    let first = client.handle(&world(WorldCommand::Move(vec![(4, at(1))]))).unwrap();
+    client.handle(&world(WorldCommand::Move(vec![(4, at(2))]))).unwrap();
+
+    let event = events.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+    assert_eq!((event.name, &event.payload["data"]["x"]), ("player-moved", &serde_json::json!(1)));
+    let late = events
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .expect("the last position arrives without another move");
+    assert_eq!(late.name, "player-moved");
+    assert_eq!(late.payload["data"]["x"], 2);
+    assert!(late.payload["revision"].as_u64().unwrap() > first);
+    assert_eq!(client.read().revision, late.payload["revision"].as_u64().unwrap());
+}

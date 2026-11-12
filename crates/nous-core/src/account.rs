@@ -154,10 +154,23 @@ impl AccountStore for FileStore {
         let Some(dir) = &self.dir else {
             return Ok(Account::empty());
         };
-        match fs::read_to_string(dir.join(CURRENT_FILE)) {
-            Ok(text) => self.load_or_new(text.trim().parse::<u32>().map_err(|e| e.to_string())?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Account::empty()),
-            Err(e) => Err(e.to_string()),
+        let bytes = match fs::read(dir.join(CURRENT_FILE)) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Account::empty()),
+            Err(e) => return Err(e.to_string()),
+        };
+        // A damaged `current` (power loss, a refused login stored as 0) must not
+        // keep the application from starting: show the newest account instead.
+        let uid = match String::from_utf8_lossy(&bytes).trim().parse::<u32>() {
+            Ok(uid) if uid != 0 => Some(uid),
+            _ => {
+                log::warn!("accounts/current is damaged, using the newest account file");
+                newest_account(dir)
+            }
+        };
+        match uid {
+            Some(uid) => self.load_or_new(uid),
+            None => Ok(Account::empty()),
         }
     }
     fn load_or_new(&self, uid: u32) -> Result<Account, String> {
@@ -185,6 +198,21 @@ impl AccountStore for FileStore {
             })
             .map_err(|e| format!("relic log {uid}: {e}"))
     }
+}
+
+/// Uid of the most recently written `<uid>.json`, if any.
+fn newest_account(dir: &Path) -> Option<u32> {
+    fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name();
+            let uid = name.to_str()?.strip_suffix(".json")?.parse::<u32>().ok()?;
+            let modified = entry.metadata().ok()?.modified().ok()?;
+            (uid != 0).then_some((modified, uid))
+        })
+        .max()
+        .map(|(_, uid)| uid)
 }
 
 /// Brings an older file layout up to FORMAT.
@@ -305,6 +333,99 @@ mod tests {
             ),
             Err(e) => panic!("does not load: {e}"),
         }
+    }
+
+    fn temp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("nous-{name}-{}", std::process::id()));
+        fs::remove_dir_all(&dir).ok();
+        fs::create_dir_all(dir.join(DIR)).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_damaged_current_file_does_not_block_startup() {
+        for garbage in ["", "abc", "0", "\u{0}\u{0}\u{0}", "99999999999999999999"] {
+            let dir = temp("current-bad");
+            fs::write(dir.join(DIR).join(CURRENT_FILE), garbage).unwrap();
+            let account = FileStore::new(Some(dir.clone()))
+                .load_current()
+                .unwrap_or_else(|e| panic!("current = {garbage:?} must not be an error: {e}"));
+            assert_eq!(account.uid, None, "current = {garbage:?}");
+            fs::remove_dir_all(dir).ok();
+        }
+    }
+
+    #[test]
+    fn a_damaged_current_file_falls_back_to_the_newest_account() {
+        let dir = temp("current-fallback");
+        let store = FileStore::new(Some(dir.clone()));
+        let mut older = Account::new(41);
+        older.profile.nickname = Some("старый".into());
+        store.save(&older).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let mut newer = Account::new(42);
+        newer.profile.nickname = Some("новый".into());
+        store.save(&newer).unwrap();
+        // leftovers that are not accounts must not be picked
+        fs::write(dir.join(DIR).join("42.json.unreadable-1"), "x").unwrap();
+        fs::write(dir.join(DIR).join("0.json"), "{}").unwrap();
+        fs::write(dir.join(DIR).join(CURRENT_FILE), "").unwrap();
+
+        let account = store.load_current().unwrap();
+        assert_eq!(account.uid, Some(42));
+        assert_eq!(account.profile.nickname.as_deref(), Some("новый"));
+        fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn a_battle_with_a_broken_number_does_not_cost_the_account() {
+        let dir = temp("battle-nan");
+        let store = FileStore::new(Some(dir.clone()));
+        let mut account = Account::new(42);
+        account.profile.nickname = Some("Стелла".into());
+        account.battles.push(crate::battles::Battle {
+            cost_time: f64::NAN,
+            action_value: f64::INFINITY,
+            avatars: vec![crate::battles::BattleAvatar {
+                damage: f64::NEG_INFINITY,
+                damage_by_type: [("Ultra".to_string(), f64::NAN)].into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        store.save(&account).unwrap();
+
+        let back = store.load_current().unwrap();
+        assert_eq!(back.profile.nickname.as_deref(), Some("Стелла"), "the account is still readable");
+        assert_eq!(back.battles.list.len(), 1);
+        assert_eq!(back.battles.list[0].cost_time, 0.0);
+        assert_eq!(back.battles.list[0].avatars[0].damage_by_type["Ultra"], 0.0);
+        let set_aside = fs::read_dir(dir.join(DIR))
+            .unwrap()
+            .flatten()
+            .any(|e| e.file_name().to_string_lossy().contains("unreadable"));
+        assert!(!set_aside, "nothing was set aside as unreadable");
+        fs::remove_dir_all(dir).ok();
+    }
+
+    /// Files written before the fix hold `null` where a number was not finite.
+    #[test]
+    fn a_stored_null_number_in_a_battle_reads_as_zero() {
+        let dir = temp("battle-null");
+        let store = FileStore::new(Some(dir.clone()));
+        let mut value = serde_json::to_value(Account::new(42)).unwrap();
+        value["battles"]["list"] = serde_json::json!([{
+            "battleId": 7, "costTime": null,
+            "avatars": [{ "avatarId": 1310, "damage": null, "damageByType": { "Ultra": null } }],
+            "monsters": [{ "monsterId": 1, "damage": null }]
+        }]);
+        fs::write(dir.join(DIR).join("42.json"), value.to_string()).unwrap();
+
+        let back = store.load_or_new(42).unwrap();
+        assert_eq!(back.battles.list.len(), 1, "the file was read, not set aside");
+        assert_eq!(back.battles.list[0].battle_id, 7);
+        assert_eq!(back.battles.list[0].avatars[0].damage, 0.0);
+        fs::remove_dir_all(dir).ok();
     }
 
     #[test]

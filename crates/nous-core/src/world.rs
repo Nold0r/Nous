@@ -48,6 +48,12 @@ pub struct World {
     prop_entities: HashMap<u32, (u32, u32)>,
     #[serde(skip)]
     last_move_emit: Option<Instant>,
+    /// A move arrived inside the emit interval and was not announced yet.
+    #[serde(skip)]
+    move_pending: bool,
+    /// Floors whose stored data changed since `take_touched`.
+    #[serde(skip)]
+    touched: BTreeSet<u32>,
 }
 
 /// What changed in the world after a command.
@@ -121,6 +127,7 @@ impl World {
                 for e in entities {
                     self.track_entity(*floor, e);
                 }
+                self.touched.insert(*floor);
                 WorldChange::Changed
             }
             WorldCommand::Move(entities) => {
@@ -137,63 +144,205 @@ impl World {
                     .is_none_or(|t| t.elapsed() >= MOVE_EMIT_INTERVAL)
                 {
                     self.last_move_emit = Some(Instant::now());
+                    self.move_pending = false;
                     WorldChange::Moved
                 } else {
+                    self.move_pending = true;
                     WorldChange::None
                 }
             }
             WorldCommand::Interact { entity, state } => {
                 match (self.prop_entities.get(entity).copied(), self.floor_id) {
                     (Some((group, config)), Some(floor)) => {
-                        self.set_prop(floor, group, config, *state);
-                        WorldChange::Changed
+                        changed(self.set_prop(floor, group, config, *state))
                     }
                     _ => WorldChange::None,
                 }
             }
+            // The game repeats these as scene groups load around the player:
+            // only a prop whose state really differs is a change (an event, a
+            // new revision and a rewrite of the account file).
             WorldCommand::Refresh { floor, entities } => {
                 let floor = if *floor != 0 {
                     *floor
                 } else {
                     self.floor_id.unwrap_or_default()
                 };
+                let mut any = false;
                 for e in entities {
-                    self.track_entity(floor, e);
+                    any |= self.track_entity(floor, e);
                 }
-                WorldChange::Changed
+                changed(any)
             }
             WorldCommand::Map(floors) => {
+                let mut any = false;
                 for info in floors {
-                    self.opened_chests.insert(info.floor, info.chests.clone());
-                    for (group, config, state) in &info.props {
-                        self.set_prop(info.floor, *group, *config, *state);
+                    if self.opened_chests.get(&info.floor) != Some(&info.chests) {
+                        self.opened_chests.insert(info.floor, info.chests.clone());
+                        self.touched.insert(info.floor);
+                        any = true;
                     }
-                    self.opened_known.insert(info.floor);
+                    for (group, config, state) in &info.props {
+                        any |= self.set_prop(info.floor, *group, *config, *state);
+                    }
+                    any |= self.opened_known.insert(info.floor);
                 }
-                WorldChange::Changed
+                changed(any)
             }
             WorldCommand::OpenChest(id) => {
                 let Some(floor) = self.floor_id else {
                     return WorldChange::None;
                 };
-                self.opened_chests.entry(floor).or_default().insert(*id);
+                if !self.opened_chests.entry(floor).or_default().insert(*id) {
+                    return WorldChange::None;
+                }
                 if let Some(at) = self.player {
                     self.opened_at.entry(floor).or_default().insert(*id, at);
                 }
+                self.touched.insert(floor);
                 WorldChange::Changed
             }
         }
     }
-    fn track_entity(&mut self, floor: u32, e: &Entity) {
-        if let Some(state) = e.prop_state {
-            self.prop_entities.insert(e.id, (e.group, e.config));
-            self.set_prop(floor, e.group, e.config, state);
-        }
+    /// Payload of `world-changed`: where the player is and the full data of
+    /// the given floors only. The whole world is tens of thousands of props;
+    /// a reader merges these floors into the world it read before.
+    pub fn patch(&self, floors: &BTreeSet<u32>) -> serde_json::Value {
+        let floors: serde_json::Map<String, serde_json::Value> = floors
+            .iter()
+            .map(|floor| {
+                (
+                    floor.to_string(),
+                    serde_json::json!({
+                        "openedChests": self.opened_chests.get(floor).cloned().unwrap_or_default(),
+                        "openedAt": self.opened_at.get(floor).cloned().unwrap_or_default(),
+                        "props": self.props.get(floor).cloned().unwrap_or_default(),
+                    }),
+                )
+            })
+            .collect();
+        serde_json::json!({
+            "planeId": self.plane_id,
+            "floorId": self.floor_id,
+            "entryId": self.entry_id,
+            "player": self.player,
+            "floors": floors,
+        })
     }
-    fn set_prop(&mut self, floor: u32, group: u32, config: u32, state: u32) {
-        self.props
+    /// Floors whose stored data changed since the last call.
+    pub fn take_touched(&mut self) -> BTreeSet<u32> {
+        std::mem::take(&mut self.touched)
+    }
+    /// The position of a move that was not announced because it came inside
+    /// the emit interval, once that interval has passed. Without this the
+    /// place where the player stopped never reached the map.
+    pub fn take_pending_move(&mut self) -> Option<Position> {
+        let due = self
+            .last_move_emit
+            .is_none_or(|t| t.elapsed() >= MOVE_EMIT_INTERVAL);
+        if !(self.move_pending && due) {
+            return None;
+        }
+        self.move_pending = false;
+        self.last_move_emit = Some(Instant::now());
+        self.player
+    }
+    /// True if a prop state was stored or changed.
+    fn track_entity(&mut self, floor: u32, e: &Entity) -> bool {
+        let Some(state) = e.prop_state else {
+            return false;
+        };
+        self.prop_entities.insert(e.id, (e.group, e.config));
+        self.set_prop(floor, e.group, e.config, state)
+    }
+    /// True if the state differs from the stored one.
+    fn set_prop(&mut self, floor: u32, group: u32, config: u32, state: u32) -> bool {
+        let previous = self
+            .props
             .entry(floor)
             .or_default()
             .insert(format!("{group}:{config}"), state);
+        let differs = previous != Some(state);
+        if differs {
+            self.touched.insert(floor);
+        }
+        differs
+    }
+}
+fn changed(any: bool) -> WorldChange {
+    if any {
+        WorldChange::Changed
+    } else {
+        WorldChange::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn prop(id: u32, state: u32) -> Entity {
+        Entity { id, group: 5, config: id, prop_state: Some(state), position: None }
+    }
+    fn at(x: i32) -> Position {
+        Position { x, y: 0, z: 0, rot_y: 0, layer: Some(0) }
+    }
+    fn scene(floor: u32, entities: Vec<Entity>) -> WorldCommand {
+        WorldCommand::Scene { plane: 1, floor, entry: 1, leader: 100, entities }
+    }
+
+    #[test]
+    fn a_refresh_that_brings_nothing_new_is_not_a_change() {
+        let mut world = World::default();
+        world.handle(&scene(10, vec![prop(1, 12)]));
+        world.take_touched();
+
+        let empty = WorldCommand::Refresh { floor: 10, entities: vec![] };
+        assert_eq!(world.handle(&empty), WorldChange::None, "empty refresh");
+        let same = WorldCommand::Refresh { floor: 10, entities: vec![prop(1, 12)] };
+        assert_eq!(world.handle(&same), WorldChange::None, "the same state again");
+        assert!(world.take_touched().is_empty());
+
+        let opened = WorldCommand::Refresh { floor: 10, entities: vec![prop(1, 13)] };
+        assert_eq!(world.handle(&opened), WorldChange::Changed);
+        assert_eq!(world.take_touched(), BTreeSet::from([10]));
+        assert_eq!(world.props[&10]["5:1"], 13);
+    }
+
+    #[test]
+    fn repeated_map_chest_and_interaction_answers_are_not_changes() {
+        let mut world = World::default();
+        world.handle(&scene(10, vec![prop(1, 12)]));
+        let map = WorldCommand::Map(vec![FloorMap {
+            floor: 20,
+            chests: BTreeSet::from([7]),
+            props: vec![(5, 2, 8)],
+        }]);
+        assert_eq!(world.handle(&map), WorldChange::Changed);
+        world.take_touched();
+        assert_eq!(world.handle(&map), WorldChange::None, "the same map again");
+
+        assert_eq!(world.handle(&WorldCommand::OpenChest(3)), WorldChange::Changed);
+        assert_eq!(world.take_touched(), BTreeSet::from([10]));
+        assert_eq!(world.handle(&WorldCommand::OpenChest(3)), WorldChange::None);
+
+        let interact = WorldCommand::Interact { entity: 1, state: 13 };
+        assert_eq!(world.handle(&interact), WorldChange::Changed);
+        assert_eq!(world.handle(&interact), WorldChange::None);
+    }
+
+    #[test]
+    fn the_position_after_the_last_move_is_kept_for_a_late_delivery() {
+        let mut world = World::default();
+        world.handle(&scene(10, vec![]));
+        assert_eq!(world.handle(&WorldCommand::Move(vec![(100, at(1))])), WorldChange::Moved);
+        assert_eq!(world.take_pending_move(), None, "delivered at once, nothing is pending");
+
+        // too soon after the first one: not announced
+        assert_eq!(world.handle(&WorldCommand::Move(vec![(100, at(2))])), WorldChange::None);
+        assert_eq!(world.take_pending_move(), None, "still inside the interval");
+        std::thread::sleep(MOVE_EMIT_INTERVAL + Duration::from_millis(20));
+        assert_eq!(world.take_pending_move(), Some(at(2)));
+        assert_eq!(world.take_pending_move(), None, "delivered once");
     }
 }

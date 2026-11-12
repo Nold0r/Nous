@@ -32,10 +32,13 @@ impl Client {
         let saver = std::thread::Builder::new()
             .name("nous-saver".into())
             .spawn(move || {
-                while stopped.recv_timeout(Duration::from_millis(1500))
-                    == Err(mpsc::RecvTimeoutError::Timeout)
-                {
-                    if let Err(e) = worker.flush() {
+                let mut ticks = 0u32;
+                while stopped.recv_timeout(TICK) == Err(mpsc::RecvTimeoutError::Timeout) {
+                    worker.tick();
+                    ticks += 1;
+                    if ticks % SAVE_EVERY_TICKS == 0
+                        && let Err(e) = worker.flush()
+                    {
                         worker.publish(Event::error(e));
                     }
                 }
@@ -120,7 +123,20 @@ impl Client {
         self.owner.inner.publish(event);
     }
 }
+/// The saver wakes this often for time-driven events and writes the account
+/// every SAVE_EVERY_TICKS wakes (1.5 s).
+const TICK: Duration = Duration::from_millis(150);
+const SAVE_EVERY_TICKS: u32 = 10;
+
 impl Inner {
+    fn tick(&self) {
+        let mut game = self.game.lock().unwrap();
+        if let Some(ch) = game.tick() {
+            for event in crate::events::changes(&game, ch) {
+                self.publish(event);
+            }
+        }
+    }
     fn publish(&self, event: Event) {
         self.subscribers
             .lock()

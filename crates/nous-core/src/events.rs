@@ -59,7 +59,7 @@ pub(crate) fn changes(game: &GameState, ch: Changes) -> Vec<Event> {
         );
     }
     if ch.world == WorldChange::Changed {
-        emit("world-changed", serde_json::json!(game.account.world));
+        emit("world-changed", game.account.world.patch(&ch.world_floors));
     } else if ch.world == WorldChange::Moved {
         emit("player-moved", serde_json::json!(game.account.world.player));
     }

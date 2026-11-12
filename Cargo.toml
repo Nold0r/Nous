@@ -1,11 +1,25 @@
 [workspace]
 members = ["crates/nous-core", "crates/nous-hsr", "crates/nous-veritas", "app/src-tauri"]
-exclude = ["vendor/reliquary", "spike/hsr-sniff"]
+exclude = [
+    "vendor/reliquary",
+    "spike/hsr-sniff",
+    "spike/hsr-session-sdk",
+    "audit/2026-11-03/rust",
+    "audit/2026-11-03/sdk/rust",
+]
 resolver = "2"
 
 [profile.dev]
 # The game's KCP header overflows the upstream kcp arithmetic.
 overflow-checks = false
+
+# Dependencies (reliquary's generated protobuf code above all) without debug
+# info: a rebuild after a one-line change is about twice as fast and the PDB is
+# 118 MB instead of 780 MB. The workspace's own crates keep full debug info;
+# the debugger just can't step into dependency code. Measured in
+# docs/Архитектура/Ревью проекта — 2026-11-12.md.
+[profile.dev.package."*"]
+debug = false
 
 [profile.release]
 overflow-checks = false

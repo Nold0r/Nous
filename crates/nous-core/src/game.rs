@@ -27,6 +27,8 @@ pub struct Changes {
     pub inventory_reset: bool,
     pub inventory: InventoryChanges,
     pub world: WorldChange,
+    /// Floors whose stored data changed (with `WorldChange::Changed`).
+    pub world_floors: std::collections::BTreeSet<u32>,
     /// A fight just ended.
     pub battle: Option<Battle>,
     pub gacha: bool,
@@ -156,6 +158,17 @@ impl GameState {
         self.mark_changed();
         Ok(added)
     }
+    /// Time-driven changes, called a few times a second: announces the
+    /// position of the last move if it came inside the emit interval.
+    pub fn tick(&mut self) -> Option<Changes> {
+        self.account.world.take_pending_move()?;
+        self.revision += 1;
+        Some(Changes {
+            revision: self.revision,
+            world: WorldChange::Moved,
+            ..Changes::default()
+        })
+    }
     pub fn handle(&mut self, command: &Command) -> Result<Changes, String> {
         let mut ch = Changes::default();
         let now = crate::profile::now();
@@ -242,10 +255,12 @@ impl GameState {
         }
         if let Some(world) = &command.world {
             ch.world = self.account.world.handle(world);
+            ch.world_floors = self.account.world.take_touched();
         }
         if let Some(battle) = &command.battle {
             self.account.battles.push(battle.clone());
-            ch.battle = Some(battle.clone());
+            // the stored copy: its numbers were made finite
+            ch.battle = self.account.battles.list.last().cloned();
         }
         if let Some(banners) = &command.banners {
             self.account.gacha.banners = banners.clone();
