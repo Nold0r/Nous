@@ -106,6 +106,22 @@ def floor_label(sprite, layer, count):
     return f'{layer}F' if count > 1 else 'layout'
 
 
+MIN_ON_ROADS = 0.6
+
+
+def layer_marks(pts, layers):
+    """Objects with a known layer, one per 2 m cell: the player's floor is
+    voted by the nearest of them. Single-layer maps need none."""
+    marks, seen = [], set()
+    if layers > 1:
+        for x, y, z, l in pts:
+            cell = (round(x / 2), round(y / 2), round(z / 2), int(l))
+            if l > 0 and cell not in seen:
+                seen.add(cell)
+                marks.append([round(x), round(y), round(z), int(l)])
+    return marks
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('tbgd')
@@ -128,6 +144,13 @@ def main():
 
     out = json.load(open(OUT_JSON, encoding='utf-8')) if only and os.path.exists(OUT_JSON) else {}
     total = 0
+    # Story variants of a place (the Administrative District before and after
+    # the quest, …) are floors of the same plane without a minimap of their
+    # own. They get the map of the plane's floor their objects stand on.
+    with_map = {int(re.match(r'MapInfo_P\d+_F(\d+)', fn)[1]) for fn in os.listdir(f'{tb}/Config/LevelOutput/Map')}
+    variants = {p: [f for f in planes[p].get('FloorIDList', []) if f not in with_map] for p in planes}
+    variants = {p: fs for p, fs in variants.items() if fs and len(fs) < len(planes[p].get('FloorIDList', []))}
+    road_masks = {}  # floor -> what a variant is checked against
     for fn in sorted(os.listdir(f'{tb}/Config/LevelOutput/Map')):
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
         plane, floor = int(m[1]), int(m[2])
@@ -183,6 +206,8 @@ def main():
             if not best or hit.mean() > best[0]:
                 best = (hit.mean(), rot)
         hit, rot = best
+        if plane in variants:
+            road_masks[floor] = (plane, roads, ars, bh, R, W, H, rot)
 
         background = None
         if bg:
@@ -197,23 +222,40 @@ def main():
             road = next(a['roads'][layer] for a in ars if layer in a['roads'])
             layers.append(dict(layer=layer, file=file, name=floor_label(road, layer, len(layer_ids))))
 
-        # objects with a known layer, one per 2 m cell: the player's floor is
-        # voted by the nearest of them
-        marks, seen = [], set()
-        if len(layer_ids) > 1:
-            for x, y, z, l in pts:
-                cell = (round(x / 2), round(y / 2), round(z / 2), int(l))
-                if l > 0 and cell not in seen:
-                    seen.add(cell)
-                    marks.append([round(x), round(y), round(z), int(l)])
-
         out[str(floor)] = dict(
             name=name, width=W, height=H, scale=R, background=background, rot=rot, canvasHeight=bh,
             areas=[dict(cx=round(a['cx'], 3), cz=round(a['cz'], 3), sx=round(a['sx'], 3), sz=round(a['sz'], 3),
                         px=round(a['px'], 2), py=round(a['py'], 2), s=round(a['s'], 5), layers=a['layers']) for a in ars],
-            layers=layers, marks=marks,
+            layers=layers, marks=layer_marks(pts, len(layer_ids)),
         )
         print(f'{floor} {name[:40]:40s} {W}x{H} layers {[l["name"] for l in layers]} on roads {hit:.2f} rot {rot}', flush=True)
+
+    for plane, floors in variants.items():
+        for floor in floors:
+            if only and str(floor) not in only:
+                continue
+            pts = floor_objects(tb, plane, floor)
+            if not len(pts):
+                continue
+            best = None
+            for base, (p, roads, ars, bh, R, W, H, rot) in road_masks.items():
+                if p != plane:
+                    continue
+                cx, cy = to_canvas(ars, bh, pts[:, 0], pts[:, 2], rot, pts[:, 3])
+                px, py = (cx * R).astype(int), (cy * R).astype(int)
+                ok = (px >= 0) & (px < W) & (py >= 0) & (py < H)
+                hit = np.zeros(len(pts), bool)
+                hit[ok] = roads[py[ok], px[ok]]
+                if not best or hit.mean() > best[0]:
+                    best = (hit.mean(), base)
+            # the base floors' own objects land on roads 0.7–0.95 of the time
+            if not best or best[0] < MIN_ON_ROADS:
+                print(f'{floor} variant of plane {plane}: no floor fits ({best[0]:.2f} on roads)' if best else
+                      f'{floor} variant of plane {plane}: its floors were not built in this run', flush=True)
+                continue
+            hit, base = best
+            out[str(floor)] = dict(out[str(base)], marks=layer_marks(pts, len(out[str(base)]['layers'])), sameAs=base)
+            print(f'{floor} {out[str(floor)]["name"][:40]:40s} map of {base}, on roads {hit:.2f}', flush=True)
 
     with open(OUT_JSON, 'w', encoding='utf-8') as fp:
         json.dump(out, fp, ensure_ascii=False, separators=(',', ':'))

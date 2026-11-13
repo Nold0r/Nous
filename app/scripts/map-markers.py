@@ -278,7 +278,10 @@ def main():
     for g in json.load(open(f'{tb}/ExcelOutput/ChestGroupProperty.json', encoding='utf-8')):
         grouped.setdefault(g['FloorID'], []).append((g['ChestID'], g['GroupID']))
     RU.update(textmap(tb, 'RU'))
-    planes = {}
+    # floors without a minimap of their own (story variants) are in maps.json
+    # with another floor's map: their plane comes from MazePlane
+    planes = {str(f): p['PlaneID'] for p in json.load(open(f'{tb}/ExcelOutput/MazePlane.json', encoding='utf-8'))
+              for f in p.get('FloorIDList', [])}
     for fn in os.listdir(f'{tb}/Config/LevelOutput/Map'):
         m = re.match(r'MapInfo_P(\d+)_F(\d+)\.json', fn)
         planes[m[2]] = int(m[1])
