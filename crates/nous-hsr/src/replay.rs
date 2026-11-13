@@ -209,6 +209,20 @@ fn to_proto(affixes: &[nous_core::inventory::Affix]) -> Vec<proto::RelicAffix::R
         .collect()
 }
 
+/// Whether a recording was made by a game version with the current protocol.
+/// Each version renumbers commands and fields, so an older login cannot be
+/// read with today's protos. The recorder stores each command's name next to
+/// its number: a login whose PlayerGetTokenScRsp has another number now is
+/// from another version. Recordings without names (hsr-sniff dumps) count as
+/// current.
+fn same_protocol(text: &str) -> bool {
+    text.lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .find(|v| v["name"] == "PlayerGetTokenScRsp")
+        .and_then(|v| v["id"].as_u64())
+        .is_none_or(|id| id == u64::from(reliquary::network::command::command_id::PlayerGetTokenScRsp))
+}
+
 /// The player's own login recordings: needs local data, so it is opt-in
 /// (`npm run test:data`) and fails loudly instead of passing on nothing.
 /// Always-on coverage of the same path uses synthetic commands (game_tests.rs).
@@ -229,7 +243,13 @@ fn replay_login_recordings() {
 
     let mut failures = Vec::new();
     let mut last_by_uid: BTreeMap<u32, Session> = BTreeMap::new();
+    let mut replayed = 0;
     for path in &files {
+        if !same_protocol(&std::fs::read_to_string(path).unwrap()) {
+            println!("{}: another game version, skipped", path.display());
+            continue;
+        }
+        replayed += 1;
         let s = replay_file(path);
         let inv = &s.inventory;
         println!(
@@ -265,6 +285,11 @@ fn replay_login_recordings() {
         }
         last_by_uid.insert(s.uid, s);
     }
+    assert!(
+        replayed > 0,
+        "no login recordings of the current game version in {}: log in once with Nous running",
+        dir.display()
+    );
     assert!(
         failures.is_empty(),
         "data problems:\n{}",
